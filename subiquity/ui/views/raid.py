@@ -19,6 +19,11 @@ from urwid import Text, CheckBox
 from subiquitycore.view import BaseView
 from subiquitycore.ui.buttons import cancel_btn, done_btn
 from subiquitycore.ui.container import Columns, ListBox, Pile
+from subiquitycore.ui.interactive import (
+    ChoiceField,
+    Form,
+    IntegerEditor,
+    )
 from subiquitycore.ui.interactive import (StringEditor, IntegerEditor,
                                           Selector)
 from subiquitycore.ui.utils import Color, Padding
@@ -26,6 +31,27 @@ from subiquitycore.ui.utils import Color, Padding
 from subiquity.models.filesystem import humanize_size, Partition
 
 log = logging.getLogger('subiquity.ui.raid')
+
+@attr.s
+class RaidLevel:
+    name = attr.ib()
+    value = attr.ib()
+    spares_allowed = attr.ib()
+    min_devices = attr.ib()
+
+levels = [
+    RaidLevel(_("0 (striped)"), 0, False, 2),
+    RaidLevel(_("1 (mirrored)"), 1, True, 2),
+    RaidLevel(_("5"), 5, True, 3),
+    RaidLevel(_("6"), 6, True, 4),
+    RaidLevel(_("10"), 10, True, 2),
+    ]
+
+
+class RaidForm(Form):
+
+    level = ChoiceField()
+    spares = IntegerField()
 
 
 class RaidView(BaseView):
