@@ -23,15 +23,15 @@ from subiquitycore.ui.interactive import (StringEditor, IntegerEditor,
                                           Selector)
 from subiquitycore.ui.utils import Color, Padding
 
-from subiquity.models.filesystem import humanize_size
+from subiquity.models.filesystem import humanize_size, Partition
 
 log = logging.getLogger('subiquity.ui.raid')
 
 
 class RaidView(BaseView):
-    def __init__(self, model, signal):
+    def __init__(self, model, controller):
         self.model = model
-        self.signal = signal
+        self.controller = controller
         self.raid_level = Selector(self.model.raid_levels)
         self.hot_spares = IntegerEditor()
         self.chunk_size = StringEditor(edit_text="4K")
@@ -48,29 +48,24 @@ class RaidView(BaseView):
     def _build_disk_selection(self):
         log.debug('raid: _build_disk_selection')
         items = [
-            Text("DISK SELECTION")
+            Text(_("DISK SELECTION"))
         ]
 
         # raid can use empty whole disks, or empty partitions
-        avail_disks = self.model.get_empty_disk_names()
-        avail_parts = self.model.get_empty_partition_names()
-        avail_devs = sorted(avail_disks + avail_parts)
-        if len(avail_devs) == 0:
+        avail_disks = [disk for disk in self.model.all_disks() if disk.ok_for_raid]
+        avail_parts = [part for part in self.model.all_partitions() if part.ok_for_raid]
+        if len(avail_disks + avail_parts) == 0:
             return items.append(
                 [Color.info_minor(Text("No available disks."))])
 
-        for dname in avail_devs:
-            device = self.model.get_disk(dname)
-            if device.path != dname:
-                # we've got a partition
-                raiddev = device.get_partition(dname)
-            else:
-                raiddev = device
+        for device in avail_disks + avail_parts:
 
-            disk_sz = humanize_size(raiddev.size)
-            disk_string = "{}     {},     {}".format(dname,
-                                                     disk_sz,
-                                                     device.model)
+            if isinstance(device, Partition):
+                name = "partition %s of %s" % (device._number, device.device.label)
+            else:
+                name = device.label
+            disk_sz = humanize_size(device.size)
+            disk_string = "{}     {}".format(name, disk_sz)
             log.debug('raid: disk_string={}'.format(disk_string))
             self.selected_disks.append(CheckBox(disk_string))
 
@@ -109,8 +104,8 @@ class RaidView(BaseView):
 
     def _build_buttons(self):
         log.debug('raid: _build_buttons')
-        cancel = cancel_btn(on_press=self.cancel)
-        done = done_btn(on_press=self.done)
+        cancel = cancel_btn(label=_("Cancel"), on_press=self.cancel)
+        done = done_btn(label=_("Create"), on_press=self.done)
 
         buttons = [
             Color.button(done),

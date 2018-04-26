@@ -273,8 +273,7 @@ class FilesystemController(BaseController):
                    "the same size and speed.")
         self.ui.set_header(title, excerpt)
         self.ui.set_footer(footer)
-        self.ui.set_body(RaidView(self.model,
-                                  self.signal))
+        self.ui.set_body(RaidView(self.model, self))
 
     def create_bcache(self, *args, **kwargs):
         title = ("Create hierarchical storage (\"bcache\") disk")

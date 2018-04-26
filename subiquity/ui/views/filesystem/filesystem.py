@@ -20,7 +20,10 @@ configuration.
 
 """
 import logging
-from urwid import Text
+from urwid import (
+    Padding as UrwidPadding,
+    Text,
+    )
 
 from subiquitycore.ui.buttons import (
     back_btn,
@@ -80,6 +83,10 @@ class FilesystemView(BaseView):
         self.model = model
         self.controller = controller
         self.items = []
+        menu_btns = [
+            (_("Create software RAID (MD)"), self.click_raid),
+            ]
+        width = max(len(label) for label, on_press in menu_btns) + 4
         body = [
             Text(_("FILE SYSTEM SUMMARY")),
             Text(""),
@@ -87,7 +94,11 @@ class FilesystemView(BaseView):
             Text(""),
             Text(_("AVAILABLE DEVICES")),
             Text(""),
-            ] + [Padding.push_4(p) for p in self._build_available_inputs()]
+            ] + [Padding.push_4(p) for p in self._build_available_inputs()] + \
+            [Text("")] + \
+            [UrwidPadding(menu_btn(label=label, on_press=on_press), width=width, align='center')
+                 for label, on_press in menu_btns]
+
 
         #+ [
             #self._build_menu(),
@@ -253,6 +264,9 @@ class FilesystemView(BaseView):
 
     def click_partition(self, sender, partition):
         self.controller.format_mount_partition(partition)
+
+    def click_raid(self, sender):
+        self.controller.create_raid()
 
     def _build_menu(self):
         log.debug('FileSystemView: building menu')

@@ -130,10 +130,14 @@ class Disk:
 
     _partitions = attr.ib(default=attr.Factory(list), repr=False) # [Partition]
     _fs = attr.ib(default=None, repr=False) # Filesystem
+    _raid = attr.ib(default=None, repr=False) # Raid
+
     def partitions(self):
         return self._partitions
     def fs(self):
         return self._fs
+    def raid(self):
+        return self._raid
 
     _info = attr.ib(default=None)
 
@@ -151,9 +155,17 @@ class Disk:
         self.grub_device = ''
         self._partitions = []
         self._fs = None
+        self._raid = None
+
+    @property
+    def empty(self):
+        return len(self.partitions()) == 0 and self.fs() is None and self.raid() is None
+
+    ok_for_raid = empty
 
     @property
     def available(self):
+        # This should probably check self.fs() and self.raid() too, right?
         return self.used < self.size
 
     @property
@@ -195,11 +207,20 @@ class Partition:
     preserve = attr.ib(default=False)
 
     _fs = attr.ib(default=None, repr=False) # Filesystem
+    _raid = attr.ib(default=None, repr=False) # Raid
     def fs(self):
         return self._fs
+    def raid(self):
+        return self._raid
 
     def desc(self):
         return _("partition of {}").format(self.device.desc())
+
+    @property
+    def ok_for_raid(self):
+        if self.flag == 'bios_grub':
+            return False
+        return self.fs() is None and self.raid() is None
 
     @property
     def available(self):
@@ -212,7 +233,6 @@ class Partition:
             return fs_obj.is_mounted
         return False
 
-
     @property
     def _number(self):
         return self.device._partitions.index(self) + 1
@@ -223,12 +243,22 @@ class Partition:
 
 
 @attr.s
+class Raid:
+    id = attr.ib(default=id_factory("raid"))
+    type = attr.ib(default="raid")
+    name = attr.ib(default=None)
+    raidlevel = attr.ib(default=None) # 0, 1, 5, 6, 10
+    devices = attr.ib(default=attr.Factory(list)) # [Partion or Disk]
+    spare_devices = attr.ib(default=attr.Factory(list)) # [Partion or Disk]
+
+
+@attr.s
 class Filesystem:
 
     id = attr.ib(default=id_factory("fs"))
     type = attr.ib(default="format")
     fstype = attr.ib(default=None)
-    volume = attr.ib(default=None) # Partition or Disk
+    volume = attr.ib(default=None) # Partition or Disk or Raid
     label = attr.ib(default=None)
     uuid = attr.ib(default=None)
     preserve = attr.ib(default=False)
@@ -280,6 +310,16 @@ class FilesystemModel(object):
             fs_by_name[fs.label] = fs
     fs_by_name['fat32'] = FS('fat32', True)
 
+
+    # TODO: what is "linear" level?
+    raid_levels = [
+        "0",
+        "1",
+        "5",
+        "6",
+        "10",
+    ]
+
     def __init__(self, prober):
         self.prober = prober
         self._available_disks = {} # keyed by path, eg /dev/sda
@@ -287,8 +327,9 @@ class FilesystemModel(object):
 
     def reset(self):
         self._disks = collections.OrderedDict() # only gets populated when something uses the disk
-        self._filesystems = []
         self._partitions = []
+        self._raids = []
+        self._filesystems = []
         self._mounts = []
         for k, d in self._available_disks.items():
             self._available_disks[k].reset()
@@ -305,6 +346,8 @@ class FilesystemModel(object):
             r.append(asdict(d))
         for p in self._partitions:
             r.append(asdict(p))
+        for d in self._raids:
+            r.append(asdict(d))
         for f in self._filesystems:
             r.append(asdict(f))
         for m in sorted(self._mounts, key=lambda m:len(m.path)):
@@ -352,6 +395,9 @@ class FilesystemModel(object):
     def all_disks(self):
         return sorted(self._available_disks.values(), key=lambda x:x.label)
 
+    def all_partitions(self):
+        return self._partitions
+
     def get_disk(self, path):
         return self._available_disks.get(path)
 
@@ -367,6 +413,14 @@ class FilesystemModel(object):
         disk._partitions.append(p)
         self._partitions.append(p)
         return p
+
+    def add_raid(self, name, level, devices, spare_devices):
+        r = Raid(name=name, raidlevel=level, devices=devices, spare_devices=spare_devices)
+        for d in devices:
+            if isinstance(d, Disk):
+                self._use_disk(d)
+            d._raid = r
+        self._raids.append(r)
 
     def add_filesystem(self, volume, fstype):
         log.debug("adding %s to %s", fstype, volume)
