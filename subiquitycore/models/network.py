@@ -94,6 +94,8 @@ class NetplanConfig:
                 config = copy.deepcopy(dev.config)
                 if 'match' in config:
                     del config['match']
+                if 'optional' in config:
+                    del config['optional']
                 return config
         else:
             return {}
@@ -121,7 +123,10 @@ class Networkdev:
 
     def render(self):
         if self.configured_ip_addresses or self.dhcp4 or self.dhcp6:
-            return {self.name: self._configuration}
+            config = copy.deepcopy(self._configuration)
+            if self.dhcp4 and len(self.actual_global_ip_addresses) == 0:
+                config['optional'] = True
+            return {self.name: config}
         else:
             return {}
 
