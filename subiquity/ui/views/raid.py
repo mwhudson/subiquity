@@ -14,19 +14,28 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+
+import attr
+
 from urwid import Text, CheckBox
 
 from subiquitycore.view import BaseView
-from subiquitycore.ui.buttons import cancel_btn, done_btn
+from subiquitycore.ui.buttons import cancel_btn, done_btn, menu_btn, ok_btn
 from subiquitycore.ui.container import Columns, ListBox, Pile
-from subiquitycore.ui.interactive import (
+from subiquitycore.ui.form import (
     ChoiceField,
     Form,
+    )
+from subiquitycore.ui.interactive import (
     IntegerEditor,
     )
-from subiquitycore.ui.interactive import (StringEditor, IntegerEditor,
-                                          Selector)
-from subiquitycore.ui.utils import Color, Padding
+from subiquitycore.ui.selector import (
+    Selector,
+    )
+from subiquitycore.ui.utils import button_pile, Color, Padding, screen
+from subiquitycore.ui.stretchy import (
+    Stretchy,
+    )
 
 from subiquity.models.filesystem import humanize_size, Partition
 
@@ -51,7 +60,43 @@ levels = [
 class RaidForm(Form):
 
     level = ChoiceField()
-    spares = IntegerField()
+
+
+class BlockDevicePicker(Stretchy):
+
+    def __init__(self, parent, devices):
+        self.parent = parent
+        device_widgets = []
+        for device, checked, disable_reason in devices:
+            if isinstance(device, Partition):
+                name = "partition %s of %s" % (device._number, device.device.label)
+            else:
+                name = device.label
+            disk_sz = humanize_size(device.size)
+            disk_string = "{}     {}".format(name, disk_sz)
+            if disable_reason is None:
+                device_widgets.append(CheckBox(disk_string, state=checked))
+            else:
+                device_widgets.append(Color.info_minor(Text("    " + disk_string)))
+        widgets = [
+            Pile(device_widgets),
+            Text(""),
+            button_pile([
+                ok_btn(label=_("OK"), on_press=self.ok),
+                cancel_btn(label=_("Cancel"), on_press=self.cancel),
+                ]),
+            ]
+        super().__init__(
+            _("Select block devices"),
+            widgets,
+            stretchy_index=0,
+            focus_index=0)
+
+    def ok(self, sender):
+        self.parent.remove_overlay()
+
+    def cancel(self, sender):
+        self.parent.remove_overlay()
 
 
 class RaidView(BaseView):
@@ -60,16 +105,26 @@ class RaidView(BaseView):
         self.controller = controller
         self.raid_level = Selector(self.model.raid_levels)
         self.hot_spares = IntegerEditor()
-        self.chunk_size = StringEditor(edit_text="4K")
+        #self.chunk_size = StringEditor(edit_text="4K")
         self.selected_disks = []
         body = [
+            Padding.center_50(menu_btn("button", on_press=self._click_select_disks)),
             Padding.center_50(self._build_disk_selection()),
             Padding.line_break(""),
             Padding.center_50(self._build_raid_configuration()),
             Padding.line_break(""),
-            Padding.fixed_10(self._build_buttons())
+            Padding.fixed_10(self._build_buttons()),
         ]
         super().__init__(ListBox(body))
+
+    def _click_select_disks(self, sender):
+        avail_disks = [disk for disk in self.model.all_disks() if disk.ok_for_raid]
+        avail_parts = [part for part in self.model.all_partitions() if part.ok_for_raid]
+
+        devs = []
+        for device in avail_disks + avail_parts:
+            devs.append((device, False, None))
+        self.show_stretchy_overlay(BlockDevicePicker(self, devs))
 
     def _build_disk_selection(self):
         log.debug('raid: _build_disk_selection')
@@ -118,13 +173,13 @@ class RaidView(BaseView):
                 ],
                 dividechars=4
             ),
-            Columns(
-                [
-                    ("weight", 0.2, Text("Chunk size", align="right")),
-                    ("weight", 0.3, Color.string_input(self.chunk_size))
-                ],
-                dividechars=4
-            )
+            ## Columns(
+            ##     [
+            ##         ("weight", 0.2, Text("Chunk size", align="right")),
+            ##         ("weight", 0.3, Color.string_input(self.chunk_size))
+            ##     ],
+            ##     dividechars=4
+            ## )
         ]
         return Pile(items)
 
