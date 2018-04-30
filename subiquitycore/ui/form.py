@@ -364,7 +364,7 @@ class Form(object, metaclass=MetaForm):
         return rows
 
     def as_screen(self, view, focus_buttons=True):
-        return screen(self.as_rows(self), self.buttons, focus_buttons=focus_buttons)
+        return screen(self.as_rows(view), self.buttons, focus_buttons=focus_buttons)
 
     def validated(self):
         in_error = False

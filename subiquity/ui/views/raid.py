@@ -17,22 +17,24 @@ import logging
 
 import attr
 
-from urwid import Text, CheckBox
+from urwid import CheckBox, Text, WidgetWrap
 
 from subiquitycore.view import BaseView
 from subiquitycore.ui.buttons import cancel_btn, done_btn, menu_btn, ok_btn
-from subiquitycore.ui.container import Columns, ListBox, Pile
+from subiquitycore.ui.container import Pile
 from subiquitycore.ui.form import (
     ChoiceField,
     Form,
+    simple_field,
+    WantsToKnowFormField,
     )
 from subiquitycore.ui.interactive import (
     IntegerEditor,
     )
 from subiquitycore.ui.selector import (
-    Selector,
+    Option,
     )
-from subiquitycore.ui.utils import button_pile, Color, Padding, screen
+from subiquitycore.ui.utils import button_pile, Color
 from subiquitycore.ui.stretchy import (
     Stretchy,
     )
@@ -57,29 +59,25 @@ levels = [
     ]
 
 
-class RaidForm(Form):
-
-    level = ChoiceField()
-
 
 class BlockDevicePicker(Stretchy):
 
-    def __init__(self, parent, devices):
+    def __init__(self, chooser, parent, devices):
         self.parent = parent
+        self.chooser = chooser
+        self.devices = devices
         device_widgets = []
+        max_label_width = max([40] + [len(device.label) for device, checked, disable_reason in devices])
         for device, checked, disable_reason in devices:
-            if isinstance(device, Partition):
-                name = "partition %s of %s" % (device._number, device.device.label)
-            else:
-                name = device.label
             disk_sz = humanize_size(device.size)
-            disk_string = "{}     {}".format(name, disk_sz)
+            disk_string = "{:{}} {}".format(device.label, max_label_width, disk_sz)
             if disable_reason is None:
                 device_widgets.append(CheckBox(disk_string, state=checked))
             else:
                 device_widgets.append(Color.info_minor(Text("    " + disk_string)))
+        self.pile = Pile(device_widgets)
         widgets = [
-            Pile(device_widgets),
+            self.pile,
             Text(""),
             button_pile([
                 ok_btn(label=_("OK"), on_press=self.ok),
@@ -93,38 +91,78 @@ class BlockDevicePicker(Stretchy):
             focus_index=0)
 
     def ok(self, sender):
+        selected_devs = []
+        for i in range(len(self.devices)):
+            dev, was_checked, disable_reason = self.devices[i]
+            if disable_reason is not None:
+                continue
+            w, o = self.pile.contents[i]
+            if w.state:
+                selected_devs.append(dev)
+        self.chooser.value = selected_devs
         self.parent.remove_overlay()
 
     def cancel(self, sender):
         self.parent.remove_overlay()
 
 
+class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
+    def __init__(self):
+        self.button = menu_btn(label=_("Select"), on_press=self.click)
+        self.devices = []
+        self.pile = Pile([self.button])
+        super().__init__(self.pile)
+    @property
+    def value(self):
+        return self.devices
+    @value.setter
+    def value(self, value):
+        self.devices = value
+        w = []
+        for dev in self.devices:
+            w.append((Text(dev.label), self.pile.options('pack')))
+        if len(w) > 0:
+            self.button.base_widget.set_label(_("Edit"))
+        else:
+            self.button.base_widget.set_label(_("Select"))
+        w.append((self.button, self.pile.options('pack')))
+        self.pile.contents[:] = w
+        self.pile.focus_item = self.button
+    def click(self, sender):
+        view = self.bff.parent_view
+        model = view.model
+        avail_disks = [disk for disk in model.all_disks() if disk.ok_for_raid]
+        avail_parts = [part for part in model.all_partitions() if part.ok_for_raid]
+
+        devs = []
+        for device in avail_disks + avail_parts:
+            devs.append((device, device in self.devices, None))
+        view.show_stretchy_overlay(BlockDevicePicker(self, view, devs))
+
+
+MultiDeviceField = simple_field(MultiDeviceChooser)
+
+
+class RaidForm(Form):
+
+    level = ChoiceField(choices=["dummy"])
+    devices = MultiDeviceField(_("Devices:"))
+    spares = MultiDeviceField(_("Spares:"))
+
 class RaidView(BaseView):
     def __init__(self, model, controller):
         self.model = model
         self.controller = controller
-        self.raid_level = Selector(self.model.raid_levels)
         self.hot_spares = IntegerEditor()
         #self.chunk_size = StringEditor(edit_text="4K")
         self.selected_disks = []
-        body = [
-            Padding.center_50(menu_btn("button", on_press=self._click_select_disks)),
-            Padding.center_50(self._build_disk_selection()),
-            Padding.line_break(""),
-            Padding.center_50(self._build_raid_configuration()),
-            Padding.line_break(""),
-            Padding.fixed_10(self._build_buttons()),
-        ]
-        super().__init__(ListBox(body))
-
-    def _click_select_disks(self, sender):
-        avail_disks = [disk for disk in self.model.all_disks() if disk.ok_for_raid]
-        avail_parts = [part for part in self.model.all_partitions() if part.ok_for_raid]
-
-        devs = []
-        for device in avail_disks + avail_parts:
-            devs.append((device, False, None))
-        self.show_stretchy_overlay(BlockDevicePicker(self, devs))
+        self.form = RaidForm()
+        opts = []
+        for level in levels:
+            opts.append(Option((_(level.name), True, level.value)))
+        self.form.level.widget._options = opts
+        self.form.level.widget.index = 0
+        super().__init__(self.form.as_screen(self, focus_buttons=False))
 
     def _build_disk_selection(self):
         log.debug('raid: _build_disk_selection')
@@ -152,35 +190,6 @@ class RaidView(BaseView):
 
         items += self.selected_disks
 
-        return Pile(items)
-
-    def _build_raid_configuration(self):
-        log.debug('raid: _build_raid_config')
-        items = [
-            Text("RAID CONFIGURATION"),
-            Columns(
-                [
-                    ("weight", 0.2, Text("RAID Level", align="right")),
-                    ("weight", 0.3, Color.string_input(self.raid_level))
-                ],
-                dividechars=4
-            ),
-            Columns(
-                [
-                    ("weight", 0.2, Text("Hot spares",
-                                         align="right")),
-                    ("weight", 0.3, Color.string_input(self.hot_spares))
-                ],
-                dividechars=4
-            ),
-            ## Columns(
-            ##     [
-            ##         ("weight", 0.2, Text("Chunk size", align="right")),
-            ##         ("weight", 0.3, Color.string_input(self.chunk_size))
-            ##     ],
-            ##     dividechars=4
-            ## )
-        ]
         return Pile(items)
 
     def _build_buttons(self):

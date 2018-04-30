@@ -217,6 +217,10 @@ class Partition:
         return _("partition of {}").format(self.device.desc())
 
     @property
+    def label(self):
+        return _("partition {} of {}").format(self._number, self.device.label)
+
+    @property
     def ok_for_raid(self):
         if self.flag == 'bios_grub':
             return False
