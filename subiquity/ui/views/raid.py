@@ -17,7 +17,14 @@ import logging
 
 import attr
 
-from urwid import CheckBox, Text, WidgetWrap
+from urwid import (
+    AttrMap,
+    CheckBox,
+    connect_signal,
+    Padding as UrwidPadding,
+    Text,
+    WidgetWrap,
+    )
 
 from subiquitycore.view import BaseView
 from subiquitycore.ui.buttons import cancel_btn, done_btn, menu_btn, ok_btn
@@ -108,9 +115,10 @@ class BlockDevicePicker(Stretchy):
 
 class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
     def __init__(self):
-        self.button = menu_btn(label=_("Select"), on_press=self.click)
-        self.devices = []
+        self.button = menu_btn(label="", on_press=self.click)
+        self.button_padding = UrwidPadding(self.button, width=4)
         self.pile = Pile([self.button])
+        self.value = []
         super().__init__(self.pile)
     @property
     def value(self):
@@ -122,12 +130,23 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
         for dev in self.devices:
             w.append((Text(dev.label), self.pile.options('pack')))
         if len(w) > 0:
-            self.button.base_widget.set_label(_("Edit"))
+            label = _("Edit")
         else:
-            self.button.base_widget.set_label(_("Select"))
-        w.append((self.button, self.pile.options('pack')))
+            label = _("Select")
+        self.button.base_widget.set_label(label)
+        self.button_padding.width = len(label) + 4
+        b = Color.body(self.button_padding)
+        w.append((b, self.pile.options('pack')))
         self.pile.contents[:] = w
-        self.pile.focus_item = self.button
+        self.pile.focus_item = b
+    def set_bound_form_field(self, bff):
+        super().set_bound_form_field(bff)
+        connect_signal(bff, 'enable', self.enable)
+        connect_signal(bff, 'disable', self.disable)
+    def enable(self, sender):
+        self.button.set_attr_map({None:'menu'})
+    def disable(self, sender):
+        self.button.set_attr_map({None:'info_minor'})
     def click(self, sender):
         view = self.bff.parent_view
         model = view.model
@@ -145,7 +164,7 @@ MultiDeviceField = simple_field(MultiDeviceChooser)
 
 class RaidForm(Form):
 
-    level = ChoiceField(choices=["dummy"])
+    level = ChoiceField(_("RAID Level:"), choices=["dummy"])
     devices = MultiDeviceField(_("Devices:"))
     spares = MultiDeviceField(_("Spares:"))
 

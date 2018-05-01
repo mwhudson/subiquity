@@ -99,7 +99,9 @@ class WantsToKnowFormField(object):
     def set_bound_form_field(self, bff):
         self.bff = bff
 
-class BoundFormField(object):
+class BoundFormField(metaclass=MetaSignals):
+
+    signals = ['enable', 'disable']
 
     def __init__(self, field, form, widget):
         self.field = field
@@ -243,6 +245,10 @@ class BoundFormField(object):
     @enabled.setter
     def enabled(self, val):
         if val != self._enabled:
+            if val:
+                emit_signal(self, 'enable', self)
+            else:
+                emit_signal(self, 'disable', self)
             self._enabled = val
             if self.pile is not None:
                 self.pile.contents[0] = (self._cols(), self.pile.contents[0][1])
