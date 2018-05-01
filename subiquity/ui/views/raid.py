@@ -159,60 +159,22 @@ class RaidView(BaseView):
         self.form = RaidForm()
         opts = []
         for level in levels:
-            opts.append(Option((_(level.name), True, level.value)))
+            opts.append(Option((_(level.name), True, level)))
         self.form.level.widget._options = opts
+        connect_signal(self.form.level.widget, 'select', self._select_level)
+        connect_signal(self.form, 'submit', self.done)
+        connect_signal(self.form, 'cancel', self.cancel)
         self.form.level.widget.index = 0
         super().__init__(self.form.as_screen(self, focus_buttons=False))
 
-    def _build_disk_selection(self):
-        log.debug('raid: _build_disk_selection')
-        items = [
-            Text(_("DISK SELECTION"))
-        ]
 
-        # raid can use empty whole disks, or empty partitions
-        avail_disks = [disk for disk in self.model.all_disks() if disk.ok_for_raid]
-        avail_parts = [part for part in self.model.all_partitions() if part.ok_for_raid]
-        if len(avail_disks + avail_parts) == 0:
-            return items.append(
-                [Color.info_minor(Text("No available disks."))])
-
-        for device in avail_disks + avail_parts:
-
-            if isinstance(device, Partition):
-                name = "partition %s of %s" % (device._number, device.device.label)
-            else:
-                name = device.label
-            disk_sz = humanize_size(device.size)
-            disk_string = "{}     {}".format(name, disk_sz)
-            log.debug('raid: disk_string={}'.format(disk_string))
-            self.selected_disks.append(CheckBox(disk_string))
-
-        items += self.selected_disks
-
-        return Pile(items)
-
-    def _build_buttons(self):
-        log.debug('raid: _build_buttons')
-        cancel = cancel_btn(label=_("Cancel"), on_press=self.cancel)
-        done = done_btn(label=_("Create"), on_press=self.done)
-
-        buttons = [
-            Color.button(done),
-            Color.button(cancel)
-        ]
-        return Pile(buttons)
+    def _select_level(self, sender, new_level):
+        self.form.spares.enabled = new_level.spares_allowed
 
     def done(self, result):
-        result = {
-            'devices': [x.get_label() for x in self.selected_disks if x.state],
-            'raid_level': self.raid_level.value,
-            'hot_spares': self.hot_spares.value,
-            'chunk_size': self.chunk_size.value,
-        }
         log.debug('raid_done: result = {}'.format(result))
-        self.signal.emit_signal('filesystem:add-raid-dev', result)
+        self.signal.emit_signal('filesystem:add-raid-dev', self.form.as_data())
 
     def cancel(self, button):
         log.debug('raid: button_cancel')
-        self.signal.prev_signal()
+        self.controller.manual()
