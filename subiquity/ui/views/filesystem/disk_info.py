@@ -19,43 +19,34 @@ from urwid import Text
 from subiquitycore.ui.lists import SimpleList
 from subiquitycore.ui.buttons import done_btn
 from subiquitycore.ui.utils import button_pile, Padding
-from subiquitycore.view import BaseView
+from subiquitycore.ui.stretchy import Stretchy
 
 
 log = logging.getLogger('subiquity.ui.filesystem.disk_info')
 
 
-class DiskInfoView(BaseView):
-    def __init__(self, model, controller, disk, hdinfo):
+class DiskInfoStretchy(Stretchy):
+    def __init__(self, parent, disk):
         log.debug('DiskInfoView: {}'.format(disk))
-        self.model = model
-        self.controller = controller
-        self.disk = disk
-        hdinfo = hdinfo.split("\n")
-        body = []
-        for h in hdinfo:
-            body.append(Text(h))
-        body.append(self._build_buttons())
-        super().__init__(Padding.center_79(SimpleList(body)))
-
-    def _build_buttons(self):
-        return button_pile([done_btn(_("Done"), on_press=self.done)])
-
-    def keypress(self, size, key):
-        if key in ['tab', 'n', 'N', 'j', 'J']:
-            log.debug('keypress: [{}]'.format(key))
-            self.controller.show_disk_information_next(self.disk)
-            return None
-        if key in ['shift tab', 'p', 'P', 'k', 'K']:
-            log.debug('keypress: [{}]'.format(key))
-            self.controller.show_disk_information_prev(self.disk)
-            return None
-
-        return super().keypress(size, key)
-
-    def done(self, result):
-        ''' Return to FilesystemView '''
-        self.controller.partition_disk(self.disk)
+        self.parent = parent
+        dinfo = disk.info_for_display()
+        template = """\
+{devname}:\n
+ Vendor: {vendor}
+ Model: {model}
+ SerialNo: {serial}
+ Size: {humansize} ({size}B)
+ Bus: {bus}
+ Rotational: {rotational}
+ Path: {devpath}"""
+        result = template.format(**dinfo)
+        widgets = [
+            Text(result),
+            Text(""),
+            button_pile([done_btn(_("Done"), on_press=self.cancel)]),
+            ]
+        title = _("Info for {}").format(disk.label)
+        super().__init__(title, widgets, 0, 0)
 
     def cancel(self, button=None):
-        self.controller.partition_disk(self.disk)
+        self.parent.remove_overlay()
