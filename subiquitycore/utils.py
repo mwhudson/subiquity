@@ -135,7 +135,7 @@ else:
     class MyPopen(subprocess.Popen):
         def __init__(self, *args, **kw):
             self.encoding = kw.pop('encoding')
-            self.errors = kw.pop('encoding')
+            self.errors = kw.pop('errors')
             super().__init__(*args, **kw)
             if self.encoding is not None:
                 if self.stdin is not None:
@@ -161,7 +161,7 @@ def start_command(cmd, *, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stde
     We never ever want a subprocess to inherit our file descriptors!
     """
     log.debug('start_command called: %s', cmd)
-    return MyPopen(cmd, stdin=stdin, stdout=stdout, stderr=stderr, env=_clean_env(env), **kw)
+    return MyPopen(cmd, stdin=stdin, stdout=stdout, stderr=stderr, env=_clean_env(env), encoding=encoding, errors=errors, **kw)
 
 
 # FIXME: replace with passlib and update package deps
