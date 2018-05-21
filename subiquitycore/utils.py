@@ -14,12 +14,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import crypt
-import errno
+import io
 import logging
 import os
 import random
 import yaml
 import subprocess
+import sys
 
 log = logging.getLogger("subiquitycore.utils")
 SYS_CLASS_NET = "/sys/class/net/"
@@ -111,15 +112,15 @@ def run_command(cmd, *, input=None, stdout=subprocess.PIPE, stderr=subprocess.PI
     if input is None:
         kw['stdin'] = subprocess.DEVNULL
     else:
-        input = input.encode(encoding)
+        input = input.encode(encoding, errors)
     log.debug("run_command called: %s", cmd)
     try:
         cp = subprocess.run(cmd, input=input, stdout=stdout, stderr=stderr, env=_clean_env(env), **kw)
         if encoding:
             if isinstance(cp.stdout, bytes):
-                cp.stdout = cp.stdout.decode(encoding)
+                cp.stdout = cp.stdout.decode(encoding, errors)
             if isinstance(cp.stderr, bytes):
-                cp.stderr = cp.stderr.decode(encoding)
+                cp.stderr = cp.stderr.decode(encoding, errors)
     except subprocess.CalledProcessError as e:
         log.debug("run_command %s", str(e))
         raise
@@ -134,7 +135,18 @@ def start_command(cmd, *, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stde
     We never ever want a subprocess to inherit our file descriptors!
     """
     log.debug('start_command called: %s', cmd)
-    return subprocess.Popen(cmd, stdin=stdin, stdout=stdout, stderr=stderr, env=_clean_env(env), **kw)
+    if sys.version_info >= (3, 6):
+        kw['encoding'] = encoding
+        kw['errors'] = errors
+    proc = subprocess.Popen(cmd, stdin=stdin, stdout=stdout, stderr=stderr, env=_clean_env(env), **kw)
+    if sys.version_info < (3, 6):
+        if proc.stdin is not None:
+            proc.stdin = io.TextIOWrapper(proc.stdin, write_through=True, encoding=encoding, errors=errors)
+        if proc.stdout is not None:
+            proc.stdout = io.TextIOWrapper(proc.stdout, encoding=encoding, errors=errors)
+        if proc.stderr is not None:
+            proc.stderr = io.TextIOWrapper(proc.stderr, encoding=encoding, errors=errors)
+    return proc
 
 
 # FIXME: replace with passlib and update package deps
