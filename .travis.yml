@@ -1,6 +1,7 @@
 sudo: required
 
 env:
+  - IMAGE=ubuntu:xenial
   - IMAGE=ubuntu:artful
   - IMAGE=ubuntu:bionic
 
