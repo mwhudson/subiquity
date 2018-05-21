@@ -129,24 +129,39 @@ def run_command(cmd, *, input=None, stdout=subprocess.PIPE, stderr=subprocess.PI
         return cp
 
 
+if sys.version_info >= (3, 6):
+    MyPopen = subprocess.Popen
+else:
+    class MyPopen(subprocess.Popen):
+        def __init__(self, *args, **kw):
+            self.encoding = kw.pop('encoding')
+            self.errors = kw.pop('encoding')
+            super().__init__(*args, **kw)
+            if self.encoding is not None:
+                if self.stdin is not None:
+                    self.stdin = io.TextIOWrapper(self.stdin, write_through=True, encoding=self.encoding, errors=self.errors)
+                if self.stdout is not None:
+                    self.stdout = io.TextIOWrapper(self.stdout, encoding=self.encoding, errors=self.errors)
+                if self.stderr is not None:
+                    self.stderr = io.TextIOWrapper(self.stderr, encoding=self.encoding, errors=self.errors)
+        def communicate(self, input=None, timeout=None):
+            if input is not None and self.encoding is not None:
+                input = input.encode(self.encoding, self.errors)
+            stdout, stderr = super().communicate(input, timeout)
+            if stdout is not None and self.encoding is not None:
+                stdout = stdout.decode(self.encoding, self.errors)
+            if stderr is not None and self.encoding is not None:
+                stderr = stdout.decode(self.encoding, self.errors)
+            return stdout, stderr
+
+
 def start_command(cmd, *, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8', errors='replace', env=None, **kw):
     """A wrapper around subprocess.Popen with logging and different defaults.
 
     We never ever want a subprocess to inherit our file descriptors!
     """
     log.debug('start_command called: %s', cmd)
-    if sys.version_info >= (3, 6):
-        kw['encoding'] = encoding
-        kw['errors'] = errors
-    proc = subprocess.Popen(cmd, stdin=stdin, stdout=stdout, stderr=stderr, env=_clean_env(env), **kw)
-    if sys.version_info < (3, 6):
-        if proc.stdin is not None:
-            proc.stdin = io.TextIOWrapper(proc.stdin, write_through=True, encoding=encoding, errors=errors)
-        if proc.stdout is not None:
-            proc.stdout = io.TextIOWrapper(proc.stdout, encoding=encoding, errors=errors)
-        if proc.stderr is not None:
-            proc.stderr = io.TextIOWrapper(proc.stderr, encoding=encoding, errors=errors)
-    return proc
+    return MyPopen(cmd, stdin=stdin, stdout=stdout, stderr=stderr, env=_clean_env(env), **kw)
 
 
 # FIXME: replace with passlib and update package deps
