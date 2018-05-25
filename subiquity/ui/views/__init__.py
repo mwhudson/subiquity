@@ -13,12 +13,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from .filesystem import (FilesystemView,
-                         PartitionView,
-                         FormatEntireView,
-                         DiskPartitionView,
-                         GuidedDiskSelectionView,
-                         GuidedFilesystemView)
+from .filesystem import (
+    FilesystemView,
+    DiskPartitionView,
+    GuidedDiskSelectionView,
+    GuidedFilesystemView,
+)
 from .bcache import BcacheView
 from .ceph import CephDiskView
 from .iscsi import IscsiDiskView
@@ -33,7 +33,6 @@ __all__ = [
     'CephDiskView',
     'DiskPartitionView',
     'FilesystemView',
-    'FormatEntireView',
     'GuidedDiskSelectionView',
     'GuidedFilesystemView',
     'IdentityView',
@@ -42,7 +41,6 @@ __all__ = [
     'KeyboardView',
     'LVMVolumeGroupView',
     'MAASView',
-    'PartitionView',
     'ProgressView',
     'WelcomeView',
 ]
