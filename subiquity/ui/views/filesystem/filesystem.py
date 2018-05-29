@@ -105,7 +105,11 @@ class FilesystemView(BaseView):
             Text(""),
             Text(_("USED DEVICES AND PARTITIONS")),
             Text(""),
-        ] + self._build_used_inputs()
+        ] + self._build_used_inputs() + [
+            Text(""),
+            button_pile([reset_btn(
+                _("Reset all configuration"), on_press=self.reset)]),
+        ]
 
         self._selected_devices = set()
 
@@ -196,7 +200,6 @@ class FilesystemView(BaseView):
             buttons.append(
                 done_btn(_("Done"), on_press=self.done))
 
-        buttons.append(reset_btn(_("Reset"), on_press=self.reset))
         buttons.append(back_btn(_("Back"), on_press=self.cancel))
 
         return button_pile(buttons)
@@ -367,7 +370,10 @@ class FilesystemView(BaseView):
             r.extend(self._build_device_rows(disk, True))
 
         if len(r) == 1:
-            return [Color.info_minor(Text(_("No disks available.")))]
+            return [
+                Padding.push_3(
+                    Color.info_minor(Text(_("No disks available."))))
+            ]
 
         r.append(Text(""))
 
@@ -409,7 +415,10 @@ class FilesystemView(BaseView):
             r.extend(self._build_device_rows(disk, False))
 
         if len(r) == 1:
-            return [Color.info_minor(Text(_("No disks used yet.")))]
+            return [
+                Padding.push_3(
+                    Color.info_minor(Text(_("No disks used yet."))))
+            ]
 
         r.append(Text(""))
 

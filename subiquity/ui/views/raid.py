@@ -31,6 +31,7 @@ from subiquitycore.ui.buttons import (
     ok_btn,
     )
 from subiquitycore.ui.container import (
+    Columns,
     Pile,
     )
 from subiquitycore.ui.form import (
@@ -56,6 +57,7 @@ from ..mount import MountField
 from subiquity.models.filesystem import (
     get_raid_size,
     humanize_size,
+    Partition,
     )
 
 log = logging.getLogger('subiquity.ui.raid')
@@ -84,19 +86,28 @@ class BlockDevicePicker(Stretchy):
         self.chooser = chooser
         self.devices = devices
         device_widgets = []
-        max_label_width = max(
-            [40] + [len(device.label) for device, checked in devices])
         for device, checked in devices:
-            disk_sz = humanize_size(device.size)
-            disk_string = "{:{}} {}".format(
-                device.label, max_label_width, disk_sz)
-            device_widgets.append(CheckBox(disk_string, state=checked))
+            box = CheckBox("", state=checked)
+            device_widgets.append(Columns([
+                (4, box),
+                Text(device.label),
+                (9, Text(" " + humanize_size(device.size))),
+            ]))
             if device.fs() is not None:
                 fs = device.fs()
-                text = _("    formatted as: {}").format(fs.fstype)
+                text = _("formatted as {}").format(fs.fstype)
                 if fs.mount():
-                    text += _(", mounted at: {}").format(fs.mount().path)
-                device_widgets.append(Color.info_minor(Text(text)))
+                    text += _(", mounted at {}").format(fs.mount().path)
+                else:
+                    text += _(", not mounted")
+            elif isinstance(device, Partition):
+                text = _("not formatted")
+            else:
+                text = _("unused {}").format(device.desc())
+            device_widgets.append(Columns([
+                (4, Text("")),
+                Color.info_minor(Text(text)),
+            ]))
         self.pile = Pile(device_widgets)
         widgets = [
             self.pile,
