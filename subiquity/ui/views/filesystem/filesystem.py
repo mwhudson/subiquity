@@ -375,8 +375,6 @@ class FilesystemView(BaseView):
                     Color.info_minor(Text(_("No disks available."))))
             ]
 
-        r.append(Text(""))
-
         bp = button_pile(self._buttons)
         bp.align = 'left'
         r.append(bp)
@@ -419,8 +417,6 @@ class FilesystemView(BaseView):
                 Padding.push_3(
                     Color.info_minor(Text(_("No disks used yet."))))
             ]
-
-        r.append(Text(""))
 
         return r
 

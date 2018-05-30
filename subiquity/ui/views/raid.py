@@ -127,8 +127,8 @@ class BlockDevicePicker(Stretchy):
         selected_devs = []
         for i in range(len(self.devices)):
             dev, was_checked = self.devices[i]
-            w, o = self.pile.contents[i]
-            if isinstance(w, CheckBox) and w.state:
+            w = self.pile[i*2][0]
+            if w.state:
                 selected_devs.append(dev)
         self.chooser._emit('select', selected_devs)
         self.chooser.value = selected_devs
