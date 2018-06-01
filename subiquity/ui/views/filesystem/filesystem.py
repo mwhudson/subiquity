@@ -137,12 +137,20 @@ class FilesystemView(BaseView):
             Text("No disks have been used to create a constructed disk."))
 
     def _mount_action(self, sender, action, user_data):
-        mount, i = user_data
+        mount, c = user_data
         log.debug('_mount_action %s %s', action, mount)
         if action == 'unmount':
             self.model._mounts.remove(mount)
             mount.device._mount = None
-            del self._fs_pile.contents[i]
+            last = (self._fs_pile.focus_position ==
+                        len(self._fs_pile.contents) - 1)
+            del self._fs_pile.contents[self._fs_pile.focus_position]
+            if len(self._fs_pile.contents) == 1:
+                self.keypress((10, 10), 'tab')
+                self._fs_pile.contents[0] = (Color.info_minor(
+                Text(_("No disks or partitions mounted."))), self._fs_pile.options('pack'))
+            elif last:
+                self._fs_pile.focus_position -= 1
 
     def _build_filesystem_list(self):
         log.debug('FileSystemView: building part list')
@@ -176,6 +184,10 @@ class FilesystemView(BaseView):
                 desc=m.device.volume.desc(),
                 mount=m))
 
+        if len(mounts) == 0:
+            return Pile([Color.info_minor(
+                Text(_("No disks or partitions mounted.")))])
+
         mounts.sort(key=lambda m:m.split_path)
 
         for i, m1 in enumerate(mounts):
@@ -202,19 +214,17 @@ class FilesystemView(BaseView):
                     desc=fs.volume.desc(),
                 ))
 
-        if len(mounts) == 0:
-            return Pile([Color.info_minor(
-                Text(_("No disks or partitions mounted.")))])
-
         cols = []
         def col(action_menu, path, size, fstype, desc):
-            cols.append(Columns([
+            c = Columns([
                 (4,            action_menu),
                 (longest_path, Text(path)),
                 (size_width,   size),
                 (type_width,   Text(fstype)),
                 Text(desc),
-            ], dividechars=1))
+            ], dividechars=1)
+            cols.append(c)
+            return c
 
         size_text = _("SIZE")
         type_text = _("TYPE")
@@ -231,15 +241,16 @@ class FilesystemView(BaseView):
         for i, m in enumerate(mounts):
             if m.mount is not None:
                 menu = ActionMenu(actions)
-                connect_signal(menu, 'action', self._mount_action, (m.mount, i+1))
             else:
                 menu = Text("")
-            col(
+            c = col(
                 menu,
                 m.marked_up_path,
                 Text(m.size, align='right'),
                 m.fstype,
                 m.desc)
+            if m.mount is not None:
+                connect_signal(menu, 'action', self._mount_action, (m.mount, c))
         self._fs_pile = Pile(cols)
         return self._fs_pile
 
