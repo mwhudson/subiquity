@@ -23,7 +23,11 @@ import logging
 
 import attr
 
-from urwid import connect_signal, Text
+from urwid import (
+    connect_signal,
+    Text,
+    WidgetWrap,
+    )
 
 from subiquitycore.ui.actionmenu import ActionMenu, ActionMenuButton
 from subiquitycore.ui.buttons import (
@@ -79,9 +83,129 @@ class FilesystemConfirmation(Stretchy):
     def cancel(self, sender):
         self.parent.remove_overlay()
 
+@attr.s
+class MountInfo:
+    mount = attr.ib(default=None)
+
+    @property
+    def path(self):
+        return self.mount.path
+
+    @property
+    def split_path(self):
+        return self.mount.path.split('/')
+
+    @property
+    def size(self):
+        return humanize_size(self.mount.device.volume.size)
+
+    @property
+    def fstype(self):
+        return self.mount.device.fstype
+
+    @property
+    def desc(self):
+        return self.mount.device.volume.desc()
+
+    def startswith(self, other):
+        i = 0
+        for a, b in zip(self.split_path, other.split_path):
+            if a != b:
+                break
+            i += 1
+        return i >= len(other.split_path)
+
 
 class MountList(WidgetWrap):
-    pass
+    def __init__(self, parent):
+        self.parent = parent
+        self._mounts = [
+            MountInfo(mount=m)
+            for m in sorted(self.parent.model._mounts, key=lambda m: m.path)
+        ]
+        pile = Pile([])
+        self._no_mounts_content = (
+            Color.info_minor(Text(_("No disks or partitions mounted."))),
+            pile.options('pack'))
+        super().__init__(pile)
+        parent.controller.signal.connect_signals([
+            ('fs:add-mount', self._add_mount),
+            ('fs:remove-mount', self._remove_mount),
+            ])
+        self._compute_contents()
+
+    def _add_mount(self, mount):
+        self._mounts.append(MountInfo(mount=mount))
+
+    def _remove_mount(self, mount):
+        self._mounts = [mi for mi in self._mounts if mi.mount is not mount]
+        last = (self._w.focus_position ==
+                    len(self._w.contents) - 1)
+        self._compute_contents()
+        if len(self._mounts) == 0:
+            self.parent.keypress((10, 10), 'tab')  # hmm
+        elif last:
+            self._w.focus_position -= 1
+
+    def _mount_action(self, sender, action, mount):
+        log.debug('_mount_action %s %s', action, mount)
+        if action == 'unmount':
+            self.parent.model.remove_mount(mount)
+
+    def _compute_contents(self):
+        if len(self._mounts) == 0:
+            self._w.contents[:] = [self._no_mounts_content]
+            return
+        log.debug('FileSystemView: building part list')
+        mount_point_text = _("MOUNT POINT")
+        longest_path = max([len(mount_point_text)] + [len(m.mount.path) for m in self._mounts])
+        cols = []
+        def col(action_menu, path, size, fstype, desc):
+            c = Columns([
+                (4,            action_menu),
+                (longest_path, Text(path)),
+                (size_width,   size),
+                (type_width,   Text(fstype)),
+                Text(desc),
+            ], dividechars=1)
+            cols.append((c, self._w.options('pack')))
+
+        size_text = _("SIZE")
+        type_text = _("TYPE")
+        size_width = max(len(size_text), 9)
+        type_width = max(len(type_text), self.parent.model.longest_fs_name)
+        col(
+            Text(""),
+            mount_point_text,
+            Text(size_text, align='center'),
+            type_text,
+            _("DEVICE TYPE"))
+
+        actions = [(_("Unmount"), True, 'unmount')]
+        for i, m1 in enumerate(self._mounts):
+            path_markup = m1.path
+            for j in range(i-1, -1, -1):
+                m2 = self._mounts[j]
+                if m1.startswith(m2):
+                    path_markup = [
+                        ('info_minor', "/".join(m1.split_path[:len(m2.split_path)])),
+                        "/".join([''] + m1.split_path[len(m2.split_path):]),
+                        ]
+                    break
+                if j == 0 and m2.split_path == ['', '']:
+                    path_markup = [
+                        ('info_minor', "/"),
+                        "/".join(m1.split_path[1:]),
+                        ]
+            menu = ActionMenu(actions)
+            connect_signal(menu, 'action', self._mount_action, m1.mount)
+            col(
+                menu,
+                path_markup,
+                Text(m1.size, align='right'),
+                m1.fstype,
+                m1.desc)
+        self._w.contents[:] = cols
 
 class FilesystemView(BaseView):
     title = _("Filesystem setup")
@@ -103,7 +227,7 @@ class FilesystemView(BaseView):
         body = [
             Text(_("FILE SYSTEM SUMMARY")),
             Text(""),
-            self._build_filesystem_list(),
+            MountList(self),
             Text(""),
             Text(_("AVAILABLE DEVICES AND PARTITIONS")),
             Text(""),
@@ -138,124 +262,6 @@ class FilesystemView(BaseView):
         log.debug('FileSystemView: building used disks')
         return Color.info_minor(
             Text("No disks have been used to create a constructed disk."))
-
-    def _mount_action(self, sender, action, user_data):
-        mount, c = user_data
-        log.debug('_mount_action %s %s', action, mount)
-        if action == 'unmount':
-            self.model._mounts.remove(mount)
-            mount.device._mount = None
-            last = (self._fs_pile.focus_position ==
-                        len(self._fs_pile.contents) - 1)
-            del self._fs_pile.contents[self._fs_pile.focus_position]
-            if len(self._fs_pile.contents) == 1:
-                self.keypress((10, 10), 'tab')
-                self._fs_pile.contents[0] = (Color.info_minor(
-                Text(_("No disks or partitions mounted."))), self._fs_pile.options('pack'))
-            elif last:
-                self._fs_pile.focus_position -= 1
-
-    def _build_filesystem_list(self):
-        log.debug('FileSystemView: building part list')
-        mount_point_text = _("MOUNT POINT")
-
-        @attr.s
-        class Mount:
-            split_path = attr.ib()
-            marked_up_path = attr.ib()
-            size = attr.ib()
-            fstype = attr.ib()
-            desc = attr.ib()
-            mount = attr.ib(default=None)
-            def startswith(self, other):
-                i = 0
-                for a, b in zip(self.split_path, other.split_path):
-                    if a != b:
-                        break
-                    i += 1
-                return i >= len(other.split_path)
-
-        mounts = []
-        longest_path = max([len(mount_point_text)] + [len(m.path) for m in self.model._mounts])
-
-        for m in sorted(self.model._mounts, key=lambda m: m.path):
-            mounts.append(Mount(
-                split_path=m.path.split('/'),
-                marked_up_path=m.path,
-                size=humanize_size(m.device.volume.size),
-                fstype=m.device.fstype,
-                desc=m.device.volume.desc(),
-                mount=m))
-
-        if len(mounts) == 0:
-            return Pile([Color.info_minor(
-                Text(_("No disks or partitions mounted.")))])
-
-        mounts.sort(key=lambda m:m.split_path)
-
-        for i, m1 in enumerate(mounts):
-            for j in range(i-1, -1, -1):
-                m2 = mounts[j]
-                if m1.startswith(m2):
-                    m1.marked_up_path = [
-                        ('info_minor', "/".join(m1.split_path[:len(m2.split_path)])),
-                        "/".join([''] + m1.split_path[len(m2.split_path):]),
-                        ]
-                    break
-                if j == 0 and m2.split_path == ['', '']:
-                    m1.marked_up_path = [
-                        ('info_minor', "/"),
-                        "/".join(m1.split_path[1:]),
-                        ]
-        for fs in self.model._filesystems:
-            if fs.fstype == 'swap':
-                mounts.append(Mount(
-                    split_path=None,
-                    marked_up_path=_('SWAP'),
-                    size=humanize_size(fs.volume.size),
-                    fstype=fs.fstype,
-                    desc=fs.volume.desc(),
-                ))
-
-        cols = []
-        def col(action_menu, path, size, fstype, desc):
-            c = Columns([
-                (4,            action_menu),
-                (longest_path, Text(path)),
-                (size_width,   size),
-                (type_width,   Text(fstype)),
-                Text(desc),
-            ], dividechars=1)
-            cols.append(c)
-            return c
-
-        size_text = _("SIZE")
-        type_text = _("TYPE")
-        size_width = max(len(size_text), 9)
-        type_width = max(len(type_text), self.model.longest_fs_name)
-        col(
-            Text(""),
-            mount_point_text,
-            Text(size_text, align='center'),
-            type_text,
-            _("DEVICE TYPE"))
-
-        actions = [(_("Unmount"), True, 'unmount')]
-        for i, m in enumerate(mounts):
-            if m.mount is not None:
-                menu = ActionMenu(actions)
-            else:
-                menu = Text("")
-            c = col(
-                menu,
-                m.marked_up_path,
-                Text(m.size, align='right'),
-                m.fstype,
-                m.desc)
-            if m.mount is not None:
-                connect_signal(menu, 'action', self._mount_action, (m.mount, c))
-        self._fs_pile = Pile(cols)
-        return self._fs_pile
 
     def _build_buttons(self):
         log.debug('FileSystemView: building buttons')

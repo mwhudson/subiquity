@@ -483,8 +483,9 @@ class FilesystemModel(object):
             fs_by_name[fs.label] = fs
     fs_by_name['fat32'] = FS('fat32', True)
 
-    def __init__(self, prober):
+    def __init__(self, prober, signal):
         self.prober = prober
+        self.signal = signal
         self._available_disks = {}  # keyed by path, eg /dev/sda
         self.reset()
 
@@ -611,7 +612,13 @@ class FilesystemModel(object):
             raise Exception("%s is already mounted")
         fs._mount = m = Mount(device=fs, path=path)
         self._mounts.append(m)
+        self.signal.emit_signal('fs:add-mount', m)
         return m
+
+    def remove_mount(self, mount):
+        mount.device._fs = None
+        self._mounts.remove(mount)
+        self.signal.emit_signal('fs:remove-mount', mount)
 
     def get_mountpoint_to_devpath_mapping(self):
         r = {}

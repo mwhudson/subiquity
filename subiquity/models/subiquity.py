@@ -50,7 +50,7 @@ class SubiquityModel:
         self.keyboard = KeyboardModel(root)
         self.installpath = InstallpathModel()
         self.network = NetworkModel(support_wlan=False)
-        self.filesystem = FilesystemModel(common['prober'])
+        self.filesystem = FilesystemModel(common['prober'], common['signal'])
         self.identity = IdentityModel()
         self.proxy = ProxyModel()
 
