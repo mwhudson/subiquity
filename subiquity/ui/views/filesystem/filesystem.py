@@ -80,6 +80,9 @@ class FilesystemConfirmation(Stretchy):
         self.parent.remove_overlay()
 
 
+class MountList(WidgetWrap):
+    pass
+
 class FilesystemView(BaseView):
     title = _("Filesystem setup")
     footer = _("Select available disks to format and mount")
