@@ -40,6 +40,7 @@ from subiquitycore.ui.buttons import (
     cancel_btn,
     danger_btn,
     done_btn,
+    menu_btn,
     reset_btn,
     )
 from subiquitycore.ui.container import (
@@ -438,6 +439,12 @@ class FilesystemView(BaseView):
         self.avail_list = DeviceList(self, True)
         self.used_list = DeviceList(self, False)
         self.avail_list.table.bind(self.used_list.table)
+        self._create_raid_btn = menu_btn(
+            label=_("Create software RAID (md)"),
+            on_press=self.create_raid)
+
+        bp = button_pile([self._create_raid_btn])
+        bp.align = 'left'
 
         body = [
             Text(_("FILE SYSTEM SUMMARY")),
@@ -448,6 +455,8 @@ class FilesystemView(BaseView):
             Text(_("AVAILABLE DEVICES")),
             Text(""),
             Padding.push_2(self.avail_list),
+            Text(""),
+            Padding.push_2(bp),
             Text(""),
             Text(""),
             Text(_("USED DEVICES")),
@@ -489,6 +498,9 @@ class FilesystemView(BaseView):
             self.done.enable()
         else:
             self.done.disable()
+
+    def create_raid(self, button=None):
+        pass
 
     def cancel(self, button=None):
         self.controller.default()
