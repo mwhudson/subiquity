@@ -65,6 +65,7 @@ from .delete import (
     )
 from .disk_info import DiskInfoStretchy
 from .partition import PartitionStretchy, FormatEntireStretchy
+from ..raid import RaidStretchy
 
 log = logging.getLogger('subiquity.ui.filesystem.filesystem')
 
@@ -299,6 +300,11 @@ class DeviceList(WidgetWrap):
     _partition_DELETE = _stretchy_shower(ConfirmDeleteStretchy)
     _partition_FORMAT = _disk_FORMAT
 
+    _raid_EDIT = _stretchy_shower(RaidStretchy)
+    _raid_PARTITION = _disk_PARTITION
+    _raid_FORMAT = _disk_FORMAT
+    _raid_DELETE = _partition_DELETE
+
     def _action(self, sender, action, device):
         log.debug('_action %s %s', action, device)
         meth_name = '_{}_{}'.format(device.type, action.name)
@@ -502,7 +508,7 @@ class FilesystemView(BaseView):
             self.done.disable()
 
     def create_raid(self, button=None):
-        pass
+        self.show_stretchy_overlay(RaidStretchy(self))
 
     def cancel(self, button=None):
         self.controller.default()
