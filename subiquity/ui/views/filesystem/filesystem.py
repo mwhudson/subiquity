@@ -59,7 +59,10 @@ from subiquitycore.view import BaseView
 
 from subiquity.models.filesystem import DeviceAction, humanize_size
 
-from .delete import ConfirmDeleteStretchy
+from .delete import (
+    can_delete,
+    ConfirmDeleteStretchy,
+    )
 from .disk_info import DiskInfoStretchy
 from .partition import PartitionStretchy, FormatEntireStretchy
 
@@ -302,7 +305,10 @@ class DeviceList(WidgetWrap):
         getattr(self, meth_name)(device)
 
     def _action_menu_for_device(self, device):
-        delete_btn = Color.danger_button(ActionMenuButton(_("Delete")))
+        if can_delete(device)[0]:
+            delete_btn = Color.danger_button(ActionMenuButton(_("Delete")))
+        else:
+            delete_btn = _("* Delete")
         device_actions = [
             (_("Information"),      DeviceAction.INFO),
             (_("Edit"),             DeviceAction.EDIT),
