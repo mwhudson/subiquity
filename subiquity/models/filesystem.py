@@ -23,7 +23,6 @@ import math
 import os
 import sys
 
-HUMAN_UNITS = ['B', 'K', 'M', 'G', 'T', 'P']
 log = logging.getLogger('subiquity.models.filesystem')
 
 
@@ -31,6 +30,26 @@ log = logging.getLogger('subiquity.models.filesystem')
 class FS:
     label = attr.ib()
     is_mounted = attr.ib()
+
+
+@attr.s(cmp=False)
+class RaidLevel:
+    name = attr.ib()
+    value = attr.ib()
+    min_devices = attr.ib()
+
+
+raidlevels = [
+    RaidLevel(_("0 (striped)"),  0,  2),
+    RaidLevel(_("1 (mirrored)"), 1,  2),
+    RaidLevel(_("5"),            5,  3),
+    RaidLevel(_("6"),            6,  4),
+    RaidLevel(_("10"),           10, 4),
+    ]
+raidlevels_by_value = {l.value:l for l in raidlevels}
+
+
+HUMAN_UNITS = ['B', 'K', 'M', 'G', 'T', 'P']
 
 
 def humanize_size(size):
