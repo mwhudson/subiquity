@@ -293,11 +293,7 @@ class DeviceList(WidgetWrap):
 
     _partition_EDIT = _stretchy_shower(
         lambda parent, part: PartitionStretchy(parent, part.device, part))
-    _partition_DELETE = _stretchy_shower(
-        lambda parent, part: ConfirmDeleteStretchy(
-            parent,
-            part,
-            parent.controller.delete_partition))
+    _partition_DELETE = _stretchy_shower(ConfirmDeleteStretchy)
     _partition_FORMAT = _disk_FORMAT
 
     def _action(self, sender, action, device):
