@@ -318,7 +318,7 @@ class ReadOnlyField(FormField):
     takes_default_style = False
 
     def _make_widget(self, form):
-        return ReadOnlyWidget()
+        return ReadOnlyWidget("")
 
 
 class MetaForm(MetaSignals):

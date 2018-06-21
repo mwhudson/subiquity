@@ -41,7 +41,7 @@ from subiquitycore.ui.stretchy import (
     Stretchy,
     )
 from subiquitycore.ui.table import (
-    Table,
+    TablePile,
     TableRow,
     )
 from subiquitycore.ui.utils import (
@@ -68,7 +68,7 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
     signals = ['change']
 
     def __init__(self):
-        self.table = Table([], spacing=1)
+        self.table = TablePile([], spacing=1)
         self.device_to_checkbox = {}
         self.devices = set()
         super().__init__(self.table)
@@ -108,7 +108,7 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
                     device.label,
                     on_state_change=self._state_change_device,
                     user_data=device)
-                self.device_to_box[device] = box
+                self.device_to_checkbox[device] = box
                 rows.append(Color.menu_button(TableRow([
                     box,
                     Text(humanize_size(device.size), align='right'),
@@ -128,7 +128,7 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
                     _("  partition {}").format(device._number),
                     on_state_change=self._state_change_device,
                     user_data=device)
-                self.device_to_box[device] = box
+                self.device_to_checkbox[device] = box
                 size = Text(humanize_size(device.size), align='right')
                 row = TableRow([box, size])
                 row = Color.menu_button(row)
