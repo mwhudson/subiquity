@@ -241,7 +241,7 @@ class Disk(_Device):
 
     id = attr.ib(default=id_factory("disk"))
     type = attr.ib(default="disk")
-    ptable = attr.ib(default='gpt')
+    ptable = attr.ib(default=None)
     serial = attr.ib(default=None)
     path = attr.ib(default=None)
     model = attr.ib(default=None)
@@ -383,6 +383,7 @@ class Raid(_Device):
     name = attr.ib(default=None)
     raidlevel = attr.ib(default=None)  # 0, 1, 5, 6, 10
     devices = attr.ib(default=attr.Factory(set))  # set([_Formattable])
+    ptable = attr.ib(default=None)
 
     @property
     def size(self):
@@ -639,6 +640,7 @@ class FilesystemModel(object):
             disk._partitions.insert(0, p)
         else:
             disk._partitions.append(p)
+        disk.ptable = 'gpt'
         self._partitions.append(p)
         return p
 
@@ -647,6 +649,8 @@ class FilesystemModel(object):
             raise Exception("can only remove empty partition")
         part.device._partitions.remove(part)
         self._partitions.remove(part)
+        if len(part.device._partitions) == 0:
+            part.device.ptable = None
 
     def add_raid(self, name, raidlevel, devices):
         r = Raid(
