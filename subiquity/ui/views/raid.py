@@ -17,6 +17,7 @@ import logging
 import re
 
 from urwid import (
+    AttrMap,
     CheckBox,
     connect_signal,
     Padding as UrwidPadding,
@@ -179,7 +180,7 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
                 rows.append(Color.menu_button(TableRow([box, size])))
                 selector = Selector(['active', 'spare'])
                 connect_signal(selector, 'select', self._select_active_spare, device)
-                selector = Toggleable(UrwidPadding(Color.menu_button(selector), left=len(prefix)))
+                selector = Toggleable(UrwidPadding(AttrMap(selector, {'string_input':'menu_button'}), left=len(prefix)))
                 selector.disable()
                 self.device_to_selector[device] = selector
                 rows.append(TableRow([(2, selector)]))

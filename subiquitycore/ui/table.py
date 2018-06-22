@@ -122,6 +122,8 @@ def demarkup(s):
 
 def widget_width(w):
     """Return the natural width of the widget w."""
+    if isinstance(w, (selector.Selector,)):
+        return 10
     if isinstance(w, (selector.Selector, urwid.CheckBox)):
         return widget_width(w._wrapped_widget)
     elif isinstance(w, (urwid.PopUpLauncher, actionmenu.ActionMenu, urwid.AttrMap, Toggleable, urwid.WidgetDisable)):
