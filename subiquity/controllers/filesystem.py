@@ -81,7 +81,11 @@ class FilesystemController(BaseController):
         return self.model.fs_by_name[fstype]
 
     def _action_clean_devices(self, devices):
-        return set([self._action_get(d) for d in devices])
+        log.debug("_action_clean_devices: %s", list(zip(devices[::2], devices[1::2])))
+        return {
+            self._action_get(d): v
+            for d, v in zip(devices[::2], devices[1::2])
+            }
 
     def _action_clean_level(self, level):
         return raidlevels_by_value[level]

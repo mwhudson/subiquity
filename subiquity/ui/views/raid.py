@@ -84,15 +84,16 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
 
     @value.setter
     def value(self, value):
+        log.debug("MDC value %s", {d.id:v for d, v in value.items()})
         self.devices = value
-        for d, b in self.device_to_checkbox.items():
-            b.set_state(d in self.devices)
         for d, s in self.device_to_selector.items():
             if d in self.devices:
                 s.enable()
                 s.base_widget.value = self.devices[d]
             else:
                 s.disable()
+        for d, b in self.device_to_checkbox.items():
+            b.set_state(d in self.devices)
 
     @property
     def active_devices(self):

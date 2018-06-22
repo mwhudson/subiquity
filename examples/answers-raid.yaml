@@ -24,13 +24,22 @@ Filesystem:
       data:
         size: 1G
         mount: null
+    - obj: [disk index 0]
+      action: PARTITION
+      data:
+        size: 1G
+        mount: null
     - action: create-raid
       data:
         name: md11
-        level: 0
+        level: 1
         devices:
           - [disk index 0, part 1]
+          - active
           - [disk index 0, part 2]
+          - active
+          - [disk index 0, part 3]
+          - spare
     - action: done
 Identity:
   realname: Ubuntu
