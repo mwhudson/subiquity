@@ -303,7 +303,7 @@ class RaidStretchy(Stretchy):
                 'fstype': fs,
                 'mount': m,
                 'name': name,
-                'raidlevels': raidlevels_by_value[existing.raidlevel]
+                'level': raidlevels_by_value[existing.raidlevel]
                 }
 
         all_devices = []
@@ -327,7 +327,7 @@ class RaidStretchy(Stretchy):
 
         cur_devices = []
         if existing:
-            cur_devices = existing.devices
+            cur_devices = existing.devices | existing.spare_devices
 
         def device_ok(dev):
             return (dev not in omits
