@@ -49,7 +49,6 @@ from subiquitycore.ui.table import (
     )
 from subiquitycore.ui.utils import (
     Color,
-    Padding,
     )
 
 from .filesystem.partition import FSTypeField
@@ -76,6 +75,7 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
         self.device_to_checkbox = {}
         self.device_to_selector = {}
         self.devices = {} # {device:active|spare}
+        self.supports_spares = True
         super().__init__(self.table)
 
     @property
@@ -98,9 +98,27 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
     def active_devices(self):
         return [device for device, status in self.devices.items() if status == 'active']
 
+    @property
+    def spare_devices(self):
+        return [device for device, status in self.devices.items() if status == 'spare']
+
+    def set_supports_spares(self, val):
+        if val == self.supports_spares:
+            return
+        self.supports_spares = val
+        if val:
+            for device in list(self.devices):
+                self.device_to_selector[device].enable()
+                self.devices[device] = self.device_to_selector[device].base_widget.value
+        else:
+            for device in list(self.devices):
+                self.device_to_selector[device].disable()
+                self.devices[device] = 'active'
+
     def _state_change_device(self, sender, state, device):
         if state:
-            self.device_to_selector[device].enable()
+            if self.supports_spares:
+                self.device_to_selector[device].enable()
             self.devices[device] = self.device_to_selector[device].base_widget.value
         else:
             self.device_to_selector[device].disable()
@@ -247,7 +265,7 @@ class RaidStretchy(Stretchy):
             initial = {
                 'devices': {},
                 'name': name,
-                'level': raidlevels[0],
+                'level': raidlevels_by_value[1],
                 'size': '-',
                 }
         else:
@@ -323,6 +341,8 @@ class RaidStretchy(Stretchy):
         form = self.form = RaidForm(
             mountpoint_to_devpath_mapping, all_devices, initial, raid_names)
 
+        self.form.devices.widget.set_supports_spares(initial['level'].supports_spares)
+
         connect_signal(form.level.widget, 'select', self._select_level)
         connect_signal(form.devices.widget, 'change', self._change_devices)
         connect_signal(form, 'submit', self.done)
@@ -344,11 +364,12 @@ class RaidStretchy(Stretchy):
             0, 0)
 
     def _select_level(self, sender, new_level):
-        if len(self.form.devices.value) >= new_level.min_devices:
+        if len(self.form.devices.widget.active_devices) >= new_level.min_devices:
             self.form.size.value = humanize_size(
                 get_raid_size(new_level.value, self.form.devices.value))
         else:
             self.form.size.value = '-'
+        self.form.devices.widget.set_supports_spares(new_level.supports_spares)
         self.form.level.widget._index = raidlevels.index(new_level)  # *cough*
         self.form.devices.showing_extra = False
         self.form.devices.validate()
@@ -362,6 +383,8 @@ class RaidStretchy(Stretchy):
 
     def done(self, sender):
         result = self.form.as_data()
+        result['devices'] = self.form.widget.active_devices
+        result['spare_devices'] = self.form.widget.active_devices
         log.debug('raid_done: result = {}'.format(result))
         self.parent.controller.raid_handler(self.existing, result)
         self.parent.refresh_model_inputs()

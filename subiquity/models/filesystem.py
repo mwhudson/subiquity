@@ -37,10 +37,11 @@ class RaidLevel:
     name = attr.ib()
     value = attr.ib()
     min_devices = attr.ib()
+    supports_spares = attr.ib(default=True)
 
 
 raidlevels = [
-    RaidLevel(_("0 (striped)"),  0,  2),
+    RaidLevel(_("0 (striped)"),  0,  2, False),
     RaidLevel(_("1 (mirrored)"), 1,  2),
     RaidLevel(_("5"),            5,  3),
     RaidLevel(_("6"),            6,  4),
