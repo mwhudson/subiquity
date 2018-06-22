@@ -108,7 +108,20 @@ class Option:
             raise SelectorError("invalid option %r", val)
 
 
-class Selector(PopUpLauncher):
+class _PopUpLauncher(PopUpLauncher):
+
+    def __init__(self, parent, content):
+        self.parent = parent
+        super().__init__(content)
+
+    def create_pop_up(self):
+        return self.parent.create_pop_up()
+
+    def get_pop_up_parameters(self):
+        return self.parent.get_pop_up_parameters()
+
+
+class Selector(WidgetWrap):
     """A widget that allows the user to chose between options by popping
        up a list of options.
 
@@ -127,12 +140,12 @@ class Selector(PopUpLauncher):
             self._options.append(opt)
         self._button = SelectableIcon(self._prefix, len(self._prefix))
         self._set_index(index)
-        super().__init__(self._button)
+        super().__init__(_PopUpLauncher(self, self._button))
 
     def keypress(self, size, key):
         if self._command_map[key] != ACTIVATE:
             return key
-        self.open_pop_up()
+        self._w.open_pop_up()
 
     def _set_index(self, val):
         self._button.set_text(self._prefix + self._options[val].label)
@@ -182,3 +195,6 @@ class Selector(PopUpLauncher):
         return {'left': -1, 'top': -self.index - 1,
                 'overlay_width': width,
                 'overlay_height': len(self._options) + 2}
+
+    def close_pop_up(self):
+        self._w.close_pop_up()

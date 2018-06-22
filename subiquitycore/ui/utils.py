@@ -25,7 +25,9 @@ from urwid import (
     Button,
     Padding as _Padding,
     Text,
+    WidgetDecoration,
     WidgetDisable,
+    delegate_to_widget_mixin,
     )
 
 
@@ -202,6 +204,25 @@ _disable_everything_map = {k: 'info_minor' for k in STYLE_NAMES | set([None])}
 
 def disabled(w):
     return WidgetDisable(AttrMap(w, _disable_everything_map))
+
+
+class Toggleable(delegate_to_widget_mixin('_original_widget'),
+                 WidgetDecoration):
+
+    def __init__(self, original):
+        self.original = original
+        self.enabled = False
+        self.enable()
+
+    def enable(self):
+        if not self.enabled:
+            self.original_widget = self.original
+            self.enabled = True
+
+    def disable(self):
+        if self.enabled:
+            self.original_widget = disabled(self.original)
+            self.enabled = False
 
 
 def button_pile(buttons):

@@ -19,6 +19,7 @@ import re
 from urwid import (
     CheckBox,
     connect_signal,
+    Padding as UrwidPadding,
     Text,
     )
 
@@ -32,10 +33,12 @@ from subiquitycore.ui.form import (
     ReadOnlyField,
     simple_field,
     StringField,
+    Toggleable,
     WantsToKnowFormField,
     )
 from subiquitycore.ui.selector import (
     Option,
+    Selector,
     )
 from subiquitycore.ui.stretchy import (
     Stretchy,
@@ -46,6 +49,7 @@ from subiquitycore.ui.table import (
     )
 from subiquitycore.ui.utils import (
     Color,
+    Padding,
     )
 
 from .filesystem.partition import FSTypeField
@@ -70,7 +74,8 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
     def __init__(self):
         self.table = TablePile([], spacing=1)
         self.device_to_checkbox = {}
-        self.devices = set()
+        self.device_to_selector = {}
+        self.devices = {} # {device:active|spare}
         super().__init__(self.table)
 
     @property
@@ -82,24 +87,40 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
         self.devices = value
         for d, b in self.device_to_checkbox.items():
             b.set_state(d in self.devices)
+        for d, s in self.device_to_selector.items():
+            if d in self.devices:
+                s.enable()
+                s.base_widget.value = self.devices[d]
+            else:
+                s.disable()
+
+    @property
+    def active_devices(self):
+        return [device for device, status in self.devices.items() if status == 'active']
 
     def _state_change_device(self, sender, state, device):
         if state:
-            self.devices.add(device)
+            self.device_to_selector[device].enable()
+            self.devices[device] = self.device_to_selector[device].base_widget.value
         else:
-            self.devices.remove(device)
+            self.device_to_selector[device].disable()
+            del self.devices[device]
         self._emit('change', self.devices)
 
-    def _summarize(self, device):
+    def _select_active_spare(self, sender, value, device):
+        self.devices[device] = value
+        self._emit('change', self.devices)
+
+    def _summarize(self, prefix, device):
         if device.fs() is not None:
             fs = device.fs()
-            text = _("      formatted as {}").format(fs.fstype)
+            text = prefix + _("formatted as {}").format(fs.fstype)
             if fs.mount():
                 text += _(", mounted at {}").format(fs.mount().path)
             else:
                 text += _(", not mounted")
         else:
-            text = _("      unused {}").format(device.desc())
+            text = prefix + _("unused {}").format(device.desc())
         return TableRow([(2, Color.info_minor(Text(text)))])
 
     def set_bound_form_field(self, bff):
@@ -118,8 +139,10 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
             else:
                 if kind == DEVICE:
                     label = device.label
+                    prefix = "    "
                 elif kind == PART:
                     label = _("  partition {}").format(device._number)
+                    prefix = "      "
                 else:
                     1/0
                 box = CheckBox(
@@ -129,7 +152,13 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
                 self.device_to_checkbox[device] = box
                 size = Text(humanize_size(device.size), align='right')
                 rows.append(Color.menu_button(TableRow([box, size])))
-                rows.append(self._summarize(device))
+                selector = Selector(['active', 'spare'])
+                connect_signal(selector, 'select', self._select_active_spare, device)
+                selector = Toggleable(UrwidPadding(Color.menu_button(selector), left=len(prefix)))
+                selector.disable()
+                self.device_to_selector[device] = selector
+                rows.append(TableRow([(2, selector)]))
+                rows.append(self._summarize(prefix, device))
         self.table.set_contents(rows)
         log.debug("%s", self.table._w.focus_position)
 
@@ -184,8 +213,8 @@ class RaidForm(Form):
         log.debug(
             'validate_devices %s %s',
             len(self.devices.value), self.level.value)
-        if len(self.devices.value) < self.level.value.min_devices:
-            return _('RAID Level "{}" requires at least {} devices').format(
+        if len(self.devices.widget.active_devices) < self.level.value.min_devices:
+            return _('RAID Level "{}" requires at least {} active devices').format(
                 self.level.value.name, self.level.value.min_devices)
 
     def validate_mount(self):
@@ -216,7 +245,7 @@ class RaidStretchy(Stretchy):
                     break
                 x += 1
             initial = {
-                'devices': set(),
+                'devices': {},
                 'name': name,
                 'level': raidlevels[0],
                 'size': '-',
@@ -238,8 +267,13 @@ class RaidStretchy(Stretchy):
             name = existing.name
             if name.startswith('md/'):
                 name = name[3:]
+            devices = {}
+            for d in existing.devices:
+                devices[d] = 'active'
+            for d in existing.spare_devices:
+                devices[d] = 'spare'
             initial = {
-                'devices': existing.devices,
+                'devices': devices,
                 'fstype': fs,
                 'mount': m,
                 'name': name,
@@ -320,7 +354,7 @@ class RaidStretchy(Stretchy):
         self.form.devices.validate()
 
     def _change_devices(self, sender, new_devices):
-        if len(new_devices) >= self.form.level.value.min_devices:
+        if len(sender.active_devices) >= self.form.level.value.min_devices:
             self.form.size.value = humanize_size(
                 get_raid_size(self.form.level.value.value, new_devices))
         else:

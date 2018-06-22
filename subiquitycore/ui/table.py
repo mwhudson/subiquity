@@ -78,6 +78,8 @@ from subiquitycore.ui.container import (
     Pile,
     WidgetWrap,
     )
+from subiquitycore.ui.selector import Selector
+from subiquitycore.ui.utils import Toggleable
 
 import attr
 
@@ -120,12 +122,15 @@ def demarkup(s):
 
 def widget_width(w):
     """Return the natural width of the widget w."""
-    if isinstance(w, urwid.CheckBox):
+    if isinstance(w, (Selector, urwid.CheckBox)):
         return widget_width(w._wrapped_widget)
-    elif isinstance(w, (ActionMenu, urwid.AttrMap)):
+    elif isinstance(w, (urwid.PopUpLauncher, ActionMenu, urwid.AttrMap, Toggleable, urwid.WidgetDisable)):
         return widget_width(w._original_widget)
     elif isinstance(w, urwid.Text):
         return len(demarkup(w.text))
+    elif isinstance(w, urwid.Padding):
+        if w.width == urwid.RELATIVE_100:
+            return w.left + w.right + widget_width(w.original_widget)
     elif isinstance(w, urwid.Columns):
         if len(w.contents) == 0:
             return 0
