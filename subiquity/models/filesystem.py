@@ -403,6 +403,7 @@ class Raid(_Device):
     name = attr.ib(default=None)
     raidlevel = attr.ib(default=None)  # 0, 1, 5, 6, 10
     devices = attr.ib(default=attr.Factory(set))  # set([_Formattable])
+    spare_devices = attr.ib(default=attr.Factory(set))  # set([_Formattable])
     ptable = attr.ib(default=None)
 
     @property
@@ -672,12 +673,13 @@ class FilesystemModel(object):
         if len(part.device._partitions) == 0:
             part.device.ptable = None
 
-    def add_raid(self, name, raidlevel, devices):
+    def add_raid(self, name, raidlevel, devices, spare_devices):
         r = Raid(
             name=name,
             raidlevel=raidlevel,
-            devices=devices)
-        for d in devices:
+            devices=devices,
+            spare_devices=spare_devices)
+        for d in devices | spare_devices:
             if isinstance(d, Disk):
                 self._use_disk(d)
             d._constructed_device = r

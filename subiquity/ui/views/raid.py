@@ -96,11 +96,11 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
 
     @property
     def active_devices(self):
-        return [device for device, status in self.devices.items() if status == 'active']
+        return {device for device, status in self.devices.items() if status == 'active'}
 
     @property
     def spare_devices(self):
-        return [device for device, status in self.devices.items() if status == 'spare']
+        return {device for device, status in self.devices.items() if status == 'spare'}
 
     def set_supports_spares(self, val):
         if val == self.supports_spares:
@@ -110,7 +110,13 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
             for device in list(self.devices):
                 self.device_to_selector[device].enable()
                 self.devices[device] = self.device_to_selector[device].base_widget.value
+            self.table.set_contents(self.all_rows)
         else:
+            rs = []
+            for r in self.all_rows:
+                if not isinstance(r.base_widget.cells[0][1].base_widget, Selector):
+                    rs.append(r)
+            self.table.set_contents(rs)
             for device in list(self.devices):
                 self.device_to_selector[device].disable()
                 self.devices[device] = 'active'
@@ -177,6 +183,7 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
                 self.device_to_selector[device] = selector
                 rows.append(TableRow([(2, selector)]))
                 rows.append(self._summarize(prefix, device))
+        self.all_rows = rows
         self.table.set_contents(rows)
         log.debug("%s", self.table._w.focus_position)
 
@@ -383,8 +390,9 @@ class RaidStretchy(Stretchy):
 
     def done(self, sender):
         result = self.form.as_data()
-        result['devices'] = self.form.widget.active_devices
-        result['spare_devices'] = self.form.widget.active_devices
+        mdc = self.form.devices.widget
+        result['devices'] = mdc.active_devices
+        result['spare_devices'] = mdc.spare_devices
         log.debug('raid_done: result = {}'.format(result))
         self.parent.controller.raid_handler(self.existing, result)
         self.parent.refresh_model_inputs()

@@ -415,7 +415,7 @@ class DeviceList(WidgetWrap):
                         menu, row, 'menu_button', 'menu_button focus',
                         cursor_x=2)
                     rows.append(row)
-                if self.show_available and 0 < device.used < device.size:
+                if self.show_available and device.used > 0 and device.free_for_partitions > 0:
                     size = device.size
                     free = device.free_for_partitions
                     percent = str(int(100 * free / size))

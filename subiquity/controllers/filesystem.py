@@ -249,7 +249,8 @@ class FilesystemController(BaseController):
         raid = self.model.add_raid(
             spec['name'],
             spec['level'].value,
-            spec['devices'])
+            spec['devices'],
+            spec['spare_devices'])
         self.create_filesystem(raid, spec)
         return raid
 
