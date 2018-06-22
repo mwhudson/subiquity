@@ -232,6 +232,7 @@ class RaidStretchy(Stretchy):
                 'devices': set(),
                 'name': name,
                 'level': raidlevels[0],
+                'size': '-',
                 }
         else:
             raid_names.remove(existing.name)
