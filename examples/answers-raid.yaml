@@ -40,7 +40,7 @@ Filesystem:
           - active
           - [disk index 0, part 3]
           - spare
-    - action: done
+#    - action: done
 Identity:
   realname: Ubuntu
   username: ubuntu

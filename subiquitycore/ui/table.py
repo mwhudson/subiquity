@@ -71,14 +71,14 @@ from collections import defaultdict
 import logging
 
 
-from subiquitycore.ui.actionmenu import ActionMenu
+from subiquitycore.ui import actionmenu
 from subiquitycore.ui.container import (
     Columns,
     ListBox,
     Pile,
     WidgetWrap,
     )
-from subiquitycore.ui.selector import Selector
+from subiquitycore.ui import selector
 from subiquitycore.ui.utils import Toggleable
 
 import attr
@@ -122,9 +122,9 @@ def demarkup(s):
 
 def widget_width(w):
     """Return the natural width of the widget w."""
-    if isinstance(w, (Selector, urwid.CheckBox)):
+    if isinstance(w, (selector.Selector, urwid.CheckBox)):
         return widget_width(w._wrapped_widget)
-    elif isinstance(w, (urwid.PopUpLauncher, ActionMenu, urwid.AttrMap, Toggleable, urwid.WidgetDisable)):
+    elif isinstance(w, (urwid.PopUpLauncher, actionmenu.ActionMenu, urwid.AttrMap, Toggleable, urwid.WidgetDisable)):
         return widget_width(w._original_widget)
     elif isinstance(w, urwid.Text):
         return len(demarkup(w.text))

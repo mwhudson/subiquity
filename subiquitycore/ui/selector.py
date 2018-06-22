@@ -15,17 +15,26 @@
 
 from urwid import (
     ACTIVATE,
+    AttrMap,
     AttrWrap,
+    CompositeCanvas,
     connect_signal,
     LineBox,
     PopUpLauncher,
     SelectableIcon,
     Text,
+    WidgetDecoration,
     )
 
 from subiquitycore.ui.container import (
     ListBox,
     WidgetWrap,
+    )
+from subiquitycore.ui.table import (
+    ColSpec,
+    TableListBox,
+    TablePile,
+    TableRow,
     )
 
 
@@ -36,8 +45,8 @@ class _PopUpButton(SelectableIcon):
     signals = ['click']
 
     states = {
-        True: "(+) ",
-        False: "( ) ",
+        True: "",
+        False: "",
         }
 
     def __init__(self, option, state):
@@ -58,14 +67,17 @@ class _PopUpSelectDialog(WidgetWrap):
         group = []
         for i, option in enumerate(self.parent._options):
             if option.enabled:
-                btn = _PopUpButton(option.label, state=(i == cur_index))
-                connect_signal(btn, 'click', self.click, i)
-                group.append(AttrWrap(btn, 'menu_button', 'menu_button focus'))
+                if i == cur_index:
+                    icon = _PopUpButton(" ◂ ", False)
+                else:
+                    icon = _PopUpButton("   ", False)
+                connect_signal(icon, 'click', self.click, i)
+                group.append(CursorOverride(AttrWrap(TableRow([Text(" " + option.label), icon]), 'menu_button', 'menu_button focus'), 1))
             else:
-                btn = Text("    " + option.label)
-                group.append(AttrWrap(btn, 'info_minor'))
-        list_box = ListBox(group)
-        list_box.base_widget.focus_position = cur_index
+                btn = Text(" " + option.label)
+                group.append(AttrWrap(TableRow([btn]), 'info_minor'))
+        list_box = TableListBox(group)
+        list_box.focus_position = cur_index
         super().__init__(LineBox(list_box))
 
     def click(self, btn, index):
@@ -121,6 +133,32 @@ class _PopUpLauncher(PopUpLauncher):
         return self.parent.get_pop_up_parameters()
 
 
+class CursorOverride(WidgetDecoration):
+    """Decoration to override where the cursor goes when a widget is focused.
+    """
+
+    def __init__(self, w, cursor_x=0):
+        super().__init__(w)
+        self.cursor_x = cursor_x
+
+    def get_cursor_coords(self, size):
+        return self.cursor_x, 0
+
+    def rows(self, size, focus):
+        return self._original_widget.rows(size, focus)
+
+    def keypress(self, size, focus):
+        return self._original_widget.keypress(size, focus)
+
+    def render(self, size, focus=False):
+        c = self._original_widget.render(size, focus)
+        if focus:
+            # create a new canvas so we can add a cursor
+            c = CompositeCanvas(c)
+            c.cursor = self.get_cursor_coords(size)
+        return c
+
+
 class Selector(WidgetWrap):
     """A widget that allows the user to chose between options by popping
        up a list of options.
@@ -133,14 +171,35 @@ class Selector(WidgetWrap):
     signals = ['select']
 
     def __init__(self, opts, index=0):
-        self._options = []
+        options = []
         for opt in opts:
             if not isinstance(opt, Option):
                 opt = Option(opt)
-            self._options.append(opt)
-        self._button = SelectableIcon(self._prefix, len(self._prefix))
+            options.append(opt)
+        self._options = options
         self._set_index(index)
-        super().__init__(_PopUpLauncher(self, self._button))
+        super().__init__(_PopUpLauncher(self, self.ts[index]))
+
+    @property
+    def _options(self):
+        return self.__options
+
+    @_options.setter
+    def _options(self, val):
+        self.__options = val
+        if not val:
+            return
+        colspecs = {0: ColSpec(can_shrink=True)}
+        opt = val[0]
+        ts = []
+        icon = SelectableIcon(" ▾ ")
+        for opt in val:
+            t = TablePile([AttrMap(CursorOverride(TableRow([Text(opt.label), icon])), 'string_input', 'string_input focus')], colspecs=colspecs)
+            ts.append(t)
+        t0 = ts[0]
+        for t in ts[1:]:
+            t0.bind(t)
+        self.ts = ts
 
     def keypress(self, size, key):
         if self._command_map[key] != ACTIVATE:
@@ -148,7 +207,7 @@ class Selector(WidgetWrap):
         self._w.open_pop_up()
 
     def _set_index(self, val):
-        self._button.set_text(self._prefix + self._options[val].label)
+        self._w = _PopUpLauncher(self, self.ts[val])
         self._index = val
 
     @property
@@ -191,8 +250,8 @@ class Selector(WidgetWrap):
     def get_pop_up_parameters(self):
         # line on left, space, line on right
         width = (max([len(o.label) for o in self._options]) +
-                 len(self._prefix) + 3)
-        return {'left': -1, 'top': -self.index - 1,
+                 len(self._prefix) + 4)
+        return {'left': -2, 'top': -self.index - 1,
                 'overlay_width': width,
                 'overlay_height': len(self._options) + 2}
 
