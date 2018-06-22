@@ -90,6 +90,18 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
             self.devices.remove(device)
         self._emit('change', self.devices)
 
+    def _summarize(self, device):
+        if device.fs() is not None:
+            fs = device.fs()
+            text = _("      formatted as {}").format(fs.fstype)
+            if fs.mount():
+                text += _(", mounted at {}").format(fs.mount().path)
+            else:
+                text += _(", not mounted")
+        else:
+            text = _("      unused {}").format(device.desc())
+        return TableRow([(2, Color.info_minor(Text(text)))])
+
     def set_bound_form_field(self, bff):
         super().set_bound_form_field(bff)
         bff.wibble = False
@@ -103,46 +115,21 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
                 rows.append(TableRow([
                     (2, Color.info_minor(Text("      " + device.desc())))
                 ]))
-            elif kind == DEVICE:
-                box = CheckBox(
-                    device.label,
-                    on_state_change=self._state_change_device,
-                    user_data=device)
-                self.device_to_checkbox[device] = box
-                rows.append(Color.menu_button(TableRow([
-                    box,
-                    Text(humanize_size(device.size), align='right'),
-                ])))
-                if device.fs() is not None:
-                    fs = device.fs()
-                    text = _("      formatted as {}").format(fs.fstype)
-                    if fs.mount():
-                        text += _(", mounted at {}").format(fs.mount().path)
-                    else:
-                        text += _(", not mounted")
+            else:
+                if kind == DEVICE:
+                    label = device.label
+                elif kind == PART:
+                    label = _("  partition {}").format(device._number)
                 else:
-                    text = _("      unused {}").format(device.desc())
-                rows.append(TableRow([(2, Color.info_minor(Text(text)))]))
-            elif kind == PART:
+                    1/0
                 box = CheckBox(
-                    _("  partition {}").format(device._number),
+                    label,
                     on_state_change=self._state_change_device,
                     user_data=device)
                 self.device_to_checkbox[device] = box
                 size = Text(humanize_size(device.size), align='right')
-                row = TableRow([box, size])
-                row = Color.menu_button(row)
-                rows.append(row)
-                if device.fs() is not None:
-                    fs = device.fs()
-                    text = _("      formatted as {}").format(fs.fstype)
-                    if fs.mount():
-                        text += _(", mounted at {}").format(fs.mount().path)
-                    else:
-                        text += _(", not mounted")
-                else:
-                    text = _("      not formatted")
-                rows.append(TableRow([(2, Color.info_minor(Text(text)))]))
+                rows.append(Color.menu_button(TableRow([box, size])))
+                rows.append(self._summarize(device))
         self.table.set_contents(rows)
         log.debug("%s", self.table._w.focus_position)
 

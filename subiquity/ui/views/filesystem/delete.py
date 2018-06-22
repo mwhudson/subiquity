@@ -23,6 +23,7 @@ from subiquitycore.ui.stretchy import Stretchy
 from subiquity.models.filesystem import (
     _Device,
     Raid,
+    raidlevels_by_value,
 )
 
 
@@ -39,8 +40,7 @@ def can_delete(obj, obj_desc=_("it")):
     if cd is None:
         return True, ""
     if isinstance(cd, Raid):
-        from subiquity.ui.views.raid import levels
-        l = levels[cd.raidlevel]
+        l = raidlevels_by_value[cd.raidlevel]
         if len(cd.devices) > l.min_devices:
             return True, ""
         else:
