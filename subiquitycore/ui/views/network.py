@@ -29,6 +29,7 @@ from urwid import (
     )
 from urwid import Padding as uPadding
 
+from subiquitycore.ui.actionmenu import ActionMenu
 from subiquitycore.ui.buttons import back_btn, cancel_btn, done_btn, menu_btn
 from subiquitycore.ui.container import (
     Columns,
@@ -36,7 +37,8 @@ from subiquitycore.ui.container import (
     Pile,
     WidgetWrap,
     )
-from subiquitycore.ui.utils import button_pile, Color, Padding
+from subiquitycore.ui.table import TablePile
+from subiquitycore.ui.utils import button_pile, Color, make_action_menu_row, Padding
 from subiquitycore.view import BaseView
 
 
@@ -166,6 +168,13 @@ class NetworkView(BaseView):
 
     def _build_model_inputs(self):
         netdevs = self.model.get_all_netdevs()
+        rows = []
+        for dev in netdevs:
+            rows.append(make_action_menu_row(
+                [Text(dev.name)],
+                ActionMenu([('hi', True, 'hi')]),
+            ))
+        return [TablePile(rows)]
         ifname_width = 8  # default padding
         if netdevs:
             ifname_width += max(map(lambda dev: len(dev.name), netdevs))

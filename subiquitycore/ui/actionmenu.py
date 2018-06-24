@@ -52,7 +52,7 @@ class _ActionMenuDialog(WidgetWrap):
         close = ActionBackButton("(close)")
         connect_signal(close, "click", self.close)
         group = [Color.menu_button(close)]
-        width = 0
+        width = len("(close)")
         for i, option in enumerate(self.parent._options):
             if option.enabled:
                 if isinstance(option.label, Widget):

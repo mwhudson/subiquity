@@ -23,6 +23,8 @@ from subiquitycore.ui.container import ListBox, Pile
 from urwid import (
     AttrMap,
     Button,
+    CompositeCanvas,
+    connect_signal,
     Padding as _Padding,
     Text,
     WidgetDecoration,
@@ -281,3 +283,46 @@ def screen(rows, buttons, focus_buttons=True, excerpt=None, narrow_rows=False):
     if focus_buttons:
         pile.focus_position = len(excerpt_rows) + 3
     return Padding.center_79(pile)
+
+
+class CursorOverride(WidgetDecoration):
+    """Decoration to override where the cursor goes when a widget is focused.
+    """
+
+    def __init__(self, w, cursor_x=0):
+        super().__init__(w)
+        self.cursor_x = cursor_x
+
+    def get_cursor_coords(self, size):
+        return self.cursor_x, 0
+
+    def rows(self, size, focus):
+        return self._original_widget.rows(size, focus)
+
+    def keypress(self, size, focus):
+        return self._original_widget.keypress(size, focus)
+
+    def render(self, size, focus=False):
+        c = self._original_widget.render(size, focus)
+        if focus:
+            # create a new canvas so we can add a cursor
+            c = CompositeCanvas(c)
+            c.cursor = self.get_cursor_coords(size)
+        return c
+
+
+def make_action_menu_row(
+        cells, menu,
+        attr_map='menu_button', focus_map='menu_button focus',
+        cursor_x=0):
+    from subiquitycore.ui import table
+    row = table.TableRow(cells + [menu])
+    if not isinstance(attr_map, dict):
+        attr_map = {None: attr_map}
+    if not isinstance(focus_map, dict):
+        focus_map = {None: focus_map}
+    am = AttrMap(CursorOverride(row, cursor_x=cursor_x), attr_map, focus_map)
+    connect_signal(menu, 'open', lambda menu: am.set_attr_map(focus_map))
+    connect_signal(menu, 'close', lambda menu: am.set_attr_map(attr_map))
+    return am
+
