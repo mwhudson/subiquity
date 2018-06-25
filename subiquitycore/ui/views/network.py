@@ -23,6 +23,7 @@ import logging
 import textwrap
 
 from urwid import (
+    CheckBox,
     connect_signal,
     LineBox,
     ProgressBar,
@@ -31,7 +32,7 @@ from urwid import (
 from urwid import Padding as uPadding
 
 from subiquitycore.ui.actionmenu import ActionMenu
-from subiquitycore.ui.buttons import back_btn, cancel_btn, done_btn, menu_btn
+from subiquitycore.ui.buttons import back_btn, cancel_btn, done_btn, menu_btn, delete_btn, other_btn
 from subiquitycore.ui.container import (
     Columns,
     ListBox,
@@ -41,7 +42,7 @@ from subiquitycore.ui.container import (
 from subiquitycore.ui.form import Form, StringField
 from subiquitycore.ui.stretchy import Stretchy
 from subiquitycore.ui.table import ColSpec, TablePile, TableRow
-from subiquitycore.ui.utils import button_pile, Color, make_action_menu_row, Padding
+from subiquitycore.ui.utils import button_pile, Color, make_action_menu_row, Padding, Toggleable
 from subiquitycore.view import BaseView
 
 
@@ -159,6 +160,51 @@ class AddAddressStretchy(Stretchy):
     def cancel(self, sender):
         self.parent.remove_overlay()
 
+
+class RemoveAddressStretchy(Stretchy):
+    def __init__(self, parent, dev):
+        self.parent = parent
+        self.dev = dev
+        self.boxes = []
+        self.box_to_address = {}
+        self.selected_count = 0
+        for a in dev.configured_ip_addresses:
+            box = CheckBox(str(a))
+            connect_signal(box, 'change', self.state_change)
+            self.boxes.append(box)
+            self.box_to_address[box] = a
+        self.done_btn = Toggleable(delete_btn(_("Delete"), on_press=self.done))
+        self.done_btn.disable()
+        cancel_btn = other_btn(_("Cancel"), on_press=self.cancel)
+        widgets = [
+            Pile(self.boxes),
+            Text(""),
+            button_pile([self.done_btn, cancel_btn]),
+            ]
+        super().__init__("Select addresses to remove", widgets, 0, 0)
+
+    def state_change(self, sender, state):
+        if state:
+            self.selected_count += 1
+        else:
+            self.selected_count = 1
+        if self.selected_count:
+            self.done_btn.enable()
+        else:
+            self.done_btn.disable()
+
+    def done(self, sender):
+        addresses = []
+        for b in self.boxes:
+            if not b.state:
+                addresses.append(self.box_to_address[b])
+        self.dev.configured_ip_addresses[:] = addresses
+        self.parent.refresh_model_inputs()
+        self.parent.remove_overlay()
+
+    def cancel(self, sender):
+        self.parent.remove_overlay()
+
 class NetworkView(BaseView):
     title = _("Network connections")
     excerpt = _("Configure at least one interface this server can use to talk "
@@ -213,6 +259,9 @@ class NetworkView(BaseView):
     def _action_add_address(self, device):
         self.show_stretchy_overlay(AddAddressStretchy(self, device))
 
+    def _action_remove_address(self, device):
+        self.show_stretchy_overlay(RemoveAddressStretchy(self, device))
+
     def _action(self, sender, action, device):
         m = getattr(self, '_action_{}'.format(action))
         m(device)
@@ -245,6 +294,7 @@ class NetworkView(BaseView):
             actions = [
                 ("Info", True, 'info'),
                 ("Add Address", True, 'add_address'),
+                ("Remove Addresses", len(dev.configured_ip_addresses) > 0, 'remove_address'),
                 (dhcp4_action, True, 'dhcp4'),
                 (dhcp6_action, True, 'dhcp6'),
                 ("Add VLAN", True, 'vlan'),
