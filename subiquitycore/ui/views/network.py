@@ -168,11 +168,17 @@ class NetworkView(BaseView):
         done = done_btn(_("Done"), on_press=self.done)
         return button_pile([done, back])
 
+    def _action_info(self, device):
+        pass
+
     def _action_dhcp4(self, device):
         device.dhcp4 = not device.dhcp4
 
     def _action_dhcp6(self, device):
         device.dhcp6 = not device.dhcp6
+
+    def _action_vlan(self, device):
+        pass
 
     def _action(self, sender, action, device):
         m = getattr(self, '_action_{}'.format(action))
@@ -182,7 +188,7 @@ class NetworkView(BaseView):
     def _build_model_inputs(self):
         netdevs = self.model.get_all_netdevs()
         rows = []
-        rows.append(TableRow([Text("NAME"), Text("TYPE"), Text("MAC ADDRESS"), Text("DHCP"), Text("ADDRESSES")]))
+        rows.append(TableRow([Text("NAME"), Text("TYPE"), Text("DHCP"), Text("ADDRESSES")]))
         for dev in netdevs:
             dhcp = []
             if dev.dhcp4:
@@ -204,8 +210,10 @@ class NetworkView(BaseView):
             else:
                 addresses = '-'
             actions = [
+                ("Info", True, 'info'),
                 (dhcp4_action, True, 'dhcp4'),
                 (dhcp6_action, True, 'dhcp6'),
+                ("Add VLAN", True, 'vlan'),
                 ]
             menu = ActionMenu(actions)
             connect_signal(menu, 'action', self._action, dev)
@@ -213,12 +221,12 @@ class NetworkView(BaseView):
                 [
                     Text(dev.name),
                     Text(dev.type),
-                    Text(dev.hwaddr),
                     Text(dhcp),
                     Text(addresses, wrap='clip'),
                 ],
                 menu,
             ))
+            rows.append(Color.info_minor(TableRow([(4, Text("  " + dev.hwaddr + " " + dev.vendor))])))
         return rows
         ifname_width = 8  # default padding
         if netdevs:
