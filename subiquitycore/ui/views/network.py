@@ -38,6 +38,8 @@ from subiquitycore.ui.container import (
     Pile,
     WidgetWrap,
     )
+from subiquitycore.ui.form import Form, StringField
+from subiquitycore.ui.stretchy import Stretchy
 from subiquitycore.ui.table import ColSpec, TablePile, TableRow
 from subiquitycore.ui.utils import button_pile, Color, make_action_menu_row, Padding
 from subiquitycore.view import BaseView
@@ -129,6 +131,25 @@ def _build_gateway_ip_info_for_version(dev, version):
         return [Text(_("IPv%s is not configured" % version))]
 
 
+class AddressForm(Form):
+    address = StringField("Address: ")
+
+
+class AddAddressStretchy(Stretchy):
+
+    def __init__(self, parent, dev):
+        self.parent = parent
+        self.dev = dev
+        self.form = AddressForm()
+
+    def done(self, sender):
+        self.dev.configured_ip_addresses.append(self.form.address.value)
+        self.parent.refresh_model_inputs()
+        self.parent.remove_overlay()
+
+    def cancel(self, sender):
+        self.parent.remove_overlay()
+
 class NetworkView(BaseView):
     title = _("Network connections")
     excerpt = _("Configure at least one interface this server can use to talk "
@@ -179,6 +200,9 @@ class NetworkView(BaseView):
 
     def _action_vlan(self, device):
         pass
+
+    def _action_add_address(self, device):
+        self.show_stretchy_overlay(AddAddressStretchy(self, device))
 
     def _action(self, sender, action, device):
         m = getattr(self, '_action_{}'.format(action))
