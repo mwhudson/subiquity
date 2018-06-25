@@ -23,6 +23,7 @@ import logging
 import textwrap
 
 from urwid import (
+    connect_signal,
     LineBox,
     ProgressBar,
     Text,
@@ -142,7 +143,8 @@ class NetworkView(BaseView):
         self.items = []
         self.error = Text("", align='center')
         self.additional_options = Pile(self._build_additional_options())
-        self.listbox = ListBox(self._build_model_inputs() + [
+        self.device_table = TablePile(self._build_model_inputs(), spacing=2, colspecs={3:ColSpec(can_shrink=True)})
+        self.listbox = ListBox([self.device_table] + [
             Padding.center_79(self.additional_options),
             Padding.line_break(""),
         ])
@@ -166,21 +168,58 @@ class NetworkView(BaseView):
         done = done_btn(_("Done"), on_press=self.done)
         return button_pile([done, back])
 
+    def _action_dhcp4(self, device):
+        device.dhcp4 = not device.dhcp4
+
+    def _action_dhcp6(self, device):
+        device.dhcp6 = not device.dhcp6
+
+    def _action(self, sender, action, device):
+        m = getattr(self, '_action_{}'.format(action))
+        m(device)
+        self.refresh_model_inputs()
+
     def _build_model_inputs(self):
         netdevs = self.model.get_all_netdevs()
-        rows = [TableRow([Text("NAME"), Text("TYPE"), Text("MAC ADDRESS"), Text("ADDRESSES")])]
+        rows = []
+        rows.append(TableRow([Text("NAME"), Text("TYPE"), Text("MAC ADDRESS"), Text("DHCP"), Text("ADDRESSES")]))
         for dev in netdevs:
-            addresses = ", ".join([str(a) for a in dev.actual_global_ip_addresses])
+            dhcp = []
+            if dev.dhcp4:
+                dhcp4_action = _("Disable DHCPv4")
+                dhcp.append('v4')
+            else:
+                dhcp4_action = _("Enable DHCPv4")
+            if dev.dhcp6:
+                dhcp6_action = _("Disable DHCPv6")
+                dhcp.append('v6')
+            else:
+                dhcp6_action = _("Enable DHCPv6")
+            if dhcp:
+                dhcp = ",".join(dhcp)
+            else:
+                dhcp = '-'
+            if dev.configured_ip_addresses:
+                addresses = ", ".join([str(a) for a in dev.configured_ip_addresses])
+            else:
+                addresses = '-'
+            actions = [
+                (dhcp4_action, True, 'dhcp4'),
+                (dhcp6_action, True, 'dhcp6'),
+                ]
+            menu = ActionMenu(actions)
+            connect_signal(menu, 'action', self._action, dev)
             rows.append(make_action_menu_row(
                 [
                     Text(dev.name),
                     Text(dev.type),
                     Text(dev.hwaddr),
+                    Text(dhcp),
                     Text(addresses, wrap='clip'),
                 ],
-                ActionMenu([('hi', True, 'hi')]),
+                menu,
             ))
-        return [TablePile(rows, spacing=2, colspecs={3:ColSpec(can_shrink=True)})]
+        return rows
         ifname_width = 8  # default padding
         if netdevs:
             ifname_width += max(map(lambda dev: len(dev.name), netdevs))
@@ -231,13 +270,7 @@ class NetworkView(BaseView):
         return iface_menus
 
     def refresh_model_inputs(self):
-        widgets = self._build_model_inputs() + [
-            Padding.center_79(self.additional_options),
-            Padding.line_break(""),
-        ]
-        self.listbox.base_widget.body[:] = widgets
-        self.additional_options.contents = [
-            (obj, ('pack', None)) for obj in self._build_additional_options()]
+        self.device_table.set_contents(self._build_model_inputs())
 
     def _build_additional_options(self):
         labels = []
