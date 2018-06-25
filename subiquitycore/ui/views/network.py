@@ -37,7 +37,7 @@ from subiquitycore.ui.container import (
     Pile,
     WidgetWrap,
     )
-from subiquitycore.ui.table import TablePile
+from subiquitycore.ui.table import ColSpec, TablePile, TableRow
 from subiquitycore.ui.utils import button_pile, Color, make_action_menu_row, Padding
 from subiquitycore.view import BaseView
 
@@ -168,13 +168,19 @@ class NetworkView(BaseView):
 
     def _build_model_inputs(self):
         netdevs = self.model.get_all_netdevs()
-        rows = []
+        rows = [TableRow([Text("NAME"), Text("TYPE"), Text("MAC ADDRESS"), Text("ADDRESSES")])]
         for dev in netdevs:
+            addresses = ", ".join([str(a) for a in dev.actual_global_ip_addresses])
             rows.append(make_action_menu_row(
-                [Text(dev.name)],
+                [
+                    Text(dev.name),
+                    Text(dev.type),
+                    Text(dev.hwaddr),
+                    Text(addresses, wrap='clip'),
+                ],
                 ActionMenu([('hi', True, 'hi')]),
             ))
-        return [TablePile(rows)]
+        return [TablePile(rows, spacing=2, colspecs={3:ColSpec(can_shrink=True)})]
         ifname_width = 8  # default padding
         if netdevs:
             ifname_width += max(map(lambda dev: len(dev.name), netdevs))
