@@ -141,6 +141,15 @@ class AddAddressStretchy(Stretchy):
         self.parent = parent
         self.dev = dev
         self.form = AddressForm()
+        connect_signal(self.form, 'submit', self.done)
+        connect_signal(self.form, 'cancel', self.cancel)
+        widgets = [
+            Pile(self.form.as_rows()),
+            Text(""),
+            self.form.buttons,
+        ]
+        super().__init__("Add address", widgets, 0, 0)
+
 
     def done(self, sender):
         self.dev.configured_ip_addresses.append(self.form.address.value)
@@ -235,6 +244,7 @@ class NetworkView(BaseView):
                 addresses = '-'
             actions = [
                 ("Info", True, 'info'),
+                ("Add Address", True, 'add_address'),
                 (dhcp4_action, True, 'dhcp4'),
                 (dhcp6_action, True, 'dhcp6'),
                 ("Add VLAN", True, 'vlan'),
