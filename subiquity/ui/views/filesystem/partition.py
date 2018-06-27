@@ -94,12 +94,13 @@ class SizeField(FormField):
 
 class PartitionForm(Form):
 
-    def __init__(self, mountpoint_to_devpath_mapping, max_size, initial={}):
+    def __init__(self, mountpoint_to_devpath_mapping, max_size, initial={}, lvm_names=set()):
         self.mountpoint_to_devpath_mapping = mountpoint_to_devpath_mapping
         self.max_size = max_size
         if max_size is not None:
             self.size_str = humanize_size(max_size)
             self.size.caption = _("Size (max {}):").format(self.size_str)
+        self.lvm_names = lvm_names
         super().__init__(initial)
         if max_size is None:
             self.remove_field('size')
@@ -109,7 +110,7 @@ class PartitionForm(Form):
     def select_fstype(self, sender, fs):
         self.mount.enabled = fs.is_mounted
 
-    name = StringField()
+    name = StringField(_("Name: "))
     size = SizeField()
     fstype = FSTypeField(_("Format:"))
     mount = MountField(_("Mount:"))
@@ -130,6 +131,11 @@ class PartitionForm(Form):
             return val
         else:
             return None
+
+    def validate_name(self):
+        log.debug("validate_name %s %s", self.name.value, self.lvm_names)
+        if self.name.value in self.lvm_names:
+            return _("There is already a logical volume named {}.").format(self.name.value)
 
     def validate_mount(self):
         mount = self.mount.value
@@ -176,6 +182,10 @@ class PartitionStretchy(Stretchy):
 
         initial = {}
         label = _("Create")
+        if isinstance(disk, LVM_VolGroup):
+            lvm_names = {p.name for p in disk.partitions()}
+        else:
+            lvm_names = set()
         if self.partition:
             if self.partition.flag == "bios_grub":
                 label = None
@@ -197,18 +207,18 @@ class PartitionStretchy(Stretchy):
                 initial['fstype'] = self.model.fs_by_name[None]
             if isinstance(disk, LVM_VolGroup):
                 initial['name'] = partition.name
+                lvm_names.remove(partition.name)
         elif isinstance(disk, LVM_VolGroup):
             x = 0
-            names = {p.name for p in disk.partitions()}
             while True:
                 name = 'lv-{}'.format(x)
-                if name not in names:
+                if name not in lvm_names:
                     break
                 x += 1
             initial['name'] = name
 
         self.form = PartitionForm(
-            mountpoint_to_devpath_mapping, max_size, initial)
+            mountpoint_to_devpath_mapping, max_size, initial, lvm_names)
 
         if not isinstance(disk, LVM_VolGroup):
             self.form.remove_field('name')
@@ -310,6 +320,7 @@ class FormatEntireStretchy(Stretchy):
             initial['fstype'] = self.model.fs_by_name[None]
         self.form = PartitionForm(mountpoint_to_devpath_mapping, 0, initial)
         self.form.remove_field('size')
+        self.form.remove_field('name')
 
         connect_signal(self.form, 'submit', self.done)
         connect_signal(self.form, 'cancel', self.cancel)
