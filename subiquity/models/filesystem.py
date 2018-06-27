@@ -177,7 +177,7 @@ class _Formattable:
 
     # Filesystem
     _fs = attr.ib(default=None, repr=False)
-    # Raid for now, but one day LV, ZPool, BCache...
+    # Raid or LVM_VolGroup for now, but one day ZPool, BCache...
     _constructed_device = attr.ib(default=None, repr=False)
 
     def _is_entirely_used(self):
@@ -432,6 +432,46 @@ class Raid(_Device):
 
 
 @attr.s(cmp=False)
+class LVM_VolGroup(_Device):
+
+    id = attr.ib(default=id_factory("vg"))
+    type = attr.ib(default=id_factory("vg"))
+    name = attr.ib(default=None)
+    devices = attr.ib(default=attr.Factory(set))  # set([_Formattable])
+
+    @property
+    def size(self):
+        r = 0
+        for d in self.devices:
+            r += d.size - (1<<20)
+        return r
+
+    _supports_INFO = False
+    _supports_EDIT = True
+    _supports_PARTITION = property(lambda self: self.free_for_partitions > 0)
+    _supports_FORMAT = False
+    _supports_DELETE = True
+    _supports_MAKE_BOOT = False
+
+
+@attr.s(cmp=False)
+class LVM_LogicalVolume(_Formattable):
+
+    id = attr.ib(default=id_factory("lv"))
+    type = attr.ib(default="lvm_partition")
+    name = attr.ib(default=None)
+    volgroup = attr.ib(default=None)  # LVM_VolGroup
+    size = attr.ib(default=None)
+
+    _supports_INFO = False
+    _supports_EDIT = True
+    _supports_PARTITION = False
+    _supports_FORMAT = True
+    _supports_DELETE = True
+    _supports_MAKE_BOOT = False
+
+
+@attr.s(cmp=False)
 class Filesystem:
 
     id = attr.ib(default=id_factory("fs"))
@@ -520,6 +560,8 @@ class FilesystemModel(object):
         self._disks = collections.OrderedDict()
         self._partitions = []
         self._raids = []
+        self._vgs = []
+        self._lvs = []
         self._filesystems = []
         self._mounts = []
         for k, d in self._available_disks.items():
@@ -576,6 +618,12 @@ class FilesystemModel(object):
                     "rendering block devices made no progress: {}".format(
                         work))
             work = next_work
+
+        for vg in self._vgs:
+            emit(vg)
+
+        for lv in self._lvs:
+            emit(lv)
 
         # Filesystems and mounts are also easy, dependencies only flow
         # from mounts to filesystems to things already emitted.
@@ -692,6 +740,32 @@ class FilesystemModel(object):
         for d in raid.devices:
             d._constructed_device = None
         self._raids.remove(raid)
+
+    def add_volgroup(self, name, devices):
+        vg = LVM_VolGroup(name=name, devices=devices)
+        for d in devices:
+            if isinstance(d, Disk):
+                self._use_disk(d)
+            d._constructed_device = vg
+        return vg
+
+    def remove_volgroup(self, vg):
+        if len(vg._partitions):
+            raise Exception("can only remove empty VG")
+        for d in vg.devices:
+            d._constructed_device = None
+        self._vgs.remove(vg)
+
+    def add_logical_volume(self, vg, name, size):
+        lv = LVM_LogicalVolume(volgroup=vg, name=name, size=size)
+        vg._partitions.append(lv)
+        self._lvs.append(lv)
+
+    def remove_logical_volume(self, lv):
+        if lv._fs:
+            raise Exception("can only remove empty LV")
+        lv.volgroup._partitions.remove(lv)
+        self._lvs.remove(lv)
 
     def add_filesystem(self, volume, fstype):
         log.debug("adding %s to %s", fstype, volume)
