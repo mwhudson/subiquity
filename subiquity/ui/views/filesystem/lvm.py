@@ -141,8 +141,7 @@ class VolGroupStretchy(Stretchy):
         form = self.form = VolGroupForm(
             mountpoint_to_devpath_mapping, all_devices, initial, lvm_names)
 
-        self.form.devices.widget.set_supports_spares(
-            initial['level'].supports_spares)
+        self.form.devices.widget.set_supports_spares(False)
 
         connect_signal(form.devices.widget, 'change', self._change_devices)
         connect_signal(form, 'submit', self.done)
@@ -152,7 +151,7 @@ class VolGroupStretchy(Stretchy):
 
         if existing is not None:
             rows[0:0] = [
-                Text("You cannot save edit to RAIDs just yet."),
+                Text("You cannot save edit to VGs just yet."),
                 Text(""),
                 ]
             self.form.validated = lambda *args: self.form.done_btn.disable()
@@ -174,7 +173,7 @@ class VolGroupStretchy(Stretchy):
         mdc = self.form.devices.widget
         result['devices'] = mdc.active_devices
         log.debug('vg_done: result = {}'.format(result))
-        self.parent.controller.raid_handler(self.existing, result)
+        self.parent.controller.volgroup_handler(self.existing, result)
         self.parent.refresh_model_inputs()
         self.parent.remove_overlay()
 

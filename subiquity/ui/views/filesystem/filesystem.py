@@ -66,6 +66,7 @@ from subiquity.models.filesystem import DeviceAction, humanize_size
 
 from .delete import can_delete, ConfirmDeleteStretchy
 from .disk_info import DiskInfoStretchy
+from .lvm import VolGroupStretchy
 from .partition import PartitionStretchy, FormatEntireStretchy
 from .raid import RaidStretchy
 
@@ -459,8 +460,11 @@ class FilesystemView(BaseView):
         self._create_raid_btn = menu_btn(
             label=_("Create software RAID (md)"),
             on_press=self.create_raid)
+        self._create_lvm_btn = menu_btn(
+            label=_("Create volume group (LVM2)"),
+            on_press=self.create_vg)
 
-        bp = button_pile([self._create_raid_btn])
+        bp = button_pile([self._create_raid_btn, self._create_lvm_btn])
         bp.align = 'left'
 
         body = [
@@ -518,6 +522,9 @@ class FilesystemView(BaseView):
 
     def create_raid(self, button=None):
         self.show_stretchy_overlay(RaidStretchy(self))
+
+    def create_vg(self, button=None):
+        self.show_stretchy_overlay(VolGroupStretchy(self))
 
     def cancel(self, button=None):
         self.controller.default()

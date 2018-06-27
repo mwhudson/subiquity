@@ -331,6 +331,12 @@ class FilesystemController(BaseController):
             raise Exception("erk")
         self.create_raid(spec)
 
+    def volgroup_handler(self, existing, spec):
+        log.debug("volgroup_handler %s %s", existing, spec)
+        if existing is not None:
+            raise Exception("erk")
+        self.create_volgroup(spec)
+
     def make_boot_disk(self, new_boot_disk):
         boot_partition = None
         for disk in self.model.all_disks():
