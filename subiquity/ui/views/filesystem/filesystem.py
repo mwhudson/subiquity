@@ -65,6 +65,7 @@ from subiquitycore.view import BaseView
 from subiquity.models.filesystem import (
     DeviceAction,
     humanize_size,
+    LVM_LogicalVolume,
     LVM_VolGroup,
     )
 
@@ -294,6 +295,10 @@ class DeviceList(WidgetWrap):
     _partition_DELETE = _stretchy_shower(ConfirmDeleteStretchy)
     _partition_FORMAT = _disk_FORMAT
 
+    _lvm_partition_EDIT = _partition_EDIT
+    _lvm_partition_DELETE = _partition_DELETE
+    _lvm_partition_FORMAT = _partition_FORMAT
+
     _raid_EDIT = _stretchy_shower(RaidStretchy)
     _raid_PARTITION = _disk_PARTITION
     _raid_FORMAT = _disk_FORMAT
@@ -407,7 +412,7 @@ class DeviceList(WidgetWrap):
                 for part in device.partitions():
                     if part.available() != self.show_available:
                         continue
-                    prefix = _("partition {},").format(part._number)
+                    prefix = part.short_label + ','
                     if part.flag == "bios_grub":
                         label = prefix + " bios_grub"
                     elif part.fs():

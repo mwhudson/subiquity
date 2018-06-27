@@ -34,8 +34,7 @@ log = logging.getLogger('subiquity.ui.filesystem.disk_info')
 def can_delete(obj, obj_desc=_("it")):
     if isinstance(obj, _Device):
         for p in obj.partitions():
-            ok, reason = can_delete(
-                p, obj_desc=_("partition {}").format(p._number))
+            ok, reason = can_delete(p, obj_desc=p.short_label)
             if not ok:
                 return False, reason
     cd = obj.constructed_device()
@@ -96,7 +95,7 @@ def delete_consequences(controller, obj, obj_desc=_("It")):
             lines = [_("Proceeding will delete the following partitions:"), ""]
             delete_funcs = []
             for p in obj.partitions():
-                desc = _("Partition {}, which").format(p._number)
+                desc = _("{}, which").format(p.short_label.title())
                 new_lines, new_delete_funcs = delete_consequences(
                     controller, p, desc)
                 lines.extend(new_lines)

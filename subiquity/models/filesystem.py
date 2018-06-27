@@ -371,6 +371,11 @@ class Partition(_Formattable):
     def desc(self):
         return _("partition of {}").format(self.device.desc())
 
+
+    @property
+    def short_label(self):
+        return _("partition {}").format(self._number)
+
     @property
     def label(self):
         return _("partition {} of {}").format(self._number, self.device.label)
@@ -464,6 +469,10 @@ class LVM_VolGroup(_Device):
     def desc(self):
         return "LVM volume group"
 
+    @property
+    def path(self):
+        return "/dev/mapper/" + self.name
+
 
 @attr.s(cmp=False)
 class LVM_LogicalVolume(_Formattable):
@@ -488,11 +497,23 @@ class LVM_LogicalVolume(_Formattable):
     _supports_DELETE = True
     _supports_MAKE_BOOT = False
 
+
+    @property
+    def flag(self):
+        return None  # hack!
+
     def desc(self):
         return "LVM logical volume"
 
-    def label(self):
+    @property
+    def short_label(self):
         return self.name
+
+    label = short_label
+
+    @property
+    def path(self):
+        return self.volgroup.path + '/' + self.name
 
 
 @attr.s(cmp=False)
