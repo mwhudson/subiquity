@@ -272,11 +272,13 @@ class FilesystemController(BaseController):
         return self.model.add_volgroup(
             name=spec['name'],
             devices=spec['devices'])
+    create_lvm_volgroup = create_volgroup
 
     def delete_volgroup(self, vg):
         for lv in vg._partitions:
             self.delete_logical_volume(lv)
         self.model.remove_volgroup(vg)
+    delete_lvm_volgroup = delete_volgroup
 
     def create_logical_volume(self, volgroup, spec):
         lv = self.model.add_logical_volume(
@@ -285,10 +287,12 @@ class FilesystemController(BaseController):
             size=spec['size'])
         self.add_filesystem(lv, spec)
         return lv
+    create_lvm_partition = create_logical_volume
 
     def delete_logical_volume(self, lv):
         self.delete_filesystem(lv.fs())
         self.model.remove_logical_volume(lv)
+    delete_lvm_partition = delete_logical_volume
 
     def partition_disk_handler(self, disk, partition, spec):
         log.debug('partition_disk_handler: %s %s %s', disk, partition, spec)

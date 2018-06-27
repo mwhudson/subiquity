@@ -22,6 +22,7 @@ from subiquitycore.ui.stretchy import Stretchy
 
 from subiquity.models.filesystem import (
     _Device,
+    LVM_VolGroup,
     Raid,
     raidlevels_by_value,
 )
@@ -52,14 +53,26 @@ def can_delete(obj, obj_desc=_("it")):
                         label=cd.label,
                         min_devices=rl.min_devices)
             return False, reason
+    elif isinstance(cd, LVM_VolGroup):
+        if len(cd.devices) > 0:
+            return True, ""
+        reason = _("deleting {obj} would leave the {desc} {label} with "
+                   "no devices.").format(
+                       obj=_(obj_desc),
+                       desc=cd.desc(),
+                       label=cd.label)
+        return False, reason
     else:
         raise Exception("unexpected constructed device {}".format(cd.label))
 
 
-def make_device_remover(cd, obj):
+def make_device_remover(cd, obj, spare=False):
 
     def remover():
-        cd.devices.remove(obj)
+        if spare:
+            cd.spare_devices.remove(obj)
+        else:
+            cd.devices.remove(obj)
         obj._constructed_device = None
     return remover
 
@@ -108,7 +121,7 @@ def delete_consequences(controller, obj, obj_desc=_("It")):
         if isinstance(cd, Raid):
             delete_funcs = [(
                 "remove {} from {}".format(obj.label, cd.name),
-                make_device_remover(cd, obj),
+                make_device_remover(cd, obj, spare=obj in cd.spare_devices),
                 ),
                 deleter,
             ]
@@ -121,6 +134,13 @@ def delete_consequences(controller, obj, obj_desc=_("It")):
                       cd.label,
                       len(cd.devices) - 1),
                 ], delete_funcs
+        if isinstance(cd, LVM_VolGroup):
+            delete_funcs = [(
+                "remove {} from {}".format(obj.label, cd.name),
+                make_device_remover(cd, obj),
+                ),
+                deleter,
+            ]
         else:
             raise Exception(
                 "unexpected constructed device {}".format(cd.label))

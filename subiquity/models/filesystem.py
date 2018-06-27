@@ -442,7 +442,7 @@ class Raid(_Device):
 class LVM_VolGroup(_Device):
 
     id = attr.ib(default=id_factory("vg"))
-    type = attr.ib(default=id_factory("vg"))
+    type = attr.ib(default="lvm_volgroup")
     name = attr.ib(default=None)
     devices = attr.ib(default=attr.Factory(set))  # set([_Formattable])
 
@@ -456,6 +456,13 @@ class LVM_VolGroup(_Device):
     _supports_FORMAT = False
     _supports_DELETE = True
     _supports_MAKE_BOOT = False
+
+    @property
+    def label(self):
+        return self.name
+
+    def desc(self):
+        return "LVM volume group"
 
 
 @attr.s(cmp=False)
@@ -473,6 +480,9 @@ class LVM_LogicalVolume(_Formattable):
     _supports_FORMAT = True
     _supports_DELETE = True
     _supports_MAKE_BOOT = False
+
+    def label(self):
+        return self.name
 
 
 @attr.s(cmp=False)
@@ -754,6 +764,7 @@ class FilesystemModel(object):
             if isinstance(d, Disk):
                 self._use_disk(d)
             d._constructed_device = vg
+        self._vgs.append(vg)
         return vg
 
     def remove_volgroup(self, vg):

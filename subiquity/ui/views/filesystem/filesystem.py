@@ -32,7 +32,7 @@ from urwid import (
 from subiquitycore.ui.actionmenu import (
     Action,
     ActionMenu,
-    ActionMenuButton,
+    ActionMenuOpenButton,
     )
 from subiquitycore.ui.buttons import (
     back_btn,
@@ -302,7 +302,7 @@ class DeviceList(WidgetWrap):
 
     def _action_menu_for_device(self, device):
         if can_delete(device)[0]:
-            delete_btn = Color.danger_button(ActionMenuButton(_("Delete")))
+            delete_btn = Color.danger_button(ActionMenuOpenButton(_("Delete")))
         else:
             delete_btn = _("Delete *")
         device_actions = [
