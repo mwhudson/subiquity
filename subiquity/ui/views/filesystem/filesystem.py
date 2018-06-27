@@ -295,6 +295,10 @@ class DeviceList(WidgetWrap):
     _raid_FORMAT = _disk_FORMAT
     _raid_DELETE = _partition_DELETE
 
+    _lvm_volgroup_EDIT = _stretchy_shower(VolGroupStretchy)
+    _lvm_volgroup_PARTITION = _stretchy_shower(PartitionStretchy)
+    _lvm_volgroup_DELETE = _stretchy_shower(ConfirmDeleteStretchy)
+
     def _action(self, sender, action, device):
         log.debug('_action %s %s', action, device)
         meth_name = '_{}_{}'.format(device.type, action.name)

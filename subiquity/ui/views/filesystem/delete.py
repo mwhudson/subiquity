@@ -54,7 +54,7 @@ def can_delete(obj, obj_desc=_("it")):
                         min_devices=rl.min_devices)
             return False, reason
     elif isinstance(cd, LVM_VolGroup):
-        if len(cd.devices) > 0:
+        if len(cd.devices) > 1:
             return True, ""
         reason = _("deleting {obj} would leave the {desc} {label} with "
                    "no devices.").format(
@@ -103,8 +103,11 @@ def delete_consequences(controller, obj, obj_desc=_("It")):
                 lines.append("")
                 delete_funcs.extend(new_delete_funcs)
             return lines[:-1], delete_funcs + [deleter]
-        unused_desc = _("{} is not formatted, partitioned, or part of any "
-                        "constructed device.").format(obj_desc)
+        if isinstance(obj, LVM_VolGroup):
+            unused_desc = _("{} has no logical volumes.").format(obj_desc)
+        else:
+            unused_desc = _("{} is not formatted, partitioned, or part of any "
+                            "constructed device.").format(obj_desc)
     else:
         unused_desc = _("{} is not formatted or part of any constructed "
                         "device.").format(obj_desc)
@@ -141,6 +144,15 @@ def delete_consequences(controller, obj, obj_desc=_("It")):
                 ),
                 deleter,
             ]
+            return [
+                _("{} is part of the {} {}. {} will be left with {} "
+                  "devices.").format(
+                    obj_desc,
+                    cd.desc(),
+                      cd.label,
+                      cd.label,
+                      len(cd.devices) - 1),
+                ], delete_funcs
         else:
             raise Exception(
                 "unexpected constructed device {}".format(cd.label))
