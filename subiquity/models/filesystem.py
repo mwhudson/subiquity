@@ -126,6 +126,13 @@ def get_raid_size(level, devices):
         raise ValueError("unknown raid level %s" % level)
 
 
+def get_lvm_size(devices):
+    r = 0
+    for d in devices:
+        r += d.size - (1<<20)
+    return r
+
+
 def id_factory(name):
     i = 0
 
@@ -441,10 +448,7 @@ class LVM_VolGroup(_Device):
 
     @property
     def size(self):
-        r = 0
-        for d in self.devices:
-            r += d.size - (1<<20)
-        return r
+        return get_lvm_size(self.devices)
 
     _supports_INFO = False
     _supports_EDIT = True
@@ -689,8 +693,11 @@ class FilesystemModel(object):
     def all_raids(self):
         return self._raids[:]
 
+    def all_volgroups(self):
+        return self._vgs[:]
+
     def all_devices(self):
-        return self.all_disks() + self.all_raids()  # + self.all_lvms() + ...
+        return self.all_disks() + self.all_raids() + self.all_volgroups()
 
     def get_disk(self, path):
         return self._available_disks.get(path)
