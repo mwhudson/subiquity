@@ -341,9 +341,13 @@ class RaidStretchy(Stretchy):
             cur_devices = existing.devices | existing.spare_devices
 
         def device_ok(dev):
-            return (dev not in omits
-                    and (dev.supports_action(DeviceAction.FORMAT)
-                         or dev in cur_devices))
+            if dev in omits:
+                return False
+            if dev.type.startswith("lvm"):
+                return False
+            if dev in cur_devices:
+                return True
+            return dev.supports_action(DeviceAction.FORMAT)
 
         for dev in self.parent.model.all_devices():
             if device_ok(dev):
