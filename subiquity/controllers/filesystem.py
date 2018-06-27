@@ -266,6 +266,30 @@ class FilesystemController(BaseController):
             self.delete_partition(p)
         self.model.remove_raid(raid)
 
+    def create_volgroup(self, spec):
+        for d in spec['devices']:
+            self.delete_filesystem(d.fs())
+        return self.model.add_volgroup(
+            name=spec['name'],
+            devices=spec['devices'])
+
+    def delete_volgroup(self, vg):
+        for lv in vg._partitions:
+            self.delete_logical_volume(lv)
+        self.model.remove_volgroup(vg)
+
+    def create_logical_volume(self, volgroup, spec):
+        lv = self.model.add_logical_volume(
+            volgroup=volgroup,
+            name=spec['name'],
+            size=spec['size'])
+        self.add_filesystem(lv, spec)
+        return lv
+
+    def delete_logical_volume(self, lv):
+        self.delete_filesystem(lv.fs())
+        self.model.remove_logical_volume(lv)
+
     def partition_disk_handler(self, disk, partition, spec):
         log.debug('partition_disk_handler: %s %s %s', disk, partition, spec)
         log.debug('disk.freespace: {}'.format(disk.free_for_partitions))
