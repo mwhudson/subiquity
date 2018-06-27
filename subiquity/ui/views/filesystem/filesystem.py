@@ -295,7 +295,8 @@ class DeviceList(WidgetWrap):
     _partition_DELETE = _stretchy_shower(ConfirmDeleteStretchy)
     _partition_FORMAT = _disk_FORMAT
 
-    _lvm_partition_EDIT = _partition_EDIT
+    _lvm_partition_EDIT = _stretchy_shower(
+        lambda parent, part: PartitionStretchy(parent, part.volgroup, part))
     _lvm_partition_DELETE = _partition_DELETE
     _lvm_partition_FORMAT = _partition_FORMAT
 

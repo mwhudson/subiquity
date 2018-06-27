@@ -329,6 +329,7 @@ class FilesystemController(BaseController):
         log.debug('vg.freespace: {}'.format(vg.free_for_partitions))
 
         if lv is not None:
+            lv.name = spec['name']
             lv.size = align_up(spec['size'])
             if vg.free_for_partitions < 0:
                 raise Exception("lv size too large")
