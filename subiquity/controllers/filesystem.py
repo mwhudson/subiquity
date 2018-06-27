@@ -280,12 +280,12 @@ class FilesystemController(BaseController):
         self.model.remove_volgroup(vg)
     delete_lvm_volgroup = delete_volgroup
 
-    def create_logical_volume(self, volgroup, spec):
+    def create_logical_volume(self, vg, spec):
         lv = self.model.add_logical_volume(
-            volgroup=volgroup,
+            vg=vg,
             name=spec['name'],
             size=spec['size'])
-        self.add_filesystem(lv, spec)
+        self.create_filesystem(lv, spec)
         return lv
     create_lvm_partition = create_logical_volume
 
@@ -323,6 +323,20 @@ class FilesystemController(BaseController):
         self.create_partition(disk, spec)
 
         log.info("Successfully added partition")
+
+    def logical_volume_handler(self, vg, lv, spec):
+        log.debug('logical_volume_handler: %s %s %s', vg, lv, spec)
+        log.debug('vg.freespace: {}'.format(vg.free_for_partitions))
+
+        if lv is not None:
+            lv.size = align_up(spec['size'])
+            if vg.free_for_partitions < 0:
+                raise Exception("lv size too large")
+            self.delete_filesystem(lv.fs())
+            self.create_filesystem(lv, spec)
+            return
+
+        self.create_logical_volume(vg, spec)
 
     def add_format_handler(self, volume, spec):
         log.debug('add_format_handler %s %s', volume, spec)

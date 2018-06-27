@@ -62,7 +62,11 @@ from subiquitycore.ui.utils import (
     )
 from subiquitycore.view import BaseView
 
-from subiquity.models.filesystem import DeviceAction, humanize_size
+from subiquity.models.filesystem import (
+    DeviceAction,
+    humanize_size,
+    LVM_VolGroup,
+    )
 
 from .delete import can_delete, ConfirmDeleteStretchy
 from .disk_info import DiskInfoStretchy
@@ -309,10 +313,14 @@ class DeviceList(WidgetWrap):
             delete_btn = Color.danger_button(ActionMenuOpenButton(_("Delete")))
         else:
             delete_btn = _("Delete *")
+        if isinstance(device, LVM_VolGroup):
+            part_label = _("Create Logical Volume")
+        else:
+            part_label = _("Add Partition")
         device_actions = [
             (_("Information"),      DeviceAction.INFO),
             (_("Edit"),             DeviceAction.EDIT),
-            (_("Add Partition"),    DeviceAction.PARTITION),
+            (part_label,            DeviceAction.PARTITION),
             (_("Format / Mount"),   DeviceAction.FORMAT),
             (delete_btn,            DeviceAction.DELETE),
             (_("Make boot device"), DeviceAction.MAKE_BOOT),

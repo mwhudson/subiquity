@@ -26,6 +26,7 @@ from urwid import connect_signal, Text
 from subiquitycore.ui.form import (
     Form,
     FormField,
+    StringField,
 )
 from subiquitycore.ui.interactive import StringEditor
 from subiquitycore.ui.selector import Option, Selector
@@ -39,6 +40,7 @@ from subiquity.models.filesystem import (
     HUMAN_UNITS,
     dehumanize_size,
     humanize_size,
+    LVM_VolGroup,
 )
 from subiquity.ui.mount import MountField
 
@@ -107,6 +109,7 @@ class PartitionForm(Form):
     def select_fstype(self, sender, fs):
         self.mount.enabled = fs.is_mounted
 
+    name = StringField()
     size = SizeField()
     fstype = FSTypeField(_("Format:"))
     mount = MountField(_("Mount:"))
@@ -192,9 +195,23 @@ class PartitionStretchy(Stretchy):
                         del mountpoint_to_devpath_mapping[mount.path]
             else:
                 initial['fstype'] = self.model.fs_by_name[None]
+            if isinstance(disk, LVM_VolGroup):
+                initial['name'] = partition.name
+        elif isinstance(disk, LVM_VolGroup):
+            x = 0
+            names = {p.name for p in disk.partitions()}
+            while True:
+                name = 'lv-{}'.format(x)
+                if name not in names:
+                    break
+                x += 1
+            initial['name'] = name
 
         self.form = PartitionForm(
             mountpoint_to_devpath_mapping, max_size, initial)
+
+        if not isinstance(disk, LVM_VolGroup):
+            self.form.remove_field('name')
 
         if label is not None:
             self.form.buttons.base_widget[0].set_label(label)
@@ -241,10 +258,17 @@ class PartitionStretchy(Stretchy):
         ]
 
         if partition is None:
-            title = _("Adding partition to {}").format(disk.label)
+            if isinstance(disk, LVM_VolGroup):
+                add_name = _("logical volume")
+            else:
+                add_name = _("partition")
+            title = _("Adding {} to {}").format(add_name, disk.label)
         else:
-            title = _("Editing partition {} of {}").format(
-                partition._number, disk.label)
+            if isinstance(disk, LVM_VolGroup):
+                desc = _("logical volume {}").format(partition.name)
+            else:
+                desc = _("partition {}").format(partition._number)
+            title = _("Editing {} of {}").format(desc, disk.label)
 
         super().__init__(title, widgets, 0, focus_index)
 
@@ -253,8 +277,12 @@ class PartitionStretchy(Stretchy):
 
     def done(self, form):
         log.debug("Add Partition Result: {}".format(form.as_data()))
-        self.controller.partition_disk_handler(
-            self.disk, self.partition, form.as_data())
+        if isinstance(self.disk, LVM_VolGroup):
+            self.controller.logical_volume_handler(
+                self.disk, self.partition, form.as_data())
+        else:
+            self.controller.partition_disk_handler(
+                self.disk, self.partition, form.as_data())
         self.parent.refresh_model_inputs()
         self.parent.remove_overlay()
 

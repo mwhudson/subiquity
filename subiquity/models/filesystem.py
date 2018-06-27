@@ -474,12 +474,22 @@ class LVM_LogicalVolume(_Formattable):
     volgroup = attr.ib(default=None)  # LVM_VolGroup
     size = attr.ib(default=None)
 
+    def available(self):
+        if self._constructed_device is not None:
+            return False
+        if self._fs is None:
+            return True
+        return self._fs._available()
+
     _supports_INFO = False
     _supports_EDIT = True
     _supports_PARTITION = False
     _supports_FORMAT = True
     _supports_DELETE = True
     _supports_MAKE_BOOT = False
+
+    def desc(self):
+        return "LVM logical volume"
 
     def label(self):
         return self.name
@@ -778,6 +788,7 @@ class FilesystemModel(object):
         lv = LVM_LogicalVolume(volgroup=vg, name=name, size=size)
         vg._partitions.append(lv)
         self._lvs.append(lv)
+        return lv
 
     def remove_logical_volume(self, lv):
         if lv._fs:
