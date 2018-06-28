@@ -353,6 +353,8 @@ class RaidStretchy(Stretchy):
                 return False
             if dev.type.startswith("lvm"):
                 return False
+            if dev.fs():
+                return False
             if dev in cur_devices:
                 return True
             return dev.supports_action(DeviceAction.FORMAT)

@@ -134,6 +134,8 @@ class VolGroupStretchy(Stretchy):
             cur_devices = existing.devices
 
         def device_ok(dev):
+            if dev.fs():
+                return False
             return (dev not in omits
                     and (dev.supports_action(DeviceAction.FORMAT)
                          or dev in cur_devices))
