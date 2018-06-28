@@ -270,7 +270,7 @@ class FilesystemController(BaseController):
         return part
 
     def create_raid(self, spec):
-        for d in spec['devices']:
+        for d in spec['devices'] | spec['spare_devices']:
             self.delete_filesystem(d.fs())
         raid = self.model.add_raid(
             spec['name'],
@@ -370,14 +370,24 @@ class FilesystemController(BaseController):
     def raid_handler(self, existing, spec):
         log.debug("raid_handler %s %s", existing, spec)
         if existing is not None:
-            raise Exception("erk")
-        self.create_raid(spec)
+            for d in spec['devices'] | spec['spare_devices']:
+                self.delete_filesystem(d.fs())
+            existing.name = spec['name']
+            existing.raidlevel = spec['level'].value
+            existing.devices = spec['devices']
+            existing.spare_devices = spec['spare_devices']
+        else:
+            self.create_raid(spec)
 
     def volgroup_handler(self, existing, spec):
         log.debug("volgroup_handler %s %s", existing, spec)
         if existing is not None:
-            raise Exception("erk")
-        self.create_volgroup(spec)
+            for d in spec['devices']:
+                self.delete_filesystem(d.fs())
+            existing.name = spec['name']
+            existing.devices = spec['devices']
+        else:
+            self.create_volgroup(spec)
 
     def make_boot_disk(self, new_boot_disk):
         boot_partition = None

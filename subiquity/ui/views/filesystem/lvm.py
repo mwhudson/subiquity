@@ -171,12 +171,6 @@ class VolGroupStretchy(Stretchy):
 
         rows = form.as_rows()
 
-        if existing is not None:
-            rows[0:0] = [
-                Color.info_error(Text("You cannot save edit to VGs just yet.")),
-                Text(""),
-                ]
-
         super().__init__(
             title,
             [Pile(rows), self.spacer, self.form.buttons],
@@ -220,7 +214,7 @@ to put the boot partition.")
                 (Color.info_error(Text(reason, align='center')), self.spacer.options('pack')),
                 (Text(""), self.spacer.options('pack')),
                 ]
-        return False
+        return ok
 
     def _change_devices(self, sender, new_devices):
         if len(sender.active_devices) >= 1:

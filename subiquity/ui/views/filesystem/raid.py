@@ -386,12 +386,6 @@ class RaidStretchy(Stretchy):
 
         rows = form.as_rows()
 
-        if existing is not None:
-            rows[0:0] = [
-                Text("You cannot save edit to RAIDs just yet."),
-                Text(""),
-                ]
-
         super().__init__(
             title,
             [Pile(rows), self.spacer, self.form.buttons],
@@ -435,7 +429,7 @@ to put the boot partition.")
                 (Color.info_error(Text(reason, align='center')), self.spacer.options('pack')),
                 (Text(""), self.spacer.options('pack')),
                 ]
-        return False
+        return ok
 
     def _select_level(self, sender, new_level):
         active_device_count = len(self.form.devices.widget.active_devices)
