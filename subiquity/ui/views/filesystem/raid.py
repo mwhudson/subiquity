@@ -398,9 +398,27 @@ class RaidStretchy(Stretchy):
             0, 0)
 
     def check_size_change_ok(self):
-        if self.form is None or self.existing is None:
+        if self.form is None:
             return True
         mdc = self.form.devices.widget
+        if not self.parent.model.bootable():
+            empty_disks = {d for d in self.parent.model.all_disks() if d.used == 0}
+            if not empty_disks - set(mdc.value):
+                reason = _("\
+If you put all disks into an LVM volume group or RAID, there will be nowhere \
+to put the boot partition.")
+                self.spacer.contents[:] = [
+                    (Text(""), self.spacer.options('pack')),
+                    (Color.info_error(Text(reason, align='center')), self.spacer.options('pack')),
+                    (Text(""), self.spacer.options('pack')),
+                    ]
+                return False
+            else:
+                self.spacer.contents[:] = [
+                    (Text(""), self.spacer.options('pack')),
+                    ]
+        if self.existing is None:
+            return True
         new_size = get_raid_size(self.form.level.value.value, mdc.active_devices)
         if new_size >= self.existing.size:
             ok = True

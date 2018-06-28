@@ -525,11 +525,6 @@ class FilesystemView(BaseView):
         self.mount_list.refresh_model_inputs()
         self.avail_list.refresh_model_inputs()
         self.used_list.refresh_model_inputs()
-        # If refreshing the view has left the focus widget with no
-        # selectable widgets, simulate a tab to move to the next
-        # selectable widget.
-        while not self.lb.base_widget.focus.selectable():
-            self.lb.base_widget.keypress((10, 10), 'tab')
         raid_devs = []
         lvm_devs = []
         for dev in self.model.all_devices():
@@ -560,6 +555,13 @@ class FilesystemView(BaseView):
             self.done.enable()
         else:
             self.done.disable()
+        # If refreshing the view has left the focus widget with no
+        # selectable widgets, simulate a tab to move to the next
+        # selectable widget.
+        f = self.lb.base_widget
+        while not f.focus.selectable():
+            self.lb.base_widget.keypress((10, 10), 'tab')
+        f.focus.base_widget._select_first_selectable()
 
     def create_raid(self, button=None):
         self.show_stretchy_overlay(RaidStretchy(self))
