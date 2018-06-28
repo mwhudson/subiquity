@@ -65,7 +65,6 @@ from subiquitycore.view import BaseView
 from subiquity.models.filesystem import (
     DeviceAction,
     humanize_size,
-    LVM_LogicalVolume,
     LVM_VolGroup,
     )
 

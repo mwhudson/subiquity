@@ -94,7 +94,8 @@ class SizeField(FormField):
 
 class PartitionForm(Form):
 
-    def __init__(self, mountpoint_to_devpath_mapping, max_size, initial={}, lvm_names=set()):
+    def __init__(self, mountpoint_to_devpath_mapping, max_size, initial={},
+                 lvm_names=set()):
         self.mountpoint_to_devpath_mapping = mountpoint_to_devpath_mapping
         self.max_size = max_size
         if max_size is not None:
@@ -135,7 +136,8 @@ class PartitionForm(Form):
     def validate_name(self):
         log.debug("validate_name %s %s", self.name.value, self.lvm_names)
         if self.name.value in self.lvm_names:
-            return _("There is already a logical volume named {}.").format(self.name.value)
+            return _("There is already a logical volume named {}.").format(
+                self.name.value)
 
     def validate_mount(self):
         mount = self.mount.value

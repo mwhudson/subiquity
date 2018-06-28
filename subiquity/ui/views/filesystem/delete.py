@@ -35,7 +35,11 @@ log = logging.getLogger('subiquity.ui.filesystem.disk_info')
 
 
 def check_size_reduction_ok(obj, new_sizes):
-    log.debug("checking size reduction of %s with %s", obj.id, {k.id:"{} vs {}".format(humanize_size(v), humanize_size(k.size)) for k,v in new_sizes.items()})
+    # log.debug(
+    #     "checking size reduction of %s with %s",
+    #     obj.id,
+    #     {k.id: "{} vs {}".format(humanize_size(v), humanize_size(k.size))
+    #          for k,v in new_sizes.items()})
     if obj.fs():
         return True, ""
     cd = obj.constructed_device()
@@ -48,7 +52,8 @@ def check_size_reduction_ok(obj, new_sizes):
         newer_sizes[cd] = get_lvm_size(cd.devices, new_sizes)
         return check_size_reduction_ok(cd, newer_sizes)
     shrinkage = obj.size - new_sizes.get(obj)
-    log.debug("%s will shrink by %s vs free %s", obj.id, shrinkage, obj.free_for_partitions)
+    # log.debug("%s will shrink by %s vs free %s",
+    #           obj.id, shrinkage, obj.free_for_partitions)
     if obj.free_for_partitions >= shrinkage:
         return True, ""
     else:
@@ -76,7 +81,7 @@ def can_delete(obj, obj_desc=_("it")):
             new_size = get_raid_size(cd.raidlevel, new_devices)
             if new_size == cd.size:
                 return True, ""
-            return check_size_reduction_ok(cd, {cd:new_size})
+            return check_size_reduction_ok(cd, {cd: new_size})
         else:
             reason = _("deleting {obj} would leave the {desc} {label} with "
                        "less than {min_devices} devices.").format(

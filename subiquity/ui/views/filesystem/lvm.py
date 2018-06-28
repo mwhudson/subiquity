@@ -165,7 +165,8 @@ class VolGroupStretchy(Stretchy):
 
     def _change_devices(self, sender, new_devices):
         if len(sender.active_devices) >= 1:
-            self.form.size.value = humanize_size(get_lvm_size(sender.active_devices))
+            self.form.size.value = humanize_size(
+                get_lvm_size(sender.active_devices))
         else:
             self.form.size.value = '-'
 

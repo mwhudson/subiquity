@@ -100,11 +100,10 @@ class FilesystemController(BaseController):
 
     def _enter_form_data(self, form, data, submit, clean_suffix=''):
         for k, v in data.items():
-            c = getattr(self, '_action_clean_{}_{}'.format(k, clean_suffix), None)
+            c = getattr(
+                self, '_action_clean_{}_{}'.format(k, clean_suffix), None)
             if c is None:
-                c = getattr(self, '_action_clean_{}'.format(k), None)
-            if c is None:
-                c = lambda x: x
+                c = getattr(self, '_action_clean_{}'.format(k), lambda x: x)
             getattr(form, k).value = c(v)
             yield
         yield

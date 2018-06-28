@@ -129,7 +129,7 @@ def get_raid_size(level, devices, size_overrides={}):
 def get_lvm_size(devices, size_overrides={}):
     r = 0
     for d in devices:
-        r += size_overrides.get(d, d.size) - (1<<20)
+        r += size_overrides.get(d, d.size) - (1 << 20)
     return r
 
 
@@ -371,7 +371,6 @@ class Partition(_Formattable):
     def desc(self):
         return _("partition of {}").format(self.device.desc())
 
-
     @property
     def short_label(self):
         return _("partition {}").format(self._number)
@@ -496,7 +495,6 @@ class LVM_LogicalVolume(_Formattable):
     _supports_FORMAT = True
     _supports_DELETE = True
     _supports_MAKE_BOOT = False
-
 
     @property
     def flag(self):
