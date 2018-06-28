@@ -170,7 +170,6 @@ class VolGroupStretchy(Stretchy):
                 Color.info_error(Text("You cannot save edit to VGs just yet.")),
                 Text(""),
                 ]
-            self.form.validated()
 
         super().__init__(
             title,
