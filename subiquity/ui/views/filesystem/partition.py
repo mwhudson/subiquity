@@ -32,6 +32,9 @@ from subiquitycore.ui.interactive import StringEditor
 from subiquitycore.ui.selector import Option, Selector
 from subiquitycore.ui.container import Pile
 from subiquitycore.ui.stretchy import Stretchy
+from subiquitycore.ui.utils import (
+    Color,
+    )
 
 from subiquity.models.filesystem import (
     align_up,
@@ -43,6 +46,7 @@ from subiquity.models.filesystem import (
     LVM_VolGroup,
 )
 from subiquity.ui.mount import MountField
+from .delete import check_size_reduction_ok
 
 
 log = logging.getLogger('subiquity.ui.filesystem.add_partition')
@@ -94,14 +98,15 @@ class SizeField(FormField):
 
 class PartitionForm(Form):
 
-    def __init__(self, mountpoint_to_devpath_mapping, max_size, initial={},
-                 lvm_names=set()):
+    def __init__(self, mountpoint_to_devpath_mapping, max_size, initial,
+                 lvm_names, view):
         self.mountpoint_to_devpath_mapping = mountpoint_to_devpath_mapping
         self.max_size = max_size
         if max_size is not None:
             self.size_str = humanize_size(max_size)
             self.size.caption = _("Size (max {}):").format(self.size_str)
         self.lvm_names = lvm_names
+        self.view = view
         super().__init__(initial)
         if max_size is None:
             self.remove_field('size')
@@ -149,6 +154,11 @@ class PartitionForm(Form):
         dev = self.mountpoint_to_devpath_mapping.get(mount)
         if dev is not None:
             return _("{} is already mounted at {}").format(dev, mount)
+
+    def in_error(self):
+        if not self.view.check_size_change_ok():
+            return True
+        return super().in_error()
 
 
 bios_grub_partition_description = _(
@@ -219,8 +229,10 @@ class PartitionStretchy(Stretchy):
                 x += 1
             initial['name'] = name
 
+        self.form = None
+        self.spacer = Pile([Text("")])
         self.form = PartitionForm(
-            mountpoint_to_devpath_mapping, max_size, initial, lvm_names)
+            mountpoint_to_devpath_mapping, max_size, initial, lvm_names, self)
 
         if not isinstance(disk, LVM_VolGroup):
             self.form.remove_field('name')
@@ -265,7 +277,7 @@ class PartitionStretchy(Stretchy):
         rows.extend(self.form.as_rows())
         widgets = [
             Pile(rows),
-            Text(""),
+            self.spacer,
             self.form.buttons,
         ]
 
@@ -283,6 +295,28 @@ class PartitionStretchy(Stretchy):
             title = _("Editing {} of {}").format(desc, disk.label)
 
         super().__init__(title, widgets, 0, focus_index)
+
+    def check_size_change_ok(self):
+        if self.form is None or self.partition is None:
+            return True
+        new_size = self.form.size.value
+        if new_size >= self.partition.size:
+            ok = True
+        else:
+            ok, reason = check_size_reduction_ok(
+                self.partition, {self.partition: new_size})
+        if ok:
+            self.spacer.contents[:] = [
+                (Text(""), self.spacer.options('pack')),
+                ]
+        else:
+            reason = _("If the changes you have were saved, {}.").format(reason)
+            self.spacer.contents[:] = [
+                (Text(""), self.spacer.options('pack')),
+                (Color.info_error(Text(reason, align='center')), self.spacer.options('pack')),
+                (Text(""), self.spacer.options('pack')),
+                ]
+        return ok
 
     def cancel(self, button=None):
         self.parent.remove_overlay()
