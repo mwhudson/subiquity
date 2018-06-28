@@ -83,6 +83,7 @@ Filesystem:
         name: lv-0
         fstype: ext4
         mount: /
+    - action: done
 Identity:
   realname: Ubuntu
   username: ubuntu

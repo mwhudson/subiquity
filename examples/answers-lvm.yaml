@@ -37,7 +37,8 @@ Filesystem:
         name: lv-0
         size: 1G
         fstype: ext4
-        mount: /srv
+        mount: /
+    - action: done
 Identity:
   realname: Ubuntu
   username: ubuntu
