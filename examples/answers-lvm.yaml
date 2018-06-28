@@ -14,21 +14,17 @@ Filesystem:
   manual:
     - obj: [disk index 0]
       action: MAKE_BOOT
-    - obj: [disk index 0]
-      action: PARTITION
-      data:
-        size: 1G
-        fstype: null
-    - obj: [disk index 0]
+    - &newpart
+      obj: [disk index 0]
       action: PARTITION
       data:
         size: 1G
         mount: null
-    - obj: [disk index 0]
-      action: PARTITION
-      data:
-        size: 1G
-        mount: null
+    - *newpart
+    - *newpart
+    - *newpart
+    - *newpart
+    - *newpart
     - action: create-vg
       data:
         name: vg-1

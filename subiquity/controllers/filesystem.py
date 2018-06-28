@@ -119,6 +119,7 @@ class FilesystemController(BaseController):
     def _answers_action(self, action):
         from subiquitycore.ui.stretchy import StretchyOverlay
         from subiquity.ui.views.filesystem.delete import ConfirmDeleteStretchy
+        log.debug("_answers_action %r", action)
         if 'obj' in action:
             obj = self._action_get(action['obj'])
             meth = getattr(
