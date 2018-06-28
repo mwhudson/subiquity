@@ -22,6 +22,9 @@ from subiquitycore.ui.stretchy import Stretchy
 
 from subiquity.models.filesystem import (
     _Device,
+    get_raid_size,
+    get_lvm_size,
+    humanize_size,
     LVM_VolGroup,
     Raid,
     raidlevels_by_value,
@@ -29,6 +32,32 @@ from subiquity.models.filesystem import (
 
 
 log = logging.getLogger('subiquity.ui.filesystem.disk_info')
+
+
+def check_size_reduction_ok(obj, new_sizes):
+    log.debug("checking size reduction of %s with %s", obj.id, {k.id:"{} vs {}".format(humanize_size(v), humanize_size(k.size)) for k,v in new_sizes.items()})
+    if obj.fs():
+        return True, ""
+    cd = obj.constructed_device()
+    if isinstance(cd, Raid):
+        newer_sizes = new_sizes.copy()
+        newer_sizes[cd] = get_raid_size(cd.raidlevel, cd.devices, new_sizes)
+        return check_size_reduction_ok(cd, newer_sizes)
+    elif isinstance(cd, LVM_VolGroup):
+        newer_sizes = new_sizes.copy()
+        newer_sizes[cd] = get_lvm_size(cd.devices, new_sizes)
+        return check_size_reduction_ok(cd, newer_sizes)
+    shrinkage = obj.size - new_sizes.get(obj)
+    log.debug("%s will shrink by %s vs free %s", obj.id, shrinkage, obj.free_for_partitions)
+    if obj.free_for_partitions >= shrinkage:
+        return True, ""
+    else:
+        if obj.free_for_partitions == 0:
+            free = "no space"
+        else:
+            free = humanize_size(obj.free_for_partitions)
+        return False, _("{} would shrink by {}, but it has {} free").format(
+            obj.label, humanize_size(shrinkage), free)
 
 
 def can_delete(obj, obj_desc=_("it")):
@@ -43,7 +72,11 @@ def can_delete(obj, obj_desc=_("it")):
     if isinstance(cd, Raid):
         rl = raidlevels_by_value[cd.raidlevel]
         if len(cd.devices) > rl.min_devices:
-            return True, ""
+            new_devices = set(cd.devices) - set([obj])
+            new_size = get_raid_size(cd.raidlevel, new_devices)
+            if new_size == cd.size:
+                return True, ""
+            return check_size_reduction_ok(cd, {cd:new_size})
         else:
             reason = _("deleting {obj} would leave the {desc} {label} with "
                        "less than {min_devices} devices.").format(

@@ -112,8 +112,9 @@ class VolGroupStretchy(Stretchy):
                     "block device cycle detected involving {}".format(o))
             omits.add(o)
             _walk_down(o.constructed_device())
-            for p in o.partitions():
-                _walk_down(p)
+            if hasattr(o, "partitions"):
+                for p in o.partitions():
+                    _walk_down(p)
 
         _walk_down(existing)
 

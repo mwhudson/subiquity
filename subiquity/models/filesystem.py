@@ -106,10 +106,10 @@ def dehumanize_size(size):
     return num * mult // div
 
 
-def get_raid_size(level, devices):
+def get_raid_size(level, devices, size_overrides={}):
     if len(devices) == 0:
         return 0
-    min_size = min(dev.size for dev in devices)
+    min_size = min(size_overrides.get(dev, dev.size) for dev in devices)
     if min_size <= 0:
         return 0
     if level == 0:
@@ -126,10 +126,10 @@ def get_raid_size(level, devices):
         raise ValueError("unknown raid level %s" % level)
 
 
-def get_lvm_size(devices):
+def get_lvm_size(devices, size_overrides={}):
     r = 0
     for d in devices:
-        r += d.size - (1<<20)
+        r += size_overrides.get(d, d.size) - (1<<20)
     return r
 
 
