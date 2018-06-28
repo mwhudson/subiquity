@@ -354,7 +354,7 @@ class FormatEntireStretchy(Stretchy):
                     del mountpoint_to_devpath_mapping[mount.path]
         else:
             initial['fstype'] = self.model.fs_by_name[None]
-        self.form = PartitionForm(mountpoint_to_devpath_mapping, 0, initial)
+        self.form = PartitionForm(mountpoint_to_devpath_mapping, 0, initial, {}, self)
         self.form.remove_field('size')
         self.form.remove_field('name')
 
@@ -378,6 +378,9 @@ class FormatEntireStretchy(Stretchy):
         title = _("Format and/or mount {}").format(device.label)
 
         super().__init__(title, widgets, 0, 0)
+
+    def check_size_change_ok(self):
+        return True
 
     def cancel(self, button=None):
         self.parent.remove_overlay()

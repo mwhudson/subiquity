@@ -65,6 +65,7 @@ from subiquitycore.view import BaseView
 from subiquity.models.filesystem import (
     DeviceAction,
     humanize_size,
+    GPT_OVERHEAD,
     LVM_VolGroup,
     )
 
@@ -178,7 +179,6 @@ class MountList(WidgetWrap):
         self._no_mounts_content = Color.info_minor(
             Text(_("No disks or partitions mounted.")))
         super().__init__(self.table)
-        self.refresh_model_inputs()
 
     def _mount_action(self, sender, action, mount):
         log.debug('_mount_action %s %s', action, mount)
@@ -277,9 +277,6 @@ class DeviceList(WidgetWrap):
             text = _("No used devices")
         self._no_devices_content = Color.info_minor(Text(text))
         super().__init__(self.table)
-        self.refresh_model_inputs()
-        # I don't really know why this is required:
-        self.table._select_first_selectable()
 
     _disk_INFO = _stretchy_shower(DiskInfoStretchy)
     _disk_PARTITION = _stretchy_shower(PartitionStretchy)
@@ -442,9 +439,9 @@ class DeviceList(WidgetWrap):
                         and device.free_for_partitions > 0):
                     size = device.size
                     free = device.free_for_partitions
-                    percent = str(int(100 * free / size))
+                    percent = str(int(100 * free / (size - GPT_OVERHEAD)))
                     if percent == "0":
-                        percent = "%.2f" % (100 * free / size,)
+                        percent = "%.2f" % (100 * free / (size - GPT_OVERHEAD),)
                     size_text = "{:>9} ({}%)".format(
                         humanize_size(free), percent)
                     rows.append(TableRow([
@@ -474,12 +471,12 @@ class FilesystemView(BaseView):
         self.avail_list = DeviceList(self, True)
         self.used_list = DeviceList(self, False)
         self.avail_list.table.bind(self.used_list.table)
-        self._create_raid_btn = menu_btn(
+        self._create_raid_btn = Toggleable(menu_btn(
             label=_("Create software RAID (md)"),
-            on_press=self.create_raid)
-        self._create_lvm_btn = menu_btn(
+            on_press=self.create_raid))
+        self._create_lvm_btn = Toggleable(menu_btn(
             label=_("Create volume group (LVM2)"),
-            on_press=self.create_vg)
+            on_press=self.create_vg))
 
         bp = button_pile([self._create_raid_btn, self._create_lvm_btn])
         bp.align = 'left'
@@ -509,6 +506,7 @@ class FilesystemView(BaseView):
             focus_buttons=self.model.can_install())
         frame.width = ('relative', 95)
         super().__init__(frame)
+        self.refresh_model_inputs()
         log.debug('FileSystemView init complete()')
 
     def _build_buttons(self):
@@ -532,6 +530,32 @@ class FilesystemView(BaseView):
         # selectable widget.
         while not self.lb.base_widget.focus.selectable():
             self.lb.base_widget.keypress((10, 10), 'tab')
+        raid_devs = []
+        lvm_devs = []
+        for dev in self.model.all_devices():
+            if dev.fs():
+                continue
+            if dev.supports_action(DeviceAction.FORMAT):
+                lvm_devs.append(dev)
+                if not dev.type.startswith("lvm"):
+                    raid_devs.append(dev)
+            elif not dev.type.startswith("lvm"):
+                for p in dev.partitions():
+                    if p.fs():
+                        continue
+                    if p.supports_action(DeviceAction.FORMAT):
+                        raid_devs.append(p)
+                        lvm_devs.append(p)
+        log.debug('raid_devs %s', {r.label for r in raid_devs})
+        log.debug('lvm_devs %s', {r.label for r in lvm_devs})
+        if len(raid_devs) > 1:
+            self._create_raid_btn.enable()
+        else:
+            self._create_raid_btn.disable()
+        if len(lvm_devs) > 0:
+            self._create_lvm_btn.enable()
+        else:
+            self._create_lvm_btn.disable()
         if self.model.can_install():
             self.done.enable()
         else:

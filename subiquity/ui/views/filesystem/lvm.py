@@ -134,11 +134,15 @@ class VolGroupStretchy(Stretchy):
             cur_devices = existing.devices
 
         def device_ok(dev):
+            if dev in omits:
+                return False
+            if dev.type.startswith("lvm"):
+                return False
             if dev.fs():
                 return False
-            return (dev not in omits
-                    and (dev.supports_action(DeviceAction.FORMAT)
-                         or dev in cur_devices))
+            if dev in cur_devices:
+                return True
+            return dev.supports_action(DeviceAction.FORMAT)
 
         for dev in self.parent.model.all_devices():
             if device_ok(dev):
