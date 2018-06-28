@@ -31,7 +31,11 @@ from subiquitycore.ui.form import (
 from subiquitycore.ui.stretchy import (
     Stretchy,
     )
+from subiquitycore.ui.utils import (
+    Color,
+    )
 
+from .delete import check_size_reduction_ok
 from .raid import MultiDeviceField, DEVICE, LABEL, PART
 from subiquity.models.filesystem import (
     DeviceAction,
@@ -45,10 +49,11 @@ log = logging.getLogger('subiquity.ui.views.filesystem.lvm')
 class VolGroupForm(Form):
 
     def __init__(self, mountpoint_to_devpath_mapping,
-                 all_devices, initial, lvm_names):
+                 all_devices, initial, lvm_names, view):
         self.mountpoint_to_devpath_mapping = mountpoint_to_devpath_mapping
         self.all_devices = all_devices
         self.lvm_names = lvm_names
+        self.view = view
         super().__init__(initial)
 
     name = StringField(_("Name:"))
@@ -64,6 +69,11 @@ class VolGroupForm(Form):
         active_device_count = len(self.devices.widget.active_devices)
         if active_device_count < 1:
             return _("Select at least one device")
+
+    def in_error(self):
+        if not self.view.check_size_change_ok():
+            return True
+        return super().in_error()
 
 
 class VolGroupStretchy(Stretchy):
@@ -96,6 +106,7 @@ class VolGroupStretchy(Stretchy):
             initial = {
                 'devices': devices,
                 'name': name,
+                'size': humanize_size(existing.size),
                 }
 
         all_devices = []
@@ -139,8 +150,12 @@ class VolGroupStretchy(Stretchy):
                     all_devices.append((LABEL, dev))
                     all_devices.extend(ok_parts)
 
+        self.form = None
+        self.spacer = Pile([Text("")])
+
         form = self.form = VolGroupForm(
-            mountpoint_to_devpath_mapping, all_devices, initial, lvm_names)
+            mountpoint_to_devpath_mapping, all_devices, initial, lvm_names,
+            self)
 
         self.form.devices.widget.set_supports_spares(False)
 
@@ -152,16 +167,37 @@ class VolGroupStretchy(Stretchy):
 
         if existing is not None:
             rows[0:0] = [
-                Text("You cannot save edit to VGs just yet."),
+                Color.info_error(Text("You cannot save edit to VGs just yet.")),
                 Text(""),
                 ]
-            self.form.validated = lambda *args: self.form.done_btn.disable()
             self.form.validated()
 
         super().__init__(
             title,
-            [Pile(rows), Text(""), self.form.buttons],
+            [Pile(rows), self.spacer, self.form.buttons],
             0, 0)
+
+    def check_size_change_ok(self):
+        if self.form is None or self.existing is None:
+            return True
+        mdc = self.form.devices.widget
+        new_size = get_lvm_size(mdc.active_devices)
+        if new_size >= self.existing.size:
+            ok = True
+        else:
+            ok, reason = check_size_reduction_ok(self.existing, {self.existing: new_size})
+        if ok:
+            self.spacer.contents[:] = [
+                (Text(""), self.spacer.options('pack')),
+                ]
+        else:
+            reason = _("If the changes you have were saved, {}.").format(reason)
+            self.spacer.contents[:] = [
+                (Text(""), self.spacer.options('pack')),
+                (Color.info_error(Text(reason, align='center')), self.spacer.options('pack')),
+                (Text(""), self.spacer.options('pack')),
+                ]
+        return False
 
     def _change_devices(self, sender, new_devices):
         if len(sender.active_devices) >= 1:

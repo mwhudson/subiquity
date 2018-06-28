@@ -80,7 +80,7 @@ class _Validator(WidgetWrap):
 
     def lost_focus(self):
         self.field.showing_extra = False
-        lf = getattr(self._w, 'lost_focus', None)
+        lf = getattr(self._w.base_widget, 'lost_focus', None)
         if lf is not None:
             lf()
         self.field.validate()
@@ -394,13 +394,14 @@ class Form(object, metaclass=MetaForm):
             self.as_rows(), self.buttons,
             focus_buttons=focus_buttons, excerpt=excerpt)
 
-    def validated(self):
-        in_error = False
+    def in_error(self):
         for f in self._fields:
             if f.in_error:
-                in_error = True
-                break
-        if in_error:
+                return True
+        return False
+
+    def validated(self):
+        if self.in_error():
             self.buttons.base_widget.contents[0][0].disable()
             self.buttons.base_widget.focus_position = 1
         else:
