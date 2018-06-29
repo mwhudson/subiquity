@@ -106,10 +106,15 @@ def dehumanize_size(size):
     return num * mult // div
 
 
+# Observed by experiment...
+RAID_OVERHEAD = 4 * (1 << 20)
+
+
 def get_raid_size(level, devices, size_overrides={}):
     if len(devices) == 0:
         return 0
     min_size = min(size_overrides.get(dev, dev.size) for dev in devices)
+    min_size -= RAID_OVERHEAD
     if min_size <= 0:
         return 0
     if level == 0:
@@ -126,10 +131,18 @@ def get_raid_size(level, devices, size_overrides={}):
         raise ValueError("unknown raid level %s" % level)
 
 
+# These are only defaults but curtin does not let you change/specify
+# them at this time.
+LVM_OVERHEAD = (1 << 20)
+LVM_CHUNK_SIZE = 4 * (1 << 20)
+
+
 def get_lvm_size(devices, size_overrides={}):
     r = 0
     for d in devices:
-        r += size_overrides.get(d, d.size) - (1 << 20)
+        r += align_down(
+            size_overrides.get(d, d.size) - LVM_OVERHEAD,
+            LVM_CHUNK_SIZE)
     return r
 
 
@@ -456,6 +469,10 @@ class LVM_VolGroup(_Device):
     @property
     def size(self):
         return get_lvm_size(self.devices)
+
+    @property
+    def free_for_partitions(self):
+        return self.size - self.used
 
     _supports_INFO = False
     _supports_EDIT = True
