@@ -558,10 +558,8 @@ class FilesystemView(BaseView):
         # If refreshing the view has left the focus widget with no
         # selectable widgets, simulate a tab to move to the next
         # selectable widget.
-        f = self.lb.base_widget
-        while not f.focus.selectable():
-            self.lb.base_widget.keypress((10, 10), 'tab')
-        f.focus.base_widget._select_first_selectable()
+        if not self.lb.base_widget.focus.selectable():
+            self.lb.base_widget._select_first_selectable()
 
     def create_raid(self, button=None):
         self.show_stretchy_overlay(RaidStretchy(self))

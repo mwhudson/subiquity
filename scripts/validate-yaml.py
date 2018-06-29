@@ -42,6 +42,7 @@ class StorageChecker:
     def _check_lvm_partition(self, action):
         assert 'name' in action
         assert 'size' in action
+        assert isinstance(action['size'], str)
         assert action['volgroup'] in self.actions
 
     def check(self, action):

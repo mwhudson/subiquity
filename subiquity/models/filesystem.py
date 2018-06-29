@@ -149,7 +149,10 @@ def asdict(inst):
     for field in attr.fields(type(inst)):
         if field.name.startswith('_'):
             continue
-        v = getattr(inst, field.name)
+        v = getattr(
+            inst,
+            'serialize_' + field.name,
+            lambda : getattr(inst, field.name))()
         if v is not None:
             if isinstance(v, (list, set)):
                 r[field.name] = [elem.id for elem in v]
@@ -481,6 +484,9 @@ class LVM_LogicalVolume(_Formattable):
     name = attr.ib(default=None)
     volgroup = attr.ib(default=None)  # LVM_VolGroup
     size = attr.ib(default=None)
+
+    def serialize_size(self):
+        return "{}b".format(self.size)
 
     def available(self):
         if self._constructed_device is not None:
