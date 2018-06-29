@@ -59,14 +59,18 @@ class GuidedFilesystemView(BaseView):
 
     def __init__(self, controller):
         self.controller = controller
-        guided = ok_btn(_("Use An Entire Disk"), on_press=self.guided)
+        direct = ok_btn(
+            _("Use An Entire Disk"), on_press=self.guided, user_arg="direct")
+        lvm = ok_btn(
+            _("Use An Entire Disk And Set Up LVM"), on_press=self.guided,
+            user_arg="lvm")
         manual = ok_btn(_("Manual"), on_press=self.manual)
         back = back_btn(_("Back"), on_press=self.cancel)
         lb = ListBox([
             Padding.center_70(Text("")),
             Padding.center_70(Text(_(text))),
             Padding.center_70(Text("")),
-            button_pile([guided, manual, back]),
+            button_pile([direct, lvm, manual, back]),
             ])
         super().__init__(lb)
 
@@ -85,9 +89,10 @@ class GuidedDiskSelectionView(BaseView):
     title = _("Filesystem setup")
     footer = (_("Choose the installation target"))
 
-    def __init__(self, model, controller):
+    def __init__(self, model, controller, method):
         self.model = model
         self.controller = controller
+        self.method
         cancel = cancel_btn(_("Cancel"), on_press=self.cancel)
         rows = []
         for disk in self.model.all_disks():
@@ -120,10 +125,13 @@ class GuidedDiskSelectionView(BaseView):
 
     def choose_disk(self, btn, disk):
         self.model.reset()
-        result = {
-            "size": disk.free_for_partitions,
-            "fstype": self.model.fs_by_name["ext4"],
-            "mount": "/",
-        }
-        self.controller.partition_disk_handler(disk, None, result)
+        if self.method == "direct":
+            result = {
+                "size": disk.free_for_partitions,
+                "fstype": self.model.fs_by_name["ext4"],
+                "mount": "/",
+                }
+                self.controller.partition_disk_handler(disk, None, result)
+        else:
+            raise Exception("erk!")
         self.controller.manual()
