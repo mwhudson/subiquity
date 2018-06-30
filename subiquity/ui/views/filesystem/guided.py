@@ -77,8 +77,8 @@ class GuidedFilesystemView(BaseView):
     def manual(self, btn):
         self.controller.manual()
 
-    def guided(self, btn):
-        self.controller.guided()
+    def guided(self, btn, method):
+        self.controller.guided(method)
 
     def cancel(self, btn=None):
         self.controller.cancel()
@@ -92,7 +92,7 @@ class GuidedDiskSelectionView(BaseView):
     def __init__(self, model, controller, method):
         self.model = model
         self.controller = controller
-        self.method
+        self.method = method
         cancel = cancel_btn(_("Cancel"), on_press=self.cancel)
         rows = []
         for disk in self.model.all_disks():
@@ -131,7 +131,24 @@ class GuidedDiskSelectionView(BaseView):
                 "fstype": self.model.fs_by_name["ext4"],
                 "mount": "/",
                 }
-                self.controller.partition_disk_handler(disk, None, result)
+            self.controller.partition_disk_handler(disk, None, result)
         else:
-            raise Exception("erk!")
+            self.controller.make_boot_disk(disk)
+            part = self.controller.create_partition(
+                device=disk, spec=dict(
+                    size=disk.free_for_partitions,
+                    fstype=None,
+                    ))
+            vg = self.controller.create_volgroup(
+                spec=dict(
+                    name="ubuntu-vg",
+                    devices=set([part]),
+                    ))
+            self.controller.create_logical_volume(
+                vg=vg, spec=dict(
+                    size=vg.free_for_partitions,
+                    name="ubuntu-lv",
+                    fstype=self.model.fs_by_name['ext4'],
+                    mount="/",
+                    ))
         self.controller.manual()
