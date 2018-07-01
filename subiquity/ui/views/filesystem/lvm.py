@@ -208,7 +208,7 @@ to put the boot partition.")
                 (Text(""), self.spacer.options('pack')),
                 ]
         else:
-            reason = _("If the changes you have were saved, {}.").format(reason)
+            reason = _("If the changes you have made were saved {}.").format(reason)
             self.spacer.contents[:] = [
                 (Text(""), self.spacer.options('pack')),
                 (Color.info_error(Text(reason, align='center')), self.spacer.options('pack')),
