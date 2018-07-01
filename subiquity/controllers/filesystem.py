@@ -370,8 +370,11 @@ class FilesystemController(BaseController):
     def raid_handler(self, existing, spec):
         log.debug("raid_handler %s %s", existing, spec)
         if existing is not None:
+            for d in existing.devices | existing.spare_devices:
+                d._constructed_device = None
             for d in spec['devices'] | spec['spare_devices']:
                 self.delete_filesystem(d.fs())
+                d._constructed_device = existing
             existing.name = spec['name']
             existing.raidlevel = spec['level'].value
             existing.devices = spec['devices']
@@ -382,8 +385,11 @@ class FilesystemController(BaseController):
     def volgroup_handler(self, existing, spec):
         log.debug("volgroup_handler %s %s", existing, spec)
         if existing is not None:
+            for d in existing.devices:
+                d._constructed_device = None
             for d in spec['devices']:
                 self.delete_filesystem(d.fs())
+                d._constructed_device = existing
             existing.name = spec['name']
             existing.devices = spec['devices']
         else:
