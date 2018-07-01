@@ -92,7 +92,9 @@ def can_delete(obj, obj_desc=_("it")):
             return False, reason
     elif isinstance(cd, LVM_VolGroup):
         if len(cd.devices) > 1:
-            return True, ""
+            new_devices = set(cd.devices) - set([obj])
+            new_size = get_lvm_size(new_devices)
+            return check_size_reduction_ok(cd, {cd: new_size})
         reason = _("deleting {obj} would leave the {desc} {label} with "
                    "no devices.").format(
                        obj=_(obj_desc),
