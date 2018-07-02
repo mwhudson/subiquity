@@ -306,12 +306,16 @@ class PartitionStretchy(Stretchy):
     def check_size_change_ok(self):
         if self.form is None or self.partition is None:
             return True
-        new_size = self.form.size.value
-        if new_size >= self.partition.size:
+        try:
+            new_size = self.form.size.value
+        except ValueError:
             ok = True
         else:
-            ok, reason = check_size_reduction_ok(
-                self.partition, {self.partition: new_size})
+            if new_size >= self.partition.size:
+                ok = True
+            else:
+                ok, reason = check_size_reduction_ok(
+                    self.partition, {self.partition: new_size})
         if ok:
             self.spacer.contents[:] = [
                 (Text(""), self.spacer.options('pack')),
