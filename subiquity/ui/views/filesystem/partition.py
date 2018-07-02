@@ -256,6 +256,13 @@ class PartitionStretchy(Stretchy):
                 self.form.mount.enabled = False
                 self.form.fstype.enabled = False
                 self.form.size.enabled = False
+            elif partition.constructed_device() is not None:
+                cd = partition.constructed_device()
+                self.form.fstype.enabled = False
+                self.form.fstype.show_extra(
+                    _("Cannot format because partition is part of the {desc} {label}").format(
+                        label=cd.label, desc=cd.desc()))
+                self.form.mount.enabled = False
 
         connect_signal(self.form, 'submit', self.done)
         connect_signal(self.form, 'cancel', self.cancel)
