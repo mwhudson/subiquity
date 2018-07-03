@@ -78,7 +78,7 @@ Filesystem:
         devices:
           - [raid name md3]
     - obj: [volgroup name vg-1]
-      action: PARTITION
+      action: CREATE_LV
       data:
         name: lv-0
         fstype: ext4

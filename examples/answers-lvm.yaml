@@ -32,7 +32,7 @@ Filesystem:
           - [disk index 0, part 1]
           - [disk index 0, part 2]
     - obj: [volgroup name vg-1]
-      action: PARTITION
+      action: CREATE_LV
       data:
         name: lv-0
         size: 1G

@@ -256,6 +256,7 @@ class MountList(WidgetWrap):
 def _stretchy_shower(cls):
     def impl(self, device):
         self.parent.show_stretchy_overlay(cls(self.parent, device))
+    impl.opens_dialog = True
     return impl
 
 
@@ -302,7 +303,7 @@ class DeviceList(WidgetWrap):
     _raid_DELETE = _partition_DELETE
 
     _lvm_volgroup_EDIT = _stretchy_shower(VolGroupStretchy)
-    _lvm_volgroup_PARTITION = _stretchy_shower(PartitionStretchy)
+    _lvm_volgroup_CREATE_LV = _stretchy_shower(PartitionStretchy)
     _lvm_volgroup_DELETE = _stretchy_shower(ConfirmDeleteStretchy)
 
     def _action(self, sender, action, device):
@@ -311,30 +312,25 @@ class DeviceList(WidgetWrap):
         getattr(self, meth_name)(device)
 
     def _action_menu_for_device(self, device):
-        if can_delete(device)[0]:
-            delete_btn = Color.danger_button(ActionMenuOpenButton(_("Delete")))
-        else:
-            delete_btn = _("Delete *")
-        if isinstance(device, LVM_VolGroup):
-            part_label = _("Create Logical Volume")
-        else:
-            part_label = _("Add Partition")
-        device_actions = [
-            (_("Information"),      DeviceAction.INFO),
-            (_("Edit"),             DeviceAction.EDIT),
-            (part_label,            DeviceAction.PARTITION),
-            (_("Format / Mount"),   DeviceAction.FORMAT),
-            (delete_btn,            DeviceAction.DELETE),
-            (_("Make boot device"), DeviceAction.MAKE_BOOT),
-        ]
-        actions = []
-        for label, action in device_actions:
-            actions.append(Action(
+        device_actions = []
+        for action in device.supported_actions:
+            if action == DeviceAction.DELETE:
+                enabled = True
+                if can_delete(device)[0]:
+                    label = Color.danger_button(ActionMenuOpenButton(_("Delete")))
+                else:
+                    label = _("Delete *")
+            else:
+                label = _(action.value)
+                enabled = device.action_possible(action)
+            meth_name = '_{}_{}'.format(device.type, action.name)
+            opens_dialog = getattr(getattr(self, meth_name), 'opens_dialog', False)
+            device_actions.append(Action(
                 label=label,
-                enabled=device.supports_action(action),
+                enabled=enabled,
                 value=action,
-                opens_dialog=action != DeviceAction.MAKE_BOOT))
-        menu = ActionMenu(actions, "\N{BLACK RIGHT-POINTING SMALL TRIANGLE}")
+                opens_dialog=opens_dialog))
+        menu = ActionMenu(device_actions, "\N{BLACK RIGHT-POINTING SMALL TRIANGLE}")
         connect_signal(menu, 'action', self._action, device)
         return menu
 
@@ -392,12 +388,10 @@ class DeviceList(WidgetWrap):
             entire_label = None
             if device.fs():
                 entire_label = _fmt_fs(
-                    "    " + _("entire device formatted as"),
+                    "  " + _("entire device formatted as"),
                     device.fs())
             elif device.constructed_device():
-                entire_label = _fmt_constructed(
-                    "    " + _("entire device"),
-                    device.constructed_device())
+                entire_label = "  " + _("PV, ") + device.constructed_device().name
             if entire_label is not None:
                 rows.append(TableRow([
                     Text(""),
@@ -419,9 +413,8 @@ class DeviceList(WidgetWrap):
                             prefix, part.constructed_device())
                     else:
                         label = _("{} not formatted").format(prefix)
-                    part_size = "{:>9} ({}%)".format(
-                        humanize_size(part.size),
-                        int(100 * part.size / device.size))
+                    part_size = "{:>9}".format(
+                        humanize_size(part.size))
                     menu = self._action_menu_for_device(part)
                     row = TableRow([
                         Text("["),
@@ -442,8 +435,8 @@ class DeviceList(WidgetWrap):
                     percent = str(int(100 * free / (size - GPT_OVERHEAD)))
                     if percent == "0":
                         percent = "%.2f" % (100 * free / (size - GPT_OVERHEAD),)
-                    size_text = "{:>9} ({}%)".format(
-                        humanize_size(free), percent)
+                    size_text = "{:>9}".format(
+                        humanize_size(free))
                     rows.append(TableRow([
                         Text(""),
                         Text("  " + _("free space")),
@@ -475,7 +468,7 @@ class FilesystemView(BaseView):
             label=_("Create software RAID (md)"),
             on_press=self.create_raid))
         self._create_lvm_btn = Toggleable(menu_btn(
-            label=_("Create volume group (LVM2)"),
+            label=_("Create volume group (LVM)"),
             on_press=self.create_vg))
 
         bp = button_pile([self._create_raid_btn, self._create_lvm_btn])

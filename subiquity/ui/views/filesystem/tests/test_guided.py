@@ -30,7 +30,14 @@ class GuidedFilesystemViewTests(unittest.TestCase):
         button = (
             view_helpers.find_button_matching(view, "^Use An Entire Disk$"))
         view_helpers.click(button)
-        view.controller.guided.assert_called_once_with()
+        view.controller.guided.assert_called_once_with('direct')
+
+    def test_click_guided_lvm(self):
+        view = self.make_view()
+        button = (
+            view_helpers.find_button_matching(view, "^Use An Entire Disk And Set Up LVM$"))
+        view_helpers.click(button)
+        view.controller.guided.assert_called_once_with('lvm')
 
     def test_click_manual(self):
         view = self.make_view()

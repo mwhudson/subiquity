@@ -185,16 +185,17 @@ def asdict(inst):
 
 
 class DeviceAction(enum.Enum):
-    INFO = enum.auto()
-    EDIT = enum.auto()
-    PARTITION = enum.auto()
-    FORMAT = enum.auto()
-    DELETE = enum.auto()
-    MAKE_BOOT = enum.auto()
+    INFO = _("Info")
+    EDIT = _("Edit")
+    PARTITION = _("Add Partition")
+    CREATE_LV = _("Create Logical Volume")
+    FORMAT = _("Format")
+    DELETE = _("Delete")
+    MAKE_BOOT = _("Make Boot Device")
 
 
 @attr.s(cmp=False)
-class _Formattable:
+class _Formattable(ABC):
     # Base class for anything that can be formatted and mounted,
     # e.g. a disk or a RAID or a partition.
 
@@ -212,8 +213,17 @@ class _Formattable:
     def constructed_device(self):
         return self._constructed_device
 
+    @property
+    @abstractmethod
+    def supported_actions(self):
+        pass
+
+    def action_possible(self, action):
+        assert action in self.supported_actions
+        return getattr(self, "_can_" + action.name)
+
     def supports_action(self, action):
-        return getattr(self, "_supports_" + action.name)
+        return action in self.supported_actions and self.action_possible(action)
 
 
 # Nothing is put in the first and last megabytes of the disk to allow
@@ -360,14 +370,18 @@ class Disk(_Device):
             return self.serial
         return self.path
 
-    _supports_INFO = True
-    _supports_EDIT = False
-    _supports_PARTITION = property(lambda self: self.free_for_partitions > 0)
-    _supports_FORMAT = property(
+    supported_actions = [
+        DeviceAction.INFO,
+        DeviceAction.PARTITION,
+        DeviceAction.FORMAT,
+        DeviceAction.MAKE_BOOT,
+        ]
+    _can_INFO = True
+    _can_PARTITION = property(lambda self: self.free_for_partitions > 0)
+    _can_FORMAT = property(
         lambda self: len(self._partitions) == 0 and
         self._constructed_device is None)
-    _supports_DELETE = False
-    _supports_MAKE_BOOT = property(
+    _can_MAKE_BOOT = property(
         lambda self:
         not self.grub_device and self._fs is None
         and self._constructed_device is None)
@@ -412,15 +426,14 @@ class Partition(_Formattable):
     def path(self):
         return "%s%s" % (self.device.path, self._number)
 
-    _supports_INFO = False
-    _supports_EDIT = True
-    _supports_PARTITION = False
-    _supports_FORMAT = property(
-        lambda self: self.flag not in ('boot', 'bios_grub') and
-        self._constructed_device is None)
-    _supports_DELETE = property(
+    supported_actions = [
+        DeviceAction.EDIT,
+        DeviceAction.DELETE,
+        ]
+
+    _can_EDIT = True
+    _can_DELETE = property(
         lambda self: self.flag not in ('boot', 'bios_grub'))
-    _supports_MAKE_BOOT = False
 
 
 @attr.s(cmp=False)
@@ -444,14 +457,19 @@ class Raid(_Device):
     def desc(self):
         return _("software RAID {}").format(self.raidlevel)
 
-    _supports_INFO = False
-    _supports_EDIT = True
-    _supports_PARTITION = Disk._supports_PARTITION
-    _supports_FORMAT = property(
+    supported_actions = [
+        DeviceAction.EDIT,
+        DeviceAction.PARTITION,
+        DeviceAction.FORMAT,
+        DeviceAction.DELETE,
+        ]
+
+    _can_EDIT = True
+    _can_PARTITION = Disk._can_PARTITION
+    _can_FORMAT = property(
         lambda self: len(self._partitions) == 0 and
         self._constructed_device is None)
-    _supports_DELETE = True
-    _supports_MAKE_BOOT = False
+    _can_DELETE = True
 
     @property
     def path(self):
@@ -474,19 +492,22 @@ class LVM_VolGroup(_Device):
     def free_for_partitions(self):
         return self.size - self.used
 
-    _supports_INFO = False
-    _supports_EDIT = True
-    _supports_PARTITION = property(lambda self: self.free_for_partitions > 0)
-    _supports_FORMAT = False
-    _supports_DELETE = True
-    _supports_MAKE_BOOT = False
+    supported_actions = [
+        DeviceAction.EDIT,
+        DeviceAction.CREATE_LV,
+        DeviceAction.DELETE,
+        ]
+
+    _can_EDIT = True
+    _can_CREATE_LV = property(lambda self: self.free_for_partitions > 0)
+    _can_DELETE = True
 
     @property
     def label(self):
         return self.name
 
     def desc(self):
-        return "LVM volume group"
+        return "LVM VG"
 
     @property
     def path(self):
@@ -512,19 +533,20 @@ class LVM_LogicalVolume(_Formattable):
             return True
         return self._fs._available()
 
-    _supports_INFO = False
-    _supports_EDIT = True
-    _supports_PARTITION = False
-    _supports_FORMAT = True
-    _supports_DELETE = True
-    _supports_MAKE_BOOT = False
+    supported_actions = [
+        DeviceAction.EDIT,
+        DeviceAction.DELETE,
+        ]
+
+    _can_EDIT = True
+    _can_DELETE = True
 
     @property
     def flag(self):
         return None  # hack!
 
     def desc(self):
-        return "LVM logical volume"
+        return "LVM LV"
 
     @property
     def short_label(self):
