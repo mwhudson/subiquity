@@ -146,7 +146,7 @@ class GuidedDiskSelectionView(BaseView):
                     ))
             self.controller.create_logical_volume(
                 vg=vg, spec=dict(
-                    size=vg.free_for_partitions,
+                    size=vg.free_for_partitions*4//5,
                     name="ubuntu-lv",
                     fstype=self.model.fs_by_name['ext4'],
                     mount="/",
