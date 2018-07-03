@@ -190,6 +190,7 @@ class DeviceAction(enum.Enum):
     PARTITION = _("Add Partition")
     CREATE_LV = _("Create Logical Volume")
     FORMAT = _("Format")
+    REMOVE = _("Remove")
     DELETE = _("Delete")
     MAKE_BOOT = _("Make Boot Device")
 
@@ -375,6 +376,7 @@ class Disk(_Device):
         DeviceAction.PARTITION,
         DeviceAction.FORMAT,
         DeviceAction.MAKE_BOOT,
+        DeviceAction.REMOVE,
         ]
     _can_INFO = True
     _can_PARTITION = property(lambda self: self.free_for_partitions > 0)
@@ -428,6 +430,7 @@ class Partition(_Formattable):
 
     supported_actions = [
         DeviceAction.EDIT,
+        DeviceAction.REMOVE,
         DeviceAction.DELETE,
         ]
 
@@ -461,6 +464,7 @@ class Raid(_Device):
         DeviceAction.EDIT,
         DeviceAction.PARTITION,
         DeviceAction.FORMAT,
+        DeviceAction.REMOVE,
         DeviceAction.DELETE,
         ]
 

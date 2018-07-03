@@ -287,20 +287,29 @@ class DeviceList(WidgetWrap):
         self.parent.controller.make_boot_disk(disk)
         self.parent.refresh_model_inputs()
 
+    def _disk_REMOVE(self, obj):
+        cd = obj._constructed_device
+        if obj in cd.devices:
+            cd.devices.remove(obj)
+        elif obj in getattr(cd, "spare_devices", set()):
+            cd.spare_devices.remove(obj)
+        obj._constructed_device = None
+        self.parent.refresh_model_inputs()
+
     _partition_EDIT = _stretchy_shower(
         lambda parent, part: PartitionStretchy(parent, part.device, part))
     _partition_DELETE = _stretchy_shower(ConfirmDeleteStretchy)
-    _partition_FORMAT = _disk_FORMAT
+    _partition_REMOVE = _disk_REMOVE
 
     _lvm_partition_EDIT = _stretchy_shower(
         lambda parent, part: PartitionStretchy(parent, part.volgroup, part))
     _lvm_partition_DELETE = _partition_DELETE
-    _lvm_partition_FORMAT = _partition_FORMAT
 
     _raid_EDIT = _stretchy_shower(RaidStretchy)
     _raid_PARTITION = _disk_PARTITION
     _raid_FORMAT = _disk_FORMAT
     _raid_DELETE = _partition_DELETE
+    _raid_REMOVE = _disk_REMOVE
 
     _lvm_volgroup_EDIT = _stretchy_shower(VolGroupStretchy)
     _lvm_volgroup_CREATE_LV = _stretchy_shower(PartitionStretchy)
@@ -313,13 +322,22 @@ class DeviceList(WidgetWrap):
 
     def _action_menu_for_device(self, device):
         device_actions = []
+        can_delete_device = can_delete(device)[0]
         for action in device.supported_actions:
             if action == DeviceAction.DELETE:
                 enabled = True
-                if can_delete(device)[0]:
+                if can_delete_device:
                     label = Color.danger_button(ActionMenuOpenButton(_("Delete")))
                 else:
                     label = _("Delete *")
+            elif action == DeviceAction.REMOVE:
+                cd = device.constructed_device()
+                if cd is None:
+                    label = _("Remove")
+                    enabled = False
+                else:
+                    label = _("Remove from {device}").format(device=cd.name)
+                    enabled = can_delete_device
             else:
                 label = _(action.value)
                 enabled = device.action_possible(action)
