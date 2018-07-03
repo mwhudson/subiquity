@@ -558,7 +558,7 @@ class FilesystemView(BaseView):
             elif not dev.type.startswith("lvm"):
                 for p in dev.partitions():
                     log.debug((p.label, p.flag))
-                    if p.fs():
+                    if p.fs() or p.constructed_device():
                         continue
                     if not p.flag:
                         raid_devs.append(p)

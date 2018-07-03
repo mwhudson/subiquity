@@ -51,6 +51,8 @@ def check_size_reduction_ok(obj, new_sizes):
         newer_sizes = new_sizes.copy()
         newer_sizes[cd] = get_lvm_size(cd.devices, new_sizes)
         return check_size_reduction_ok(cd, newer_sizes)
+    if not hasattr(obj, 'free_for_partitions'):
+        return True, ""
     shrinkage = obj.size - new_sizes.get(obj)
     # log.debug("%s will shrink by %s vs free %s",
     #           obj.id, shrinkage, obj.free_for_partitions)

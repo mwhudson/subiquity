@@ -143,6 +143,8 @@ class VolGroupStretchy(Stretchy):
                 return False
             if dev in cur_devices:
                 return True
+            if dev.constructed_device() is not None:
+                return False
             if isinstance(dev, Partition) and not dev.flag:
                 return True
             return dev.supports_action(DeviceAction.FORMAT)
