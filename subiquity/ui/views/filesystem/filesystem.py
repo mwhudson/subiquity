@@ -66,7 +66,7 @@ from subiquity.models.filesystem import (
     DeviceAction,
     humanize_size,
     GPT_OVERHEAD,
-    LVM_VolGroup,
+    Raid,
     )
 
 from .delete import can_delete, ConfirmDeleteStretchy
@@ -366,13 +366,13 @@ class DeviceList(WidgetWrap):
         log.debug('FileSystemView: building device list')
         rows = []
 
-        def _fmt_fs(label, fs):
-            r = _("{} {}").format(label, fs.fstype)
+        def _fmt_fs(fs):
+            r = _("formatted as {fstype}").format(fstype=fs.fstype)
             if not self.parent.model.fs_by_name[fs.fstype].is_mounted:
                 return r
             m = fs.mount()
             if m:
-                r += _(", {}").format(m.path)
+                r += _(", mounted at {}").format(m.path)
             else:
                 r += _(", not mounted")
             return r
@@ -405,11 +405,13 @@ class DeviceList(WidgetWrap):
 
             entire_label = None
             if device.fs():
-                entire_label = _fmt_fs(
-                    "  " + _("entire device formatted as"),
-                    device.fs())
+                entire_label = "  " + _fmt_fs(device.fs())
             elif device.constructed_device():
-                entire_label = "  " + _("PV, ") + device.constructed_device().name
+                cd = device.constructed_device()
+                if isinstance(cd, Raid):
+                    entire_label = "  " + _("component of ") + cd.name
+                else:
+                    entire_label = "  " + _("PV of ") + cd.name
             if entire_label is not None:
                 rows.append(TableRow([
                     Text(""),
@@ -421,22 +423,12 @@ class DeviceList(WidgetWrap):
                 for part in device.partitions():
                     if part.available() != self.show_available:
                         continue
-                    prefix = part.short_label + ','
-                    if part.flag == "bios_grub":
-                        label = prefix + " bios_grub"
-                    elif part.fs():
-                        label = _fmt_fs(prefix, part.fs())
-                    elif part.constructed_device():
-                        label = _fmt_constructed(
-                            prefix, part.constructed_device())
-                    else:
-                        label = _("{} not formatted").format(prefix)
-                    part_size = "{:>9}".format(
-                        humanize_size(part.size))
+                    prefix = part.short_label
+                    part_size = "{:>9}".format(humanize_size(part.size))
                     menu = self._action_menu_for_device(part)
                     row = TableRow([
                         Text("["),
-                        Text("  " + label),
+                        Text("  " + prefix),
                         (2, Text(part_size)),
                         menu,
                         Text("]"),
@@ -445,6 +437,24 @@ class DeviceList(WidgetWrap):
                         menu, row, 'menu_button', 'menu_button focus',
                         cursor_x=4)
                     rows.append(row)
+                    if part.flag == "bios_grub":
+                        label = "    bios_grub"
+                    elif part.fs():
+                        label = "    " + _fmt_fs(part.fs())
+                    elif part.constructed_device():
+                        cd = part.constructed_device()
+                        if isinstance(cd, Raid):
+                            label = "    " + _("component of ") + cd.name
+                        else:
+                            label = "    " + _("PV of ") + cd.name
+                    else:
+                        label = _("    unused")
+                    rows.append(TableRow([
+                        Text(""),
+                        (3, Text(label)),
+                        Text(""),
+                        Text(""),
+                    ]))
                 if (self.show_available
                         and device.used > 0
                         and device.free_for_partitions > 0):
@@ -547,9 +557,10 @@ class FilesystemView(BaseView):
                     raid_devs.append(dev)
             elif not dev.type.startswith("lvm"):
                 for p in dev.partitions():
+                    log.debug((p.label, p.flag))
                     if p.fs():
                         continue
-                    if p.supports_action(DeviceAction.FORMAT):
+                    if not p.flag:
                         raid_devs.append(p)
                         lvm_devs.append(p)
         log.debug('raid_devs %s', {r.label for r in raid_devs})

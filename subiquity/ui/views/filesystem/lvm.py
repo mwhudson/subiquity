@@ -41,6 +41,7 @@ from subiquity.models.filesystem import (
     DeviceAction,
     get_lvm_size,
     humanize_size,
+    Partition,
     )
 
 log = logging.getLogger('subiquity.ui.views.filesystem.lvm')
@@ -141,6 +142,8 @@ class VolGroupStretchy(Stretchy):
             if dev.fs():
                 return False
             if dev in cur_devices:
+                return True
+            if isinstance(dev, Partition) and not dev.flag:
                 return True
             return dev.supports_action(DeviceAction.FORMAT)
 

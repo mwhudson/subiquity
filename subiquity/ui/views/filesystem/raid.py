@@ -56,6 +56,7 @@ from .partition import FSTypeField
 from subiquity.ui.mount import MountField
 from subiquity.models.filesystem import (
     DeviceAction,
+    Partition,
     get_raid_size,
     humanize_size,
     raidlevels,
@@ -356,6 +357,8 @@ class RaidStretchy(Stretchy):
             if dev.fs():
                 return False
             if dev in cur_devices:
+                return True
+            if isinstance(dev, Partition) and not dev.flag:
                 return True
             return dev.supports_action(DeviceAction.FORMAT)
 
