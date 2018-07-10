@@ -598,7 +598,8 @@
                     "name": "virbr0-nic",
                     "ifindex": 8,
                     "arptype": 1,
-                    "family": 0
+                    "family": 0,
+                    "is_vlan": false
                 },
                 "type": "tap",
                 "bridge": {
@@ -677,7 +678,8 @@
                     "name": "enp0s25",
                     "ifindex": 2,
                     "arptype": 1,
-                    "family": 0
+                    "family": 0,
+                    "is_vlan": false
                 },
                 "type": "eth",
                 "bridge": {
@@ -745,7 +747,8 @@
                     "name": "docker0",
                     "ifindex": 6,
                     "arptype": 1,
-                    "family": 7
+                    "family": 7,
+                    "is_vlan": false
                 },
                 "type": "bridge",
                 "bridge": {
@@ -860,7 +863,8 @@
                     "name": "lxdbr0",
                     "ifindex": 5,
                     "arptype": 1,
-                    "family": 7
+                    "family": 7,
+                    "is_vlan": false
                 },
                 "type": "bridge",
                 "bridge": {
@@ -982,7 +986,8 @@
                     "name": "virbr0",
                     "ifindex": 7,
                     "arptype": 1,
-                    "family": 7
+                    "family": 7,
+                    "is_vlan": false
                 },
                 "type": "bridge",
                 "bridge": {
@@ -1097,7 +1102,8 @@
                     "name": "vethNH78UK",
                     "ifindex": 10,
                     "arptype": 1,
-                    "family": 0
+                    "family": 0,
+                    "is_vlan": false
                 },
                 "type": "eth",
                 "bridge": {
@@ -1216,7 +1222,8 @@
                     "name": "enx0050b6c11ec4",
                     "ifindex": 12,
                     "arptype": 1,
-                    "family": 0
+                    "family": 0,
+                    "is_vlan": false
                 },
                 "type": "eth",
                 "bridge": {
@@ -1311,7 +1318,8 @@
                     "name": "wlp4s0",
                     "ifindex": 4,
                     "arptype": 1,
-                    "family": 0
+                    "family": 0,
+                    "is_vlan": false
                 },
                 "wlan": {
                     "visible_ssids": [],
@@ -1392,7 +1400,8 @@
                     "name": "lo",
                     "ifindex": 1,
                     "arptype": 772,
-                    "family": 0
+                    "family": 0,
+                    "is_vlan": false
                 },
                 "type": "lo",
                 "bridge": {

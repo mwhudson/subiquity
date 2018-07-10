@@ -248,6 +248,21 @@ class NetworkController(BaseController, TaskWatcher):
         return os.path.join(self.root, 'etc/netplan', netplan_config_file_name)
 
     def add_vlan(self, device, vlan):
+        if self.opts.dry_run:
+            name = '%s.%s' % (device.name, vlan)
+            config = {
+                'link': device.name,
+                'id': vlan,
+                }
+            #from subiquitycore.models.network import Networkdev
+            #netdev = Networkdev({}, config)
+            #self.model.devices_by_name[name] = netdev
+            #self.network_event_receiver.view.new_virtual_link(netdev)
+            c = self.model.render()
+            vlans = c['network'].setdefault('vlans', {})
+            vlans[name] = config
+            self.observer._simulate_apply(c)
+            return
         cmd = ['ip', 'link', 'add', 'name', '%s.%s' % (device.name, vlan),
                'link', device.name, 'type', 'vlan', 'id', str(vlan)]
         try:
@@ -278,6 +293,7 @@ class NetworkController(BaseController, TaskWatcher):
 
         self.model.parse_netplan_configs(self.root)
         if self.opts.dry_run:
+            self.observer._simulate_apply(config)
             tasks = [
                 ('one', BackgroundProcess(['sleep', '0.1'])),
                 ('two', PythonSleep(0.1)),
