@@ -489,7 +489,8 @@ class NetworkModel(object):
 
 class NetworkDev(object):
 
-    def __init__(self, name, typ):
+    def __init__(self, model, name, typ):
+        self._model = model
         self.name = name
         self.type = typ
         self.config = self.info = None
@@ -497,15 +498,29 @@ class NetworkDev(object):
     def supports_action(self, action):
         return getattr(self, "_supports_" + action.name)
 
+    @property
+    def is_virtual(self):
+        return self.type in NETDEV_ALLOWED_VIRTUAL_IFACE_TYPES
+
+    @property
+    def is_bond_slave(self):
+        for dev in self._model.get_all_netdevs():
+            if dev.type == "bond" and self.name in dev.config['interfaces']:
+                return True
+        return False
+
     _supports_INFO = True
     _supports_EDIT_WLAN = property(lambda self: self.type == "wlan")
     _supports_EDIT_IPV4 = True
     _supports_EDIT_IPV6 = True
-    _supports_EDIT_BOND = property(lambda self: self.is_bond_master)
+    _supports_EDIT_BOND = property(lambda self: self.type == "bond")
     _supports_ADD_VLAN = property(
-        lambda self: self.type != "vlan"
-        and not self.info.bond['is_slave'])
+        lambda self: self.type != "vlan" and not self.is_bond_slave)
     _supports_DELETE = property(lambda self: self.is_virtual)
+
+
+NETDEV_IGNORED_IFACE_TYPES = ['lo', 'bridge', 'tun', 'tap', 'dummy', 'sit']
+NETDEV_ALLOWED_VIRTUAL_IFACE_TYPES = ['vlan', 'bond']
 
 
 class NetworkModel2(object):
@@ -534,7 +549,7 @@ class NetworkModel2(object):
             else:
                 dev.info = link
         else:
-            dev = NetworkDev(link.name, link.type)
+            dev = NetworkDev(self, link.name, link.type)
             dev.info = link
             if link.type in ['eth', 'wlan']:
                 dev.config = self.config.config_for_device(link)
@@ -578,26 +593,16 @@ class NetworkModel2(object):
                 'version': 2,
             },
         }
-        ethernets = {}
-        bonds = {}
-        wifis = {}
-        vlans = {}
-        for dev in self.devices.values():
-            if dev.type == 'eth':
-                ethernets.update(dev.render())
-            if dev.type == 'bond':
-                bonds.update(dev.render())
-            if dev.type == 'wlan':
-                wifis.update(dev.render())
-            if dev.type == 'vlan':
-                vlans.update(dev.render())
-        if any(ethernets):
-            config['network']['ethernets'] = ethernets
-        if any(bonds):
-            config['network']['bonds'] = bonds
-        if any(wifis):
-            config['network']['wifis'] = wifis
-        if any(vlans):
-            config['network']['vlans'] = vlans
+        type_to_key = {
+            'eth': 'ethernets',
+            'bond': 'bonds',
+            'wlan': 'wifis',
+            'vlan': 'vlans',
+            }
+        for dev in self.get_all_netdevs():
+            key = type_to_key[dev.type]
+            configs = config['network'].setdefault(key, {})
+            if dev.config:
+                configs[dev.name] = dev.config
 
         return config

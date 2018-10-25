@@ -19,7 +19,7 @@ import uuid
 import yaml
 
 from subiquitycore.models.identity import IdentityModel
-from subiquitycore.models.network import NetworkModel
+from subiquitycore.models.network import NetworkModel2
 from subiquitycore.utils import run_command
 
 from .filesystem import FilesystemModel
@@ -58,7 +58,7 @@ class SubiquityModel:
         self.installpath = InstallpathModel(
             target=self.target,
             sources=common['opts'].sources)
-        self.network = NetworkModel(support_wlan=False)
+        self.network = NetworkModel2(support_wlan=False)
         self.filesystem = FilesystemModel(common['prober'])
         self.identity = IdentityModel()
         self.proxy = ProxyModel()

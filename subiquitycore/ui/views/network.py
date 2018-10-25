@@ -253,7 +253,7 @@ class NetworkView(BaseView):
             info = _("bond master for {}").format(
                 ', '.join(dev.info.bond['slaves']))
         else:
-            info = " / ".join([dev.link.hwaddr, dev.link.vendor, dev.link.model])
+            info = " / ".join([dev.info.hwaddr, dev.info.vendor, dev.info.model])
         rows.append(Color.info_minor(TableRow([
             Text(""),
             (4, Text(info)),
@@ -263,15 +263,6 @@ class NetworkView(BaseView):
 
     def _build_model_inputs(self):
         netdevs = self.model.get_all_netdevs()
-        masters = []
-        for master in netdevs:
-            if not master._net_info.bond['is_master']:
-                continue
-            masters.append((
-                _("Set master to %s") % master.name,
-                True,
-                {'action': 'add_master', 'master': master},
-                False))
         rows = []
         rows.append(TableRow([
             Color.info_minor(Text(header))
