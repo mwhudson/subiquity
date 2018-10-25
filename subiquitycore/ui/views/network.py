@@ -19,6 +19,7 @@ Provides network device listings and extended network information
 
 """
 
+import ipaddress
 import logging
 from socket import AF_INET, AF_INET6
 
@@ -91,6 +92,10 @@ def _stretchy_shower(cls, *args):
     return impl
 
 
+def ip_version(ip):
+    return ipaddress.ip_interface(ip).version
+
+
 class NetworkView(BaseView):
     title = _("Network connections")
     excerpt = _("Configure at least one interface this server can use to talk "
@@ -158,23 +163,24 @@ class NetworkView(BaseView):
 
     def _cells_for_device(self, dev):
         notes = []
-        if dev.is_bond_slave:
-            notes.append(_("enslaved to {}").format(
-                dev._net_info.bond['master']))
+        if dev.info.bond['is_slave']:
+            notes.append(_("enslaved to {}").format(dev.info.bond['master']))
         for v in 4, 6:
-            if dev.configured_ip_addresses_for_version(v):
-                notes.extend([
-                    "{} (static)".format(a)
-                    for a in dev.configured_ip_addresses_for_version(v)
-                    ])
-            elif dev.dhcp_for_version(v):
+            configured_ip_addresses = []
+            for ip in dev.config.get('addresses', []):
+                if ip_version(ip) == v:
+                    configured_ip_addresses.append(v)
+            notes.extend([
+                "{} (static)".format(a)
+                for a in configured_ip_addresses
+                ])
+            if dev.config.get('dhcp{v}'.format(v=v)):
                 if v == 4:
                     fam = AF_INET
                 elif v == 6:
                     fam = AF_INET6
                 fam_addresses = []
-                for a in dev._net_info.addresses.values():
-                    log.debug("a %s", a.serialize())
+                for a in dev.info.addresses.values():
                     if a.family == fam and a.source == 'dhcp':
                         fam_addresses.append("{} (from dhcp)".format(
                             a.address))
@@ -242,12 +248,12 @@ class NetworkView(BaseView):
         rows.append(row)
         if dev.type == "vlan":
             info = _("VLAN {id} on interface {link}").format(
-                **dev._configuration)
+                **dev.config)
         elif dev.type == "bond":
             info = _("bond master for {}").format(
-                ', '.join(dev._net_info.bond['slaves']))
+                ', '.join(dev.info.bond['slaves']))
         else:
-            info = " / ".join([dev.hwaddr, dev.vendor, dev.model])
+            info = " / ".join([dev.link.hwaddr, dev.link.vendor, dev.link.model])
         rows.append(Color.info_minor(TableRow([
             Text(""),
             (4, Text(info)),

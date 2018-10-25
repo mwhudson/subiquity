@@ -23,8 +23,9 @@ from subiquitycore import netplan
 
 
 NETDEV_IGNORED_IFACE_NAMES = ['lo']
-NETDEV_IGNORED_IFACE_TYPES = ['bridge', 'tun', 'tap', 'dummy', 'sit']
+NETDEV_IGNORED_IFACE_TYPES = ['lo', 'bridge', 'tun', 'tap', 'dummy', 'sit']
 NETDEV_WHITELIST_IFACE_TYPES = ['vlan', 'bond']
+NETDEV_ALLOWED_VIRTUAL_IFACE_TYPES = ['vlan', 'bond']
 log = logging.getLogger('subiquitycore.models.network')
 
 
@@ -49,7 +50,7 @@ class Networkdev:
 
     There are two 'sides' to a Networkdev: the state the device is
     actually in, and the device's configuration.  Where there is
-    abiguity (e.g. when it comes to IP addresses), the former has
+    ambiguity (e.g. when it comes to IP addresses), the former has
     attribute names like "actual_ip_addresses_for_version" and the
     latter has names like "configured_ip_addresses_for_version".
     """
@@ -482,5 +483,121 @@ class NetworkModel(object):
             nw_routes.append({'to': '::/0', 'via': self.default_v6_gateway})
         if len(nw_routes) > 0:
             config['network']['routes'] = nw_routes
+
+        return config
+
+
+class NetworkDev(object):
+
+    def __init__(self, name, typ):
+        self.name = name
+        self.type = typ
+        self.config = self.info = None
+
+    def supports_action(self, action):
+        return getattr(self, "_supports_" + action.name)
+
+    _supports_INFO = True
+    _supports_EDIT_WLAN = property(lambda self: self.type == "wlan")
+    _supports_EDIT_IPV4 = True
+    _supports_EDIT_IPV6 = True
+    _supports_EDIT_BOND = property(lambda self: self.is_bond_master)
+    _supports_ADD_VLAN = property(
+        lambda self: self.type != "vlan"
+        and not self.info.bond['is_slave'])
+    _supports_DELETE = property(lambda self: self.is_virtual)
+
+
+class NetworkModel2(object):
+    """ """
+
+    def __init__(self, support_wlan=True):
+        self.support_wlan = support_wlan
+        self.devices_by_name = {}  # Maps interface names to NetworkDev
+
+    def parse_netplan_configs(self, netplan_root):
+        config = netplan.Config()
+        config.load_from_root(netplan_root)
+        self.config = config
+
+    def new_link(self, ifindex, link):
+        if link.type in NETDEV_IGNORED_IFACE_TYPES:
+            return
+        if not self.support_wlan and link.type == "wlan":
+            return
+        if link.is_virtual and link.type not in NETDEV_ALLOWED_VIRTUAL_IFACE_TYPES:
+            return
+        dev = self.devices_by_name.get(link.name)
+        if dev is not None:
+            if dev.info is not None:
+                XXX # err what
+            else:
+                dev.info = link
+        else:
+            dev = NetworkDev(link.name, link.type)
+            dev.info = link
+            if link.type in ['eth', 'wlan']:
+                dev.config = self.config.config_for_device(link)
+            else:
+                # If we see a virtual device without there already
+                # being a config that's a bit strange.
+                dev.config = {}
+            log.debug("new_link %s %s with config %s",
+                    ifindex, link.name, sanitize_interface_config(dev.config))
+            self.devices_by_name[link.name] = dev
+        return dev
+
+    def update_link(self, ifindex):
+        for name, dev in self.devices_by_name.items():
+            if dev.ifindex == ifindex:
+                return dev
+
+    def del_link(self, ifindex):
+        for name, dev in self.devices_by_name.items():
+            if dev.ifindex == ifindex:
+                dev.info = None
+            if not dev.config:
+                del self.devices_by_name[name]
+            return dev
+
+    def new_vlan(self, *args):
+        pass
+
+    def new_bond(self, *args):
+        pass
+
+    def get_all_netdevs(self):
+        return [v for k, v in sorted(self.devices_by_name.items())]
+
+    def get_netdev_by_name(self, name):
+        return self.devices_by_name[name]
+
+    def render(self):
+        config = {
+            'network': {
+                'version': 2,
+            },
+        }
+        ethernets = {}
+        bonds = {}
+        wifis = {}
+        vlans = {}
+        for dev in self.devices.values():
+            if dev.type == 'eth':
+                ethernets.update(dev.render())
+            if dev.type == 'bond':
+                bonds.update(dev.render())
+            if dev.type == 'wlan':
+                wifis.update(dev.render())
+            if dev.type == 'vlan':
+                vlans.update(dev.render())
+        if any(ethernets):
+            config['network']['ethernets'] = ethernets
+        if any(bonds):
+            config['network']['bonds'] = bonds
+        if any(wifis):
+            config['network']['wifis'] = wifis
+        if any(vlans):
+            config['network']['vlans'] = vlans
 
         return config
