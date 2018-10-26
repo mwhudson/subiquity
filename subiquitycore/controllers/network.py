@@ -46,7 +46,7 @@ log = logging.getLogger("subiquitycore.controller.network")
 
 class DownNetworkDevices(BackgroundTask):
 
-    def __init__(self, rtlistener, devs_to_down):
+    def __init__(self, rtlistener, devs_to_down, devs_to_delete):
         self.rtlistener = rtlistener
         self.devs_to_down = devs_to_down
 
@@ -62,6 +62,14 @@ class DownNetworkDevices(BackgroundTask):
             except RuntimeError:
                 # We don't actually care very much about this
                 log.exception('unset_link_flags failed for %s', dev.name)
+        for dev in self.devs_to_delete:
+            # XXX would be nicer to do this via rtlistener eventually.
+            log.debug('deleting %s', dev.name)
+            cmd = ['ip', 'link', 'delete', 'dev', dev.name]
+            try:
+                run_command(cmd, check=True)
+            except subprocess.CalledProcessError:
+                self.ui.frame.body.show_network_error('rm-dev')
 
     def _bg_run(self):
         return True
@@ -277,13 +285,6 @@ class NetworkController(BaseController, TaskWatcher):
         except subprocess.CalledProcessError:
             self.ui.frame.body.show_network_error('add-bond')
 
-    def rm_virtual_interface(self, device):
-        cmd = ['ip', 'link', 'delete', 'dev', device.name]
-        try:
-            run_command(cmd, check=True)
-        except subprocess.CalledProcessError:
-            self.ui.frame.body.show_network_error('rm-dev')
-
     def add_master(self, device, master_dev=None, master_name=None):
         # Drop ip configs
         for ip in [4, 6]:
@@ -340,10 +341,14 @@ class NetworkController(BaseController, TaskWatcher):
                 tasks.append(('fail', BackgroundProcess(['false'])))
                 self.tried_once = True
         else:
+            devs_to_delete = []
             devs_to_down = []
             for dev in self.model.get_all_netdevs():
                 devcfg = self.model.config.config_for_device(dev._net_info)
-                if dev._configuration != devcfg:
+                if dev.is_virtual:
+                    if dev.info: # i.e. it actually exists
+                        devs_to_delete.append(dev)
+                elif dev.config != devcfg:
                     devs_to_down.append(dev)
             tasks = []
             if devs_to_down:
@@ -353,7 +358,7 @@ class NetworkController(BaseController, TaskWatcher):
                                         'stop', 'systemd-networkd.service'])),
                     ('down',
                      DownNetworkDevices(self.observer.rtlistener,
-                                        devs_to_down)),
+                                        devs_to_down, devs_to_delete)),
                     ])
             tasks.extend([
                 ('apply', BackgroundProcess(['netplan', 'apply'])),

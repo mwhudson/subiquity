@@ -505,8 +505,6 @@ class NetworkDev(object):
 
     @property
     def is_bond_slave(self):
-        if self.info:
-            return self.info.bond['is_slave']
         for dev in self._model.get_all_netdevs():
             if dev.type == "bond" and self.name in dev.config.get('interfaces', []):
                 return True
@@ -594,14 +592,13 @@ class NetworkModel2(object):
             else:
                 dev.info = link
         else:
+            if link.is_virtual:
+                # If we see a virtual device without there already
+                # being a config for it, we just ignore it.
+                return
             dev = NetworkDev(self, link.name, link.type)
             dev.info = link
-            if link.type in ['eth', 'wlan']:
-                dev.config = self.config.config_for_device(link)
-            else:
-                # If we see a virtual device without there already
-                # being a config that's a bit strange.
-                dev.config = {}
+            dev.config = self.config.config_for_device(link)
             log.debug("new_link %s %s with config %s",
                     ifindex, link.name, sanitize_interface_config(dev.config))
             self.devices_by_name[link.name] = dev
@@ -616,14 +613,19 @@ class NetworkModel2(object):
         for name, dev in self.devices_by_name.items():
             if dev.ifindex == ifindex:
                 dev.info = None
-            if not dev.config:
-                del self.devices_by_name[name]
-            return dev
+                if dev.is_virtual:
+                    # We delete all virtual devices before running netplan apply.
+                    # If a device has been deleted in the UI, we set dev.config to None.
+                    # Now it's actually gone, forget we ever knew it existed.
+                    if dev.config is None:
+                        del self.devices_by_name[name]
+                else:
+                    # If a physical interface disappears on us, it's gone.
+                    del self.devices_by_name[name]
+                return dev
 
     def new_vlan(self, device, tag):
         name = "{name}.{tag}".format(name=device.name, tag=tag)
-        if name in self.devices_by_name:
-            XXX
         dev = self.devices_by_name[name] = NetworkDev(self, name, 'vlan')
         dev.config = {
             'link': device.name,

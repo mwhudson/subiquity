@@ -275,7 +275,8 @@ class VlanForm(Form):
     def validate_vlan(self):
         new_name = '%s.%s' % (self.device.name, self.vlan.value)
         if new_name in self.parent.model.devices_by_name:
-            return _("%s already exists") % new_name
+            if self.parent.model.devices_by_name[new_name].config is not None:
+                return _("%s already exists") % new_name
 
 
 class AddVlanStretchy(Stretchy):
@@ -488,8 +489,6 @@ class BondStretchy(Stretchy):
             0, 0)
 
     def done(self, sender):
-        if self.existing is not None:
-            self.parent.controller.rm_virtual_interface(self.existing)
         self.parent.controller.add_bond(self.form.as_data())
         for slave in self.form.devices.value:
             self.parent.controller.add_master(

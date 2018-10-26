@@ -154,7 +154,8 @@ class NetworkView(BaseView):
     _action_ADD_VLAN = _stretchy_shower(AddVlanStretchy)
 
     def _action_DELETE(self, device):
-        self.controller.rm_virtual_interface(device)
+        device.config = None
+        self.del_link(device)
 
     def _action(self, sender, action, device):
         action, meth = action
@@ -268,7 +269,10 @@ class NetworkView(BaseView):
             Color.info_minor(Text(header))
             for header in ["", "NAME", "TYPE", "NOTES / ADDRESSES", ""]]))
         for dev in netdevs:
-            rows.extend(self._rows_for_device(dev))
+            # dev.config is None is a special state for a virtual
+            # device that will be deleted next time netplan is run.
+            if dev.config is not None:
+                rows.extend(self._rows_for_device(dev))
         return rows
 
     def _create_bond(self, sender):
