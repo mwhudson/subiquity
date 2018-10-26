@@ -260,12 +260,7 @@ class NetworkController(BaseController, TaskWatcher):
         return os.path.join(self.root, 'etc/netplan', netplan_config_file_name)
 
     def add_vlan(self, device, vlan):
-        cmd = ['ip', 'link', 'add', 'name', '%s.%s' % (device.name, vlan),
-               'link', device.name, 'type', 'vlan', 'id', str(vlan)]
-        try:
-            run_command(cmd, check=True)
-        except subprocess.CalledProcessError:
-            self.ui.frame.body.show_network_error('add-vlan')
+        return self.model.new_vlan(device, vlan)
 
     def add_bond(self, params):
         cmd = ['ip', 'link', 'add',

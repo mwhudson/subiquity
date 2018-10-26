@@ -163,7 +163,7 @@ class NetworkView(BaseView):
 
     def _cells_for_device(self, dev):
         notes = []
-        if dev.info.bond['is_slave']:
+        if dev.is_bond_slave:
             notes.append(_("enslaved to {}").format(dev.info.bond['master']))
         for v in 4, 6:
             configured_ip_addresses = []

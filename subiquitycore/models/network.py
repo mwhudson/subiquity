@@ -493,7 +493,8 @@ class NetworkDev(object):
         self._model = model
         self.name = name
         self.type = typ
-        self.config = self.info = None
+        self.config = {}
+        self.info = None
 
     def supports_action(self, action):
         return getattr(self, "_supports_" + action.name)
@@ -503,7 +504,7 @@ class NetworkDev(object):
         return self.type in NETDEV_ALLOWED_VIRTUAL_IFACE_TYPES
 
     @property
-    def _is_bond_slave(self):
+    def is_bond_slave(self):
         if self.info:
             return self.info.bond['is_slave']
         for dev in self._model.get_all_netdevs():
@@ -517,7 +518,7 @@ class NetworkDev(object):
     _supports_EDIT_IPV6 = True
     _supports_EDIT_BOND = property(lambda self: self.type == "bond")
     _supports_ADD_VLAN = property(
-        lambda self: self.type != "vlan" and not self._is_bond_slave)
+        lambda self: self.type != "vlan" and not self.is_bond_slave)
     _supports_DELETE = property(lambda self: self.is_virtual)
 
     def remove_ip_networks_for_version(self, version):
@@ -567,9 +568,16 @@ class NetworkModel2(object):
         self.devices_by_name = {}  # Maps interface names to NetworkDev
 
     def parse_netplan_configs(self, netplan_root):
-        config = netplan.Config()
-        config.load_from_root(netplan_root)
-        self.config = config
+        self.config = netplan.Config()
+        self.config.load_from_root(netplan_root)
+        for typ, key in ('vlan', 'vlans'), ('bond', 'bonds'):
+            network = self.config.config.get('network', {})
+            for name, config in network.get(key, {}).items():
+                dev = self.devices_by_name[name]
+                if dev is None:
+                    dev = self.devices_by_name[name] = NetworkDev(self, name, typ)
+                # XXX What to do if types don't match??
+                dev.config = config
 
     def new_link(self, ifindex, link):
         if link.type in NETDEV_IGNORED_IFACE_TYPES:
@@ -580,6 +588,7 @@ class NetworkModel2(object):
             return
         dev = self.devices_by_name.get(link.name)
         if dev is not None:
+            # XXX What to do if types don't match??
             if dev.info is not None:
                 XXX # err what
             else:
@@ -611,8 +620,16 @@ class NetworkModel2(object):
                 del self.devices_by_name[name]
             return dev
 
-    def new_vlan(self, *args):
-        pass
+    def new_vlan(self, device, tag):
+        name = "{name}.{tag}".format(name=device.name, tag=tag)
+        if name in self.devices_by_name:
+            XXX
+        dev = self.devices_by_name[name] = NetworkDev(self, name, 'vlan')
+        dev.config = {
+            'link': device.name,
+            'id': tag,
+            }
+        return dev
 
     def new_bond(self, *args):
         pass

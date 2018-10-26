@@ -173,7 +173,7 @@ class EditNetworkStretchy(Stretchy):
             gw = device.config.get('gateway{v}'.format(v=version))
             if gw:
                 manual_initial['gateway'] = str(gw)
-        elif self.device.get('dchp{v}'.format(v=version)):
+        elif self.device.config.get('dchp{v}'.format(v=version)):
             method = 'dhcp'
         else:
             method = 'disable'
@@ -293,7 +293,8 @@ class AddVlanStretchy(Stretchy):
 
     def done(self, sender):
         self.parent.remove_overlay()
-        self.parent.controller.add_vlan(self.device, self.form.vlan.value)
+        dev = self.parent.controller.add_vlan(self.device, self.form.vlan.value)
+        self.parent.new_link(dev)
 
     def cancel(self, sender=None):
         self.parent.remove_overlay()
