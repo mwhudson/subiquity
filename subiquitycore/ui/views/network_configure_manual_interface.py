@@ -241,7 +241,7 @@ class EditNetworkStretchy(Stretchy):
             self.device.config.pop('nameservers', None)
             self.device.add_network(self.version, result)
         elif self.method_form.method.value == "dhcp":
-            self.device.config['dchp{v}'.format(v=self.version)] = True
+            self.device.config['dhcp{v}'.format(v=self.version)] = True
         else:
             pass
         self.parent.update_link(self.device)
@@ -452,12 +452,12 @@ class BondStretchy(Stretchy):
             title = _('Edit bond')
             label = _("Save")
             all_netdev_names.remove(existing.name)
-            params = existing._configuration['parameters']
+            params = existing.config['parameters']
             mode = params['mode']
             initial = {
                 'devices': set([
                     parent.model.get_netdev_by_name(name)
-                    for name in existing._configuration['interfaces']]),
+                    for name in existing.config['interfaces']]),
                 'name': existing.name,
                 'mode': mode,
                 }
@@ -489,10 +489,21 @@ class BondStretchy(Stretchy):
             0, 0)
 
     def done(self, sender):
-        self.parent.controller.add_bond(self.form.as_data())
-        for slave in self.form.devices.value:
-            self.parent.controller.add_master(
-                slave, master_name=self.form.name.value)
+        touched_devices = set()
+        get_netdev_by_name = self.parent.model.get_netdev_by_name
+        if self.existing:
+            for name in self.existing.config['interfaces']:
+                touched_devices.add(get_netdev_by_name(name))
+            bond = self.existing
+            self.parent.controller.update_bond(bond, self.form.as_data())
+            self.parent.update_bond(bond)
+        else:
+            bond = self.parent.controller.add_bond(self.form.as_data())
+            self.parent.new_link(bond)
+        for name in self.form.devices.value:
+            touched_devices.add(name)
+        for dev in touched_devices:
+            self.parent.update_link(dev)
         self.parent.remove_overlay()
 
     def cancel(self, sender=None):

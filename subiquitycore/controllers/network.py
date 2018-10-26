@@ -270,20 +270,34 @@ class NetworkController(BaseController, TaskWatcher):
     def add_vlan(self, device, vlan):
         return self.model.new_vlan(device, vlan)
 
-    def add_bond(self, params):
-        cmd = ['ip', 'link', 'add',
-               'name', '%(name)s' % params,
-               'type', 'bond',
-               'mode', '%(mode)s' % params]
-        if params['mode'] in ['balance-xor', '802.3ad', 'balance-tlb']:
-            cmd += ['xmit_hash_policy', '%(xmit_hash_policy)s' % params]
-        if params['mode'] == '802.3ad':
-            cmd += ['lacp_rate', '%(lacp_rate)s' % params]
+    def add_bond(self, result):
+        mode = result['mode']
+        params = {
+            'mode': mode,
+            }
+        if mode in ['balance-xor', '802.3ad', 'balance-tlb']:
+            params['transmit-hash-policy'] = result['xmit_hash_policy']
+        if mode == '802.3ad':
+            params['lacp-rate'] = result['lacp_rate']
+        for device in result['devices']:
+            device.config = {}
+        interfaces = [d.name for d in result['devices']]
+        return self.model.new_bond(result['name'], interfaces, params)
 
-        try:
-            run_command(cmd, check=True)
-        except subprocess.CalledProcessError:
-            self.ui.frame.body.show_network_error('add-bond')
+    def update_bond(self, bond, result):
+        mode = result['mode']
+        params = {
+            'mode': mode,
+            }
+        if mode in ['balance-xor', '802.3ad', 'balance-tlb']:
+            params['transmit-hash-policy'] = result['xmit_hash_policy']
+        if mode == '802.3ad':
+            params['lacp-rate'] = result['lacp_rate']
+        for device in result['devices']:
+            device.config = {}
+        interfaces = [d.name for d in result['devices']]
+        bond.config['interfaces'] = interfaces
+        bond.config['parameters'] = params
 
     def add_master(self, device, master_dev=None, master_name=None):
         # Drop ip configs
@@ -343,7 +357,7 @@ class NetworkController(BaseController, TaskWatcher):
         else:
             devs_to_delete = []
             devs_to_down = []
-            for dev in self.model.get_all_netdevs():
+            for dev in self.model.get_all_netdevs(include_deleted=True):
                 devcfg = self.model.config.config_for_device(dev._net_info)
                 if dev.is_virtual:
                     if dev.info: # i.e. it actually exists

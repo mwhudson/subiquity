@@ -510,6 +510,15 @@ class NetworkDev(object):
                 return True
         return False
 
+    @property
+    def is_used(self):
+        for dev in self._model.get_all_netdevs():
+            if dev.type == "bond" and self.name in dev.config.get('interfaces', []):
+                return True
+            if dev.type == "vlan" and self.name == dev.config.get('link'):
+                return True
+        return False
+
     _supports_INFO = True
     _supports_EDIT_WLAN = property(lambda self: self.type == "wlan")
     _supports_EDIT_IPV4 = True
@@ -633,11 +642,19 @@ class NetworkModel2(object):
             }
         return dev
 
-    def new_bond(self, *args):
-        pass
+    def new_bond(self, name, interfaces, params):
+        dev = self.devices_by_name[name] = NetworkDev(self, name, 'bond')
+        dev.config = {
+            'interfaces': interfaces,
+            'parameters': params,
+            }
+        return dev
 
-    def get_all_netdevs(self):
-        return [v for k, v in sorted(self.devices_by_name.items())]
+    def get_all_netdevs(self, include_deleted=False):
+        if include_deleted:
+            return [v for k, v in sorted(self.devices_by_name.items())]
+        else:
+            return [v for k, v in sorted(self.devices_by_name.items()) if v.config is not None]
 
     def get_netdev_by_name(self, name):
         return self.devices_by_name[name]
@@ -657,7 +674,7 @@ class NetworkModel2(object):
         for dev in self.get_all_netdevs():
             key = type_to_key[dev.type]
             configs = config['network'].setdefault(key, {})
-            if dev.config:
+            if dev.config or dev.is_used:
                 configs[dev.name] = dev.config
 
         return config

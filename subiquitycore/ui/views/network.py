@@ -154,8 +154,14 @@ class NetworkView(BaseView):
     _action_ADD_VLAN = _stretchy_shower(AddVlanStretchy)
 
     def _action_DELETE(self, device):
+        touched_devs = set()
+        if device.type == "bond":
+            for name in device.config['interfaces']:
+                touched_devs.add(self.model.get_netdev_by_name(name))
         device.config = None
         self.del_link(device)
+        for dev in touched_devs:
+            self.update_link(dev)
 
     def _action(self, sender, action, device):
         action, meth = action
@@ -164,8 +170,10 @@ class NetworkView(BaseView):
 
     def _cells_for_device(self, dev):
         notes = []
-        if dev.is_bond_slave:
-            notes.append(_("enslaved to {}").format(dev.info.bond['master']))
+        for dev2 in self.model.get_all_netdevs():
+            if dev2.type == "bond" and dev.name in dev2.config.get('interfaces', []):
+                notes.append(_("enslaved to {}").format(dev2.name))
+                break
         for v in 4, 6:
             configured_ip_addresses = []
             for ip in dev.config.get('addresses', []):
@@ -252,7 +260,7 @@ class NetworkView(BaseView):
                 **dev.config)
         elif dev.type == "bond":
             info = _("bond master for {}").format(
-                ', '.join(dev.info.bond['slaves']))
+                ', '.join(dev.config['interfaces']))
         else:
             info = " / ".join([dev.info.hwaddr, dev.info.vendor, dev.info.model])
         rows.append(Color.info_minor(TableRow([
@@ -263,16 +271,12 @@ class NetworkView(BaseView):
         return rows
 
     def _build_model_inputs(self):
-        netdevs = self.model.get_all_netdevs()
         rows = []
         rows.append(TableRow([
             Color.info_minor(Text(header))
             for header in ["", "NAME", "TYPE", "NOTES / ADDRESSES", ""]]))
-        for dev in netdevs:
-            # dev.config is None is a special state for a virtual
-            # device that will be deleted next time netplan is run.
-            if dev.config is not None:
-                rows.extend(self._rows_for_device(dev))
+        for dev in self.model.get_all_netdevs():
+            rows.extend(self._rows_for_device(dev))
         return rows
 
     def _create_bond(self, sender):
