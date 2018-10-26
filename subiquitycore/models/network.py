@@ -503,9 +503,11 @@ class NetworkDev(object):
         return self.type in NETDEV_ALLOWED_VIRTUAL_IFACE_TYPES
 
     @property
-    def is_bond_slave(self):
+    def _is_bond_slave(self):
+        if self.info:
+            return self.info.bond['is_slave']
         for dev in self._model.get_all_netdevs():
-            if dev.type == "bond" and self.name in dev.config['interfaces']:
+            if dev.type == "bond" and self.name in dev.config.get('interfaces', []):
                 return True
         return False
 
@@ -515,8 +517,42 @@ class NetworkDev(object):
     _supports_EDIT_IPV6 = True
     _supports_EDIT_BOND = property(lambda self: self.type == "bond")
     _supports_ADD_VLAN = property(
-        lambda self: self.type != "vlan" and not self.is_bond_slave)
+        lambda self: self.type != "vlan" and not self._is_bond_slave)
     _supports_DELETE = property(lambda self: self.is_virtual)
+
+    def remove_ip_networks_for_version(self, version):
+        self.config.pop('dhcp{v}'.format(v=version), None)
+        self.config.pop('gateway{v}'.format(v=version), None)
+        addrs = []
+        for ip in self.config.get('addresses', []):
+            if ip_version(ip) != version:
+                addrs.append(ip)
+        if addrs:
+            self.config['addresses'] = addrs
+        else:
+            self.config.pop('addresses', None)
+
+    def add_network(self, version, network):
+        # result = {
+        #    'network': self.subnet_input.value,
+        #    'address': self.address_input.value,
+        #    'gateway': self.gateway_input.value,
+        #    'nameserver': [nameservers],
+        #    'searchdomains': [searchdomains],
+        # }
+        address = network['address'].split('/')[0]
+        address += '/' + network['network'].split('/')[1]
+        self.config.setdefault('addresses', []).append(address)
+        gwkey = 'gateway{v}'.format(v=version)
+        if network['gateway']:
+            self.config[gwkey] = network['gateway']
+        else:
+            self.config.pop(gwkey, None)
+        ns = self.config.setdefault('nameservers', {})
+        if network['nameservers']:
+            ns.setdefault('addresses', []).extend(network['nameservers'])
+        if network['search']:
+            ns.setdefault('search', []).extend(network['search'])
 
 
 NETDEV_IGNORED_IFACE_TYPES = ['lo', 'bridge', 'tun', 'tap', 'dummy', 'sit']

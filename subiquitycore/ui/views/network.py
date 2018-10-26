@@ -169,7 +169,7 @@ class NetworkView(BaseView):
             configured_ip_addresses = []
             for ip in dev.config.get('addresses', []):
                 if ip_version(ip) == v:
-                    configured_ip_addresses.append(v)
+                    configured_ip_addresses.append(ip)
             notes.extend([
                 "{} (static)".format(a)
                 for a in configured_ip_addresses
