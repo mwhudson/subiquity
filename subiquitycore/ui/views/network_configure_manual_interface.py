@@ -496,7 +496,7 @@ class BondStretchy(Stretchy):
                 touched_devices.add(get_netdev_by_name(name))
             bond = self.existing
             self.parent.controller.update_bond(bond, self.form.as_data())
-            self.parent.update_bond(bond)
+            self.parent.update_link(bond)
         else:
             bond = self.parent.controller.add_bond(self.form.as_data())
             self.parent.new_link(bond)
