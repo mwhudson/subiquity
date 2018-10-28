@@ -189,10 +189,11 @@ class NetworkView(BaseView):
                 elif v == 6:
                     fam = AF_INET6
                 fam_addresses = []
-                for a in dev.info.addresses.values():
-                    if a.family == fam and a.source == 'dhcp':
-                        fam_addresses.append("{} (from dhcp)".format(
-                            a.address))
+                if dev.info is not None:
+                    for a in dev.info.addresses.values():
+                        if a.family == fam and a.source == 'dhcp':
+                            fam_addresses.append("{} (from dhcp)".format(
+                                a.address))
                 if fam_addresses:
                     notes.extend(fam_addresses)
                 else:
@@ -216,6 +217,7 @@ class NetworkView(BaseView):
 
     def update_link(self, dev):
         row = self.dev_to_row[dev]
+        self.device_table.invalidate()
         for i, text in enumerate(self._cells_for_device(dev)):
             row.columns[2*(i+1)].set_text(text)
 
