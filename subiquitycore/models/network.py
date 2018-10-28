@@ -135,7 +135,7 @@ class NetworkDev(object):
         ns = self.config.setdefault('nameservers', {})
         if network['nameservers']:
             ns.setdefault('addresses', []).extend(network['nameservers'])
-        if network['search']:
+        if network['searchdomains']:
             ns.setdefault('search', []).extend(network['search'])
 
 
