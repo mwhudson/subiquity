@@ -105,13 +105,39 @@ class NetworkDev(object):
 
     def __init__(self, model, name, typ):
         self._model = model
-        self.name = name
+        self._name = name
         self.type = typ
         self.config = {}
         self.info = None
 
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, new_name):
+        # If a virtual device that already exists is renamed, we need
+        # to create a dummy NetworkDev so that the existing virtual
+        # device is actually deleted when the config is applied.
+        if new_name != self.name and self.is_virtual and self.info is not None:
+            if new_name in self.model.devices_by_name:
+                raise RuntimeError("renaming {old_name} over {new_name}".format(old_name=self.name, new_name=new_name))
+            self.model.devices_by_name[new_name] = self
+            dead_device = self.model.devices_by_name[self.name] = NetworkDev(self.name, self.type)
+            dead_device.config = None
+            dead_device.info = self.info
+            self.info = None
+        self._name = new_name
+
     def supports_action(self, action):
         return getattr(self, "_supports_" + action.name)
+
+    @property
+    def ifindex(self):
+        if self.info is not None:
+            return self.info.ifindex
+        else:
+            return None
 
     @property
     def is_virtual(self):

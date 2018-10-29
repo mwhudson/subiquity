@@ -382,6 +382,26 @@ class NetworkController(BaseController, TaskWatcher):
         interfaces = [d.name for d in result['devices']]
         return self.model.new_bond(result['name'], interfaces, params)
 
+    def add_or_update_bond(self, existing, result):
+        mode = result['mode']
+        params = {
+            'mode': mode,
+            }
+        if mode in BondParameters.supports_xmit_hash_policy:
+            params['transmit-hash-policy'] = result['xmit_hash_policy']
+        if mode in BondParameters.supports_lacp_rate:
+            params['lacp-rate'] = result['lacp_rate']
+        for device in result['devices']:
+            device.config = {}
+        interfaces = [d.name for d in result['devices']]
+        if existing is None:
+            return self.model.new_bond(result['name'], interfaces, params)
+        else:
+            existing.config['interfaces'] = interfaces
+            existing.config['parameters'] = params
+            existing.name = result['name']
+            return existing
+
     def update_bond(self, bond, result):
         mode = result['mode']
         params = {

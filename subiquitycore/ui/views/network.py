@@ -204,6 +204,8 @@ class NetworkView(BaseView):
         return (dev.name, dev.type, notes)
 
     def new_link(self, new_dev):
+        if new_dev in self.dev_to_row:
+            self.update_link(new_dev)
         for i, cur_dev in enumerate(self.cur_netdevs):
             if cur_dev.name > new_dev.name:
                 netdev_i = i
