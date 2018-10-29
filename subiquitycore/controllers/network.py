@@ -312,6 +312,7 @@ class NetworkController(BaseController, TaskWatcher):
         elif action['action'] == 'done':
             # The first done fails in dry run mode.
             self.ui.frame.body.done()
+            yield
             self.ui.frame.body.done()
         else:
             raise Exception("could not process action {}".format(action))

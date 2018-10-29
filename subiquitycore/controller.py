@@ -80,10 +80,11 @@ class BaseController(ABC):
             if c is None:
                 c = getattr(self, '_action_clean_{}'.format(k), lambda x: x)
             field = getattr(form, k)
-            from ..ui.selector import Selector
+            from subiquitycore.ui.selector import Selector
+            v = c(v)
             if isinstance(field.widget, Selector):
                 field.widget._emit('select', v)
-            field.value = c(v)
+            field.value = v
             yield
         yield
         for bf in form._fields:
