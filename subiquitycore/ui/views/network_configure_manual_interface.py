@@ -24,7 +24,10 @@ from urwid import (
     WidgetPlaceholder,
     )
 
-from subiquitycore.models.network import addr_version
+from subiquitycore.models.network import (
+    addr_version,
+    BondParameters,
+    )
 from subiquitycore.ui.container import Pile, WidgetWrap
 from subiquitycore.ui.form import (
     ChoiceField,
@@ -319,44 +322,6 @@ class ViewInterfaceInfo(Stretchy):
         self.parent.remove_overlay()
 
 
-_bond_modes = [
-    ('balance-rr', True, 'balance-rr'),
-    ('active-backup', True, 'active-backup'),
-    ('balance-xor', True, 'balance-xor'),
-    ('broadcast', True, 'broadcast'),
-    ('802.3ad', True, '802.3ad'),
-    ('balance-tlb', True, 'balance-tlb'),
-    ('balance-alb', True, 'balance-alb'),
-]
-
-
-_supports_xmit_hash_policy = {
-    'balance-xor',
-    '802.3ad',
-    'balance-tlb',
-}
-
-
-_xmit_hash_policies = [
-    ('layer2', True, 'layer2'),
-    ('layer2+3', True, 'layer2+3'),
-    ('layer3+4', True, 'layer3+4'),
-    ('encap2+3', True, 'encap2+3'),
-    ('encap3+4', True, 'encap3+4'),
-]
-
-
-_supports_lacp_rate = {
-    '802.3ad',
-}
-
-
-_lacp_rates = [
-    ('slow', True, 'slow'),
-    ('fast', True, 'fast'),
-]
-
-
 class MultiNetdevChooser(WidgetWrap, WantsToKnowFormField):
 
     def __init__(self):
@@ -406,15 +371,17 @@ class BondForm(Form):
 
     name = StringField(_("Name:"))
     devices = MultiNetdevField(_("Devices: "))
-    mode = ChoiceField(_("Bond mode:"), choices=_bond_modes)
+    mode = ChoiceField(_("Bond mode:"), choices=BondParameters.modes)
     xmit_hash_policy = ChoiceField(
-        _("XMIT hash policy:"), choices=_xmit_hash_policies)
-    lacp_rate = ChoiceField(_("LACP rate:"), choices=_lacp_rates)
+        _("XMIT hash policy:"), choices=BondParameters.xmit_hash_policies)
+    lacp_rate = ChoiceField(_("LACP rate:"), choices=BondParameters.lacp_rates)
     ok_label = _("Save")
 
     def _select_level(self, sender, new_value):
-        self.xmit_hash_policy.enabled = new_value in _supports_xmit_hash_policy
-        self.lacp_rate.enabled = new_value in _supports_lacp_rate
+        self.xmit_hash_policy.enabled = \
+          new_value in BondParameters.supports_xmit_hash_policy
+        self.lacp_rate.enabled = \
+          new_value in BondParameters.supports_lacp_rate
 
     def validate_name(self):
         name = self.name.value

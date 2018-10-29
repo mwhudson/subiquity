@@ -24,7 +24,7 @@ import yaml
 
 from probert.network import IFF_UP, NetworkEventReceiver
 
-from subiquitycore.models.network import sanitize_config
+from subiquitycore.models.network import BondParameters, sanitize_config
 from subiquitycore.tasksequence import (
     BackgroundTask,
     BackgroundProcess,
@@ -373,9 +373,9 @@ class NetworkController(BaseController, TaskWatcher):
         params = {
             'mode': mode,
             }
-        if mode in ['balance-xor', '802.3ad', 'balance-tlb']:
+        if mode in BondParameters.supports_xmit_hash_policy:
             params['transmit-hash-policy'] = result['xmit_hash_policy']
-        if mode == '802.3ad':
+        if mode in BondParameters.supports_lacp_rate:
             params['lacp-rate'] = result['lacp_rate']
         for device in result['devices']:
             device.config = {}
@@ -387,9 +387,9 @@ class NetworkController(BaseController, TaskWatcher):
         params = {
             'mode': mode,
             }
-        if mode in ['balance-xor', '802.3ad', 'balance-tlb']:
+        if mode in BondParameters.supports_xmit_hash_policy:
             params['transmit-hash-policy'] = result['xmit_hash_policy']
-        if mode == '802.3ad':
+        if mode in BondParameters.supports_lacp_rate:
             params['lacp-rate'] = result['lacp_rate']
         for device in result['devices']:
             device.config = {}

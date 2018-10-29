@@ -63,6 +63,44 @@ def sanitize_config(config):
     return config
 
 
+class BondParameters:
+    # Just a place to hang various data about how bonds can be
+    # configured.
+
+    modes = [
+        'balance-rr',
+        'active-backup',
+        'balance-xor',
+        'broadcast',
+        '802.3ad',
+        'balance-tlb',
+        'balance-alb',
+    ]
+
+    supports_xmit_hash_policy = {
+        'balance-xor',
+        '802.3ad',
+        'balance-tlb',
+    }
+
+    xmit_hash_policies = [
+        'layer2',
+        'layer2+3',
+        'layer3+4',
+        'encap2+3',
+        'encap3+4',
+    ]
+
+    supports_lacp_rate = {
+        '802.3ad',
+    }
+
+    lacp_rates = [
+        'slow',
+        'fast',
+    ]
+
+
 class NetworkDev(object):
 
     def __init__(self, model, name, typ):
