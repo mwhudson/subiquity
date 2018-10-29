@@ -224,6 +224,7 @@ class NetworkModel(object):
                 dev.config = config
 
     def new_link(self, ifindex, link):
+        log.debug("new_link %s %s %s", ifindex, link.name, link.type)
         if link.type in NETDEV_IGNORED_IFACE_TYPES:
             return
         if not self.support_wlan and link.type == "wlan":
