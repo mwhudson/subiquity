@@ -166,7 +166,8 @@ class NetworkDev(object):
     _supports_EDIT_BOND = property(lambda self: self.type == "bond")
     _supports_ADD_VLAN = property(
         lambda self: self.type != "vlan" and not self.is_bond_slave)
-    _supports_DELETE = property(lambda self: self.is_virtual)
+    _supports_DELETE = property(
+        lambda self: self.is_virtual and not self.is_used)
 
     def remove_ip_networks_for_version(self, version):
         self.config.pop('dhcp{v}'.format(v=version), None)
