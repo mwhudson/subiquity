@@ -217,7 +217,7 @@ class NetworkModel(object):
         for typ, key in ('vlan', 'vlans'), ('bond', 'bonds'):
             network = self.config.config.get('network', {})
             for name, config in network.get(key, {}).items():
-                dev = self.devices_by_name[name]
+                dev = self.devices_by_name.get(name)
                 if dev is None:
                     dev = self.devices_by_name[name] = NetworkDev(self, name, typ)
                 # XXX What to do if types don't match??

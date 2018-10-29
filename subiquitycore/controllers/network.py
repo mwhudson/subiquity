@@ -49,6 +49,7 @@ class DownNetworkDevices(BackgroundTask):
     def __init__(self, rtlistener, devs_to_down, devs_to_delete):
         self.rtlistener = rtlistener
         self.devs_to_down = devs_to_down
+        self.devs_to_delete = devs_to_delete
 
     def __repr__(self):
         return 'DownNetworkDevices(%s)' % ([dev.name for dev in
@@ -68,8 +69,8 @@ class DownNetworkDevices(BackgroundTask):
             cmd = ['ip', 'link', 'delete', 'dev', dev.name]
             try:
                 run_command(cmd, check=True)
-            except subprocess.CalledProcessError:
-                self.ui.frame.body.show_network_error('rm-dev')
+            except subprocess.CalledProcessError as cp:
+                log.info("deleting %s failed with %r", dev.name, cp.stderr)
 
     def _bg_run(self):
         return True
@@ -154,6 +155,7 @@ class SubiquityNetworkEventReceiver(NetworkEventReceiver):
             self.default_routes.add(ifindex)
             if self.default_route_waiter:
                 self.default_route_waiter()
+                self.default_route_waiter = None
         elif action == "DEL" and ifindex in self.default_routes:
             self.default_routes.remove(ifindex)
         log.debug('default routes %s', self.default_routes)
@@ -455,14 +457,15 @@ class NetworkController(BaseController, TaskWatcher):
             devs_to_delete = []
             devs_to_down = []
             for dev in self.model.get_all_netdevs(include_deleted=True):
-                devcfg = self.model.config.config_for_device(dev._net_info)
+                if dev.info is None:
+                    continue
+                devcfg = self.model.config.config_for_device(dev.info)
                 if dev.is_virtual:
-                    if dev.info: # i.e. it actually exists
-                        devs_to_delete.append(dev)
+                    devs_to_delete.append(dev)
                 elif dev.config != devcfg:
                     devs_to_down.append(dev)
             tasks = []
-            if devs_to_down:
+            if devs_to_down or devs_to_delete:
                 tasks.extend([
                     ('stop-networkd',
                      BackgroundProcess(['systemctl',

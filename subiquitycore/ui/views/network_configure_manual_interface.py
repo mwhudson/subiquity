@@ -176,7 +176,7 @@ class EditNetworkStretchy(Stretchy):
             gw = device.config.get('gateway{v}'.format(v=ip_version))
             if gw:
                 manual_initial['gateway'] = str(gw)
-        elif self.device.config.get('dchp{v}'.format(v=ip_version)):
+        elif self.device.config.get('dhcp{v}'.format(v=ip_version)):
             method = 'dhcp'
         else:
             method = 'disable'
