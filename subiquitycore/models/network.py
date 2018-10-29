@@ -21,14 +21,14 @@ import logging
 from subiquitycore import netplan
 
 
-NETDEV_IGNORED_IFACE_NAMES = ['lo']
 NETDEV_IGNORED_IFACE_TYPES = ['lo', 'bridge', 'tun', 'tap', 'dummy', 'sit']
-NETDEV_WHITELIST_IFACE_TYPES = ['vlan', 'bond']
 NETDEV_ALLOWED_VIRTUAL_IFACE_TYPES = ['vlan', 'bond']
+
+
 log = logging.getLogger('subiquitycore.models.network')
 
 
-def ip_version(ip):
+def addr_version(ip):
     return ipaddress.ip_interface(ip).version
 
 
@@ -109,7 +109,7 @@ class NetworkDev(object):
         self.config.pop('gateway{v}'.format(v=version), None)
         addrs = []
         for ip in self.config.get('addresses', []):
-            if ip_version(ip) != version:
+            if addr_version(ip) != version:
                 addrs.append(ip)
         if addrs:
             self.config['addresses'] = addrs
@@ -138,9 +138,6 @@ class NetworkDev(object):
         if network['searchdomains']:
             ns.setdefault('search', []).extend(network['search'])
 
-
-NETDEV_IGNORED_IFACE_TYPES = ['lo', 'bridge', 'tun', 'tap', 'dummy', 'sit']
-NETDEV_ALLOWED_VIRTUAL_IFACE_TYPES = ['vlan', 'bond']
 
 
 class NetworkModel(object):

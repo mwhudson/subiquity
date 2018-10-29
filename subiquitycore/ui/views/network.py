@@ -19,7 +19,6 @@ Provides network device listings and extended network information
 
 """
 
-import ipaddress
 import logging
 from socket import AF_INET, AF_INET6
 
@@ -30,7 +29,10 @@ from urwid import (
     Text,
     )
 
-from subiquitycore.models.network import NetDevAction
+from subiquitycore.models.network import (
+    addr_version,
+    NetDevAction,
+    )
 from subiquitycore.ui.actionmenu import ActionMenu
 from subiquitycore.ui.buttons import (
     back_btn,
@@ -90,10 +92,6 @@ def _stretchy_shower(cls, *args):
         self.show_stretchy_overlay(cls(self, device, *args))
     impl.opens_dialog = True
     return impl
-
-
-def ip_version(ip):
-    return ipaddress.ip_interface(ip).version
 
 
 class NetworkView(BaseView):
@@ -177,7 +175,7 @@ class NetworkView(BaseView):
         for v in 4, 6:
             configured_ip_addresses = []
             for ip in dev.config.get('addresses', []):
-                if ip_version(ip) == v:
+                if addr_version(ip) == v:
                     configured_ip_addresses.append(ip)
             notes.extend([
                 "{} (static)".format(a)

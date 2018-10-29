@@ -24,7 +24,7 @@ from urwid import (
     WidgetPlaceholder,
     )
 
-from subiquitycore.models.network import ip_version
+from subiquitycore.models.network import addr_version
 from subiquitycore.ui.container import Pile, WidgetWrap
 from subiquitycore.ui.form import (
     ChoiceField,
@@ -147,18 +147,18 @@ class NetworkMethodForm(Form):
 
 class EditNetworkStretchy(Stretchy):
 
-    def __init__(self, parent, device, version):
+    def __init__(self, parent, device, ip_version):
         self.parent = parent
         self.device = device
-        self.version = version
+        self.ip_version = ip_version
 
         self.method_form = NetworkMethodForm()
         self.method_form.method.caption = _(
-            "IPv{v} Method: ").format(v=version)
+            "IPv{v} Method: ").format(v=ip_version)
         manual_initial = {}
         cur_addresses = []
         for addr in device.config.get('addresses', []):
-            if ip_version(addr) == version:
+            if addr_version(addr) == ip_version:
                 cur_addresses.append(addr)
         if cur_addresses:
             method = 'manual'
@@ -170,10 +170,10 @@ class EditNetworkStretchy(Stretchy):
                 'nameservers': ', '.join(ns.get('addresses', [])),
                 'searchdomains': ', '.join(ns.get('search', [])),
             }
-            gw = device.config.get('gateway{v}'.format(v=version))
+            gw = device.config.get('gateway{v}'.format(v=ip_version))
             if gw:
                 manual_initial['gateway'] = str(gw)
-        elif self.device.config.get('dchp{v}'.format(v=version)):
+        elif self.device.config.get('dchp{v}'.format(v=ip_version)):
             method = 'dhcp'
         else:
             method = 'disable'
@@ -184,7 +184,7 @@ class EditNetworkStretchy(Stretchy):
             self.method_form.method.widget, 'select', self._select_method)
 
         log.debug("manual_initial %s", manual_initial)
-        self.manual_form = NetworkConfigForm(version, manual_initial)
+        self.manual_form = NetworkConfigForm(ip_version, manual_initial)
 
         connect_signal(self.method_form, 'submit', self.done)
         connect_signal(self.manual_form, 'submit', self.done)
@@ -200,7 +200,7 @@ class EditNetworkStretchy(Stretchy):
         widgets = [self.form_pile, Text(""), self.bp]
         super().__init__(
             "Edit {device} IPv{v} configuration".format(
-                device=device.name, v=version),
+                device=device.name, v=ip_version),
             widgets,
             0, 0)
 
@@ -222,7 +222,7 @@ class EditNetworkStretchy(Stretchy):
 
     def done(self, sender):
 
-        self.device.remove_ip_networks_for_version(self.version)
+        self.device.remove_ip_networks_for_version(self.ip_version)
 
         if self.method_form.method.value == "manual":
             form = self.manual_form
@@ -239,9 +239,9 @@ class EditNetworkStretchy(Stretchy):
                 'searchdomains': form.searchdomains.value,
             }
             self.device.config.pop('nameservers', None)
-            self.device.add_network(self.version, result)
+            self.device.add_network(self.ip_version, result)
         elif self.method_form.method.value == "dhcp":
-            self.device.config['dhcp{v}'.format(v=self.version)] = True
+            self.device.config['dhcp{v}'.format(v=self.ip_version)] = True
         else:
             pass
         self.parent.update_link(self.device)
