@@ -169,7 +169,9 @@ class NetworkView(BaseView):
     def _cells_for_device(self, dev):
         notes = []
         for dev2 in self.model.get_all_netdevs():
-            if dev2.type == "bond" and dev.name in dev2.config.get('interfaces', []):
+            if dev2.type != "bond":
+                continue
+            if dev.name in dev2.config.get('interfaces', []):
                 notes.append(_("enslaved to {}").format(dev2.name))
                 break
         for v in 4, 6:
@@ -264,7 +266,8 @@ class NetworkView(BaseView):
             info = _("bond master for {}").format(
                 ', '.join(dev.config['interfaces']))
         else:
-            info = " / ".join([dev.info.hwaddr, dev.info.vendor, dev.info.model])
+            info = " / ".join([
+                dev.info.hwaddr, dev.info.vendor, dev.info.model])
         rows.append(Color.info_minor(TableRow([
             Text(""),
             (4, Text(info)),

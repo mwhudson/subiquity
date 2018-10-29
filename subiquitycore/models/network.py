@@ -121,9 +121,12 @@ class NetworkDev(object):
         # device is actually deleted when the config is applied.
         if new_name != self.name and self.is_virtual and self.info is not None:
             if new_name in self.model.devices_by_name:
-                raise RuntimeError("renaming {old_name} over {new_name}".format(old_name=self.name, new_name=new_name))
+                raise RuntimeError(
+                    "renaming {old_name} over {new_name}".format(
+                        old_name=self.name, new_name=new_name))
             self.model.devices_by_name[new_name] = self
-            dead_device = self.model.devices_by_name[self.name] = NetworkDev(self.name, self.type)
+            dead_device = self.model.devices_by_name[self.name] = NetworkDev(
+                self.name, self.type)
             dead_device.config = None
             dead_device.info = self.info
             self.info = None
@@ -146,17 +149,20 @@ class NetworkDev(object):
     @property
     def is_bond_slave(self):
         for dev in self._model.get_all_netdevs():
-            if dev.type == "bond" and self.name in dev.config.get('interfaces', []):
-                return True
+            if dev.type == "bond":
+                if self.name in dev.config.get('interfaces', []):
+                    return True
         return False
 
     @property
     def is_used(self):
         for dev in self._model.get_all_netdevs():
-            if dev.type == "bond" and self.name in dev.config.get('interfaces', []):
-                return True
-            if dev.type == "vlan" and self.name == dev.config.get('link'):
-                return True
+            if dev.type == "bond":
+                if self.name in dev.config.get('interfaces', []):
+                    return True
+            if dev.type == "vlan":
+                if self.name == dev.config.get('link'):
+                    return True
         return False
 
     _supports_INFO = True
@@ -204,7 +210,6 @@ class NetworkDev(object):
             ns.setdefault('search', []).extend(network['search'])
 
 
-
 class NetworkModel(object):
     """ """
 
@@ -220,7 +225,8 @@ class NetworkModel(object):
             for name, config in network.get(key, {}).items():
                 dev = self.devices_by_name.get(name)
                 if dev is None:
-                    dev = self.devices_by_name[name] = NetworkDev(self, name, typ)
+                    dev = self.devices_by_name[name] = NetworkDev(
+                        self, name, typ)
                 # XXX What to do if types don't match??
                 dev.config = config
 
@@ -230,13 +236,16 @@ class NetworkModel(object):
             return
         if not self.support_wlan and link.type == "wlan":
             return
-        if link.is_virtual and link.type not in NETDEV_ALLOWED_VIRTUAL_IFACE_TYPES:
+        if link.is_virtual and (
+                link.type not in NETDEV_ALLOWED_VIRTUAL_IFACE_TYPES):
             return
         dev = self.devices_by_name.get(link.name)
         if dev is not None:
             # XXX What to do if types don't match??
             if dev.info is not None:
-                XXX # err what
+                # This shouldn't happen! No sense getting too upset
+                # about if it does though.
+                pass
             else:
                 dev.info = link
         else:
@@ -248,7 +257,8 @@ class NetworkModel(object):
             dev.info = link
             dev.config = self.config.config_for_device(link)
             log.debug("new_link %s %s with config %s",
-                    ifindex, link.name, sanitize_interface_config(dev.config))
+                      ifindex, link.name,
+                      sanitize_interface_config(dev.config))
             self.devices_by_name[link.name] = dev
         return dev
 
@@ -262,9 +272,10 @@ class NetworkModel(object):
             if dev.ifindex == ifindex:
                 dev.info = None
                 if dev.is_virtual:
-                    # We delete all virtual devices before running netplan apply.
-                    # If a device has been deleted in the UI, we set dev.config to None.
-                    # Now it's actually gone, forget we ever knew it existed.
+                    # We delete all virtual devices before running netplan
+                    # apply.  If a device has been deleted in the UI, we set
+                    # dev.config to None.  Now it's actually gone, forget we
+                    # ever knew it existed.
                     if dev.config is None:
                         del self.devices_by_name[name]
                 else:
@@ -290,10 +301,10 @@ class NetworkModel(object):
         return dev
 
     def get_all_netdevs(self, include_deleted=False):
-        if include_deleted:
-            return [v for k, v in sorted(self.devices_by_name.items())]
-        else:
-            return [v for k, v in sorted(self.devices_by_name.items()) if v.config is not None]
+        devs = [v for k, v in sorted(self.devices_by_name.items())]
+        if not include_deleted:
+            devs = [v for v in devs if v.config is not None]
+        return devs
 
     def get_netdev_by_name(self, name):
         return self.devices_by_name[name]

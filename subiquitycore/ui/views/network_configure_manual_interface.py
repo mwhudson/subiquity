@@ -297,7 +297,8 @@ class AddVlanStretchy(Stretchy):
 
     def done(self, sender):
         self.parent.remove_overlay()
-        dev = self.parent.controller.add_vlan(self.device, self.form.vlan.value)
+        dev = self.parent.controller.add_vlan(
+            self.device, self.form.vlan.value)
         self.parent.new_link(dev)
 
     def cancel(self, sender=None):
@@ -378,10 +379,10 @@ class BondForm(Form):
     ok_label = _("Save")
 
     def _select_level(self, sender, new_value):
-        self.xmit_hash_policy.enabled = \
-          new_value in BondParameters.supports_xmit_hash_policy
-        self.lacp_rate.enabled = \
-          new_value in BondParameters.supports_lacp_rate
+        self.xmit_hash_policy.enabled = (
+            new_value in BondParameters.supports_xmit_hash_policy)
+        self.lacp_rate.enabled = (
+            new_value in BondParameters.supports_lacp_rate)
 
     def validate_name(self):
         name = self.name.value
@@ -428,9 +429,9 @@ class BondStretchy(Stretchy):
                 'name': existing.name,
                 'mode': mode,
                 }
-            if mode in _supports_xmit_hash_policy:
+            if mode in BondParameters.supports_xmit_hash_policy:
                 initial['xmit_hash_policy'] = params['transmit-hash-policy']
-            if mode in _supports_lacp_rate:
+            if mode in BondParameters.supports_lacp_rate:
                 initial['lacp_rate'] = params['lacp-rate']
 
         def device_ok(device):
@@ -462,10 +463,12 @@ class BondStretchy(Stretchy):
             for name in self.existing.config['interfaces']:
                 touched_devices.add(get_netdev_by_name(name))
             bond = self.existing
-            self.parent.controller.add_or_update_bond(self.existing, self.form.as_data())
+            self.parent.controller.add_or_update_bond(
+                self.existing, self.form.as_data())
             self.parent.update_link(bond)
         else:
-            bond = self.parent.controller.add_or_update_bond(None, self.form.as_data())
+            bond = self.parent.controller.add_or_update_bond(
+                None, self.form.as_data())
             self.parent.new_link(bond)
         for name in self.form.devices.value:
             touched_devices.add(name)
