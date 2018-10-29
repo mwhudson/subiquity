@@ -397,27 +397,6 @@ class NetworkController(BaseController, TaskWatcher):
         bond.config['interfaces'] = interfaces
         bond.config['parameters'] = params
 
-    def add_master(self, device, master_dev=None, master_name=None):
-        # Drop ip configs
-        for ip in [4, 6]:
-            device.remove_ip_networks_for_version(ip)
-            device.set_dhcp_for_version(ip, False)
-
-        down_cmd = ['ip', 'link', 'set', 'dev', device.name, 'down']
-        cmd = ['ip', 'link', 'set', 'dev', device.name]
-        if master_dev:
-            master_name = master_dev.name
-        if master_name:
-            cmd += ['master', master_name]
-        else:
-            cmd += ['nomaster']
-        try:
-            # Down the interface, and set new master
-            run_command(down_cmd, check=True)
-            run_command(cmd, check=True)
-        except subprocess.CalledProcessError:
-            self.ui.frame.body.show_network_error('add-master')
-
     def network_finish(self, config):
         log.debug("network config: \n%s",
                   yaml.dump(sanitize_config(config), default_flow_style=False))
