@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "storage": {
+    "config": [
+      {
+        "id": "sda",
+        "model": "QEMU HARDDISK",
+        "ptable": "msdos",
+        "serial": "33001438034e549a0",
+        "size": 5368709120,
+        "type": "disk"
+      },
+      {
+        "device": "sda",
+        "type": "partition",
+        "flag": "boot",
+        "id": "sda1",
+        "number": 1,
+        "start": 4194304,
+        "size": 3221225472
+      },
+      {
+        "device": "sda",
+        "type": "partition",
+        "id": "sda2",
+        "number": 2,
+        "start": 3225419776,
+        "size": 1048576
+      },
+      {
+        "device": "sda",
+        "type": "partition",
+        "id": "sda3",
+        "number": 3,
+        "size": 1048576000
+      },
+      {
+        "fstype": "ext4",
+        "id": "sda1_root",
+        "label": "cloudimg-rootfs",
+        "type": "format",
+        "volume": "sda1"
+      },
+      {
+        "fstype": "ext4",
+        "id": "sda2_home",
+        "type": "format",
+        "volume": "sda2"
+      },
+      {
+        "fstype": "swap",
+        "id": "sda3_swap",
+        "type": "format",
+        "volume": "sda3"
+      }
+    ]
+  }
+}
