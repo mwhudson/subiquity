@@ -1,5 +1,4 @@
 {
-  "version": 1,
   "storage": {
     "config": [
       {
@@ -52,6 +51,1119 @@
         "id": "sda3_swap",
         "type": "format",
         "volume": "sda3"
+      }
+    ]
+  },
+  "network": {
+    "links": [
+      {
+        "udev_data": {
+          "ID_MM_CANDIDATE": "1",
+          "ID_NET_LINK_FILE": "/lib/systemd/network/99-default.link",
+          "DEVPATH": "/devices/virtual/net/virbr0-nic",
+          "USEC_INITIALIZED": "26147973",
+          "IFINDEX": "8",
+          "ID_NET_DRIVER": "tun",
+          "attrs": {
+            "uevent": "INTERFACE=virbr0-nic\nIFINDEX=8",
+            "proto_down": "0",
+            "duplex": null,
+            "subsystem": "net",
+            "ifindex": "8",
+            "dev_port": "0",
+            "speed": null,
+            "gro_flush_timeout": "0",
+            "address": "52:54:00:7b:87:b0",
+            "operstate": "down",
+            "name_assign_type": null,
+            "tx_queue_len": "1000",
+            "phys_switch_id": null,
+            "dev_id": "0x0",
+            "flags": "0x1002",
+            "type": "1",
+            "phys_port_id": null,
+            "ifalias": "",
+            "carrier_changes": "1",
+            "mtu": "1500",
+            "dormant": null,
+            "addr_len": "6",
+            "broadcast": "ff:ff:ff:ff:ff:ff",
+            "group": "-1",
+            "addr_assign_type": "3",
+            "link_mode": "0",
+            "phys_port_name": null,
+            "tun_flags": "0x1802",
+            "netdev_group": "0",
+            "iflink": "8",
+            "carrier": null,
+            "owner": "-1"
+          },
+          "SUBSYSTEM": "net",
+          "INTERFACE": "virbr0-nic",
+          "SYSTEMD_ALIAS": "/sys/subsystem/net/devices/virbr0-nic",
+          "TAGS": ":systemd:"
+        },
+        "bond": {
+          "mode": null,
+          "slaves": [],
+          "is_master": false,
+          "is_slave": false
+        },
+        "netlink_data": {
+          "flags": 4098,
+          "name": "virbr0-nic",
+          "ifindex": 8,
+          "arptype": 1,
+          "family": 0
+        },
+        "type": "tap",
+        "bridge": {
+          "is_port": false,
+          "interfaces": [],
+          "options": {},
+          "is_bridge": false
+        },
+        "addresses": []
+      },
+      {
+        "udev_data": {
+          "ID_MM_CANDIDATE": "1",
+          "ID_NET_LINK_FILE": "/lib/systemd/network/99-default.link",
+          "DEVPATH": "/devices/pci0000:00/0000:00:19.0/net/enp0s25",
+          "ID_PCI_CLASS_FROM_DATABASE": "Network controller",
+          "SUBSYSTEM": "net",
+          "IFINDEX": "2",
+          "ID_OUI_FROM_DATABASE": "Wistron InfoComm(Kunshan)Co.,Ltd.",
+          "ID_MODEL_FROM_DATABASE": "Ethernet Connection (3) I218-LM",
+          "ID_VENDOR_ID": "0x8086",
+          "ID_BUS": "pci",
+          "ID_PCI_SUBCLASS_FROM_DATABASE": "Ethernet controller",
+          "INTERFACE": "enp0s25",
+          "ID_NET_DRIVER": "e1000e",
+          "ID_PATH": "pci-0000:00:19.0",
+          "ID_MODEL_ID": "0x15a2",
+          "USEC_INITIALIZED": "1232122",
+          "SYSTEMD_ALIAS": "/sys/subsystem/net/devices/enp0s25",
+          "attrs": {
+            "uevent": "INTERFACE=enp0s25\nIFINDEX=2",
+            "device": null,
+            "proto_down": "0",
+            "duplex": "unknown",
+            "subsystem": "net",
+            "ifindex": "2",
+            "dev_port": "0",
+            "speed": "-1",
+            "gro_flush_timeout": "0",
+            "address": "54:ee:75:42:e5:85",
+            "operstate": "down",
+            "name_assign_type": "4",
+            "tx_queue_len": "1000",
+            "phys_switch_id": null,
+            "dev_id": "0x0",
+            "flags": "0x1003",
+            "type": "1",
+            "phys_port_id": null,
+            "ifalias": "",
+            "carrier_changes": "1",
+            "mtu": "1500",
+            "dormant": "0",
+            "addr_len": "6",
+            "broadcast": "ff:ff:ff:ff:ff:ff",
+            "addr_assign_type": "0",
+            "link_mode": "0",
+            "phys_port_name": null,
+            "netdev_group": "0",
+            "iflink": "2",
+            "carrier": "0"
+          },
+          "ID_VENDOR_FROM_DATABASE": "Intel Corporation",
+          "ID_NET_NAME_PATH": "enp0s25",
+          "ID_PATH_TAG": "pci-0000_00_19_0",
+          "ID_NET_NAME_MAC": "enx54ee7542e585",
+          "TAGS": ":systemd:"
+        },
+        "bond": {
+          "mode": null,
+          "slaves": [],
+          "is_master": false,
+          "is_slave": false
+        },
+        "netlink_data": {
+          "flags": 4099,
+          "name": "enp0s25",
+          "ifindex": 2,
+          "arptype": 1,
+          "family": 0
+        },
+        "type": "eth",
+        "bridge": {
+          "is_port": false,
+          "interfaces": [],
+          "options": {},
+          "is_bridge": false
+        },
+        "addresses": []
+      },
+      {
+        "udev_data": {
+          "ID_MM_CANDIDATE": "1",
+          "ID_NET_LINK_FILE": "/lib/systemd/network/99-default.link",
+          "DEVPATH": "/devices/virtual/net/docker0",
+          "ID_NET_DRIVER": "bridge",
+          "DEVTYPE": "bridge",
+          "SUBSYSTEM": "net",
+          "IFINDEX": "6",
+          "USEC_INITIALIZED": "24337452",
+          "SYSTEMD_ALIAS": "/sys/subsystem/net/devices/docker0",
+          "TAGS": ":systemd:",
+          "attrs": {
+            "uevent": "DEVTYPE=bridge\nINTERFACE=docker0\nIFINDEX=6",
+            "proto_down": "0",
+            "duplex": null,
+            "subsystem": "net",
+            "ifindex": "6",
+            "dev_port": "0",
+            "speed": null,
+            "gro_flush_timeout": "0",
+            "address": "02:42:bf:f1:05:ec",
+            "operstate": "down",
+            "name_assign_type": "3",
+            "tx_queue_len": "0",
+            "phys_switch_id": null,
+            "brforward": "",
+            "flags": "0x1003",
+            "type": "1",
+            "phys_port_id": null,
+            "ifalias": "",
+            "carrier_changes": "1",
+            "mtu": "1500",
+            "dormant": "0",
+            "addr_len": "6",
+            "broadcast": "ff:ff:ff:ff:ff:ff",
+            "addr_assign_type": "3",
+            "link_mode": "0",
+            "phys_port_name": null,
+            "netdev_group": "0",
+            "dev_id": "0x0",
+            "iflink": "6",
+            "carrier": "0"
+          },
+          "INTERFACE": "docker0"
+        },
+        "bond": {
+          "mode": null,
+          "slaves": [],
+          "is_master": false,
+          "is_slave": false
+        },
+        "netlink_data": {
+          "flags": 4099,
+          "name": "docker0",
+          "ifindex": 6,
+          "arptype": 1,
+          "family": 7
+        },
+        "type": "bridge",
+        "bridge": {
+          "is_port": false,
+          "interfaces": [],
+          "options": {
+            "hello_timer": "0",
+            "hello_time": "200",
+            "topology_change": "0",
+            "multicast_router": "1",
+            "default_pvid": "1",
+            "root_port": "0",
+            "topology_change_timer": "0",
+            "vlan_filtering": "0",
+            "group_fwd_mask": "0x0",
+            "stp_state": "0",
+            "forward_delay": "1500",
+            "ageing_time": "30000",
+            "multicast_snooping": "1",
+            "multicast_query_interval": "12500",
+            "nf_call_arptables": "0",
+            "priority": "32768",
+            "bridge_id": "8000.0242bff105ec",
+            "hash_max": "512",
+            "multicast_querier": "0",
+            "multicast_startup_query_interval": "3124",
+            "nf_call_iptables": "0",
+            "multicast_query_use_ifaddr": "0",
+            "multicast_last_member_count": "2",
+            "multicast_startup_query_count": "2",
+            "root_path_cost": "0",
+            "multicast_membership_interval": "26000",
+            "multicast_last_member_interval": "100",
+            "vlan_protocol": "0x8100",
+            "max_age": "2000",
+            "multicast_querier_interval": "25500",
+            "group_addr": "1:80:c2:0:0:0",
+            "tcn_timer": "0",
+            "gc_timer": "25913",
+            "root_id": "8000.0242bff105ec",
+            "hash_elasticity": "4",
+            "nf_call_ip6tables": "0",
+            "multicast_query_response_interval": "1000",
+            "topology_change_detected": "0"
+          },
+          "is_bridge": true
+        },
+        "addresses": [
+          {
+            "address": "172.17.0.1/16",
+            "source": "static",
+            "scope": "global",
+            "family": 2
+          }
+        ]
+      },
+      {
+        "udev_data": {
+          "ID_MM_CANDIDATE": "1",
+          "ID_NET_LINK_FILE": "/lib/systemd/network/99-default.link",
+          "DEVPATH": "/devices/virtual/net/lxdbr0",
+          "ID_NET_DRIVER": "bridge",
+          "DEVTYPE": "bridge",
+          "SUBSYSTEM": "net",
+          "IFINDEX": "5",
+          "USEC_INITIALIZED": "22571117",
+          "SYSTEMD_ALIAS": "/sys/subsystem/net/devices/lxdbr0",
+          "TAGS": ":systemd:",
+          "attrs": {
+            "uevent": "DEVTYPE=bridge\nINTERFACE=lxdbr0\nIFINDEX=5",
+            "proto_down": "0",
+            "duplex": null,
+            "subsystem": "net",
+            "ifindex": "5",
+            "dev_port": "0",
+            "speed": null,
+            "gro_flush_timeout": "0",
+            "address": "fe:d6:10:53:b4:f0",
+            "operstate": "up",
+            "name_assign_type": "3",
+            "tx_queue_len": "1000",
+            "phys_switch_id": null,
+            "brforward": "��\u0010S��\u0001\u0001",
+            "flags": "0x1003",
+            "type": "1",
+            "phys_port_id": null,
+            "ifalias": "",
+            "carrier_changes": "2",
+            "mtu": "1500",
+            "dormant": "0",
+            "addr_assign_type": "1",
+            "broadcast": "ff:ff:ff:ff:ff:ff",
+            "addr_len": "6",
+            "lower_vethNH78UK": null,
+            "link_mode": "0",
+            "phys_port_name": null,
+            "netdev_group": "0",
+            "dev_id": "0x0",
+            "iflink": "5",
+            "carrier": "1"
+          },
+          "INTERFACE": "lxdbr0"
+        },
+        "bond": {
+          "mode": null,
+          "slaves": [],
+          "is_master": false,
+          "is_slave": false
+        },
+        "netlink_data": {
+          "flags": 69699,
+          "name": "lxdbr0",
+          "ifindex": 5,
+          "arptype": 1,
+          "family": 7
+        },
+        "type": "bridge",
+        "bridge": {
+          "is_port": false,
+          "interfaces": [
+            "vethNH78UK"
+          ],
+          "options": {
+            "hello_timer": "0",
+            "hello_time": "200",
+            "topology_change": "0",
+            "multicast_router": "1",
+            "default_pvid": "1",
+            "root_port": "0",
+            "topology_change_timer": "0",
+            "vlan_filtering": "0",
+            "group_fwd_mask": "0x0",
+            "stp_state": "0",
+            "forward_delay": "1500",
+            "ageing_time": "30000",
+            "multicast_snooping": "1",
+            "multicast_query_interval": "12500",
+            "nf_call_arptables": "0",
+            "priority": "32768",
+            "bridge_id": "8000.fed61053b4f0",
+            "hash_max": "512",
+            "multicast_querier": "0",
+            "multicast_startup_query_interval": "3124",
+            "nf_call_iptables": "0",
+            "multicast_query_use_ifaddr": "0",
+            "multicast_last_member_count": "2",
+            "multicast_startup_query_count": "2",
+            "root_path_cost": "0",
+            "multicast_membership_interval": "26000",
+            "multicast_last_member_interval": "100",
+            "vlan_protocol": "0x8100",
+            "max_age": "2000",
+            "multicast_querier_interval": "25500",
+            "group_addr": "1:80:c2:0:0:0",
+            "tcn_timer": "0",
+            "gc_timer": "1545",
+            "root_id": "8000.fed61053b4f0",
+            "hash_elasticity": "4",
+            "nf_call_ip6tables": "0",
+            "multicast_query_response_interval": "1000",
+            "topology_change_detected": "0"
+          },
+          "is_bridge": true
+        },
+        "addresses": [
+          {
+            "address": "fe80::f8ab:30ff:fefd:67d1/64",
+            "source": "static",
+            "scope": "link",
+            "family": 10
+          },
+          {
+            "address": "10.144.165.1/24",
+            "source": "static",
+            "scope": "global",
+            "family": 2
+          }
+        ]
+      },
+      {
+        "udev_data": {
+          "ID_MM_CANDIDATE": "1",
+          "ID_NET_LINK_FILE": "/lib/systemd/network/99-default.link",
+          "DEVPATH": "/devices/virtual/net/virbr0",
+          "ID_NET_DRIVER": "bridge",
+          "DEVTYPE": "bridge",
+          "SUBSYSTEM": "net",
+          "IFINDEX": "7",
+          "USEC_INITIALIZED": "26148482",
+          "SYSTEMD_ALIAS": "/sys/subsystem/net/devices/virbr0",
+          "TAGS": ":systemd:",
+          "attrs": {
+            "uevent": "DEVTYPE=bridge\nINTERFACE=virbr0\nIFINDEX=7",
+            "proto_down": "0",
+            "duplex": null,
+            "subsystem": "net",
+            "ifindex": "7",
+            "dev_port": "0",
+            "speed": null,
+            "gro_flush_timeout": "0",
+            "address": "00:00:00:00:00:00",
+            "operstate": "down",
+            "name_assign_type": "3",
+            "tx_queue_len": "1000",
+            "phys_switch_id": null,
+            "brforward": "",
+            "flags": "0x1003",
+            "type": "1",
+            "phys_port_id": null,
+            "ifalias": "",
+            "carrier_changes": "1",
+            "mtu": "1500",
+            "dormant": "0",
+            "addr_len": "6",
+            "broadcast": "ff:ff:ff:ff:ff:ff",
+            "addr_assign_type": "1",
+            "link_mode": "0",
+            "phys_port_name": null,
+            "netdev_group": "0",
+            "dev_id": "0x0",
+            "iflink": "7",
+            "carrier": "0"
+          },
+          "INTERFACE": "virbr0"
+        },
+        "bond": {
+          "mode": null,
+          "slaves": [],
+          "is_master": false,
+          "is_slave": false
+        },
+        "netlink_data": {
+          "flags": 4099,
+          "name": "virbr0",
+          "ifindex": 7,
+          "arptype": 1,
+          "family": 7
+        },
+        "type": "bridge",
+        "bridge": {
+          "is_port": false,
+          "interfaces": [],
+          "options": {
+            "hello_timer": "35",
+            "hello_time": "200",
+            "topology_change": "0",
+            "multicast_router": "1",
+            "default_pvid": "1",
+            "root_port": "0",
+            "topology_change_timer": "0",
+            "vlan_filtering": "0",
+            "group_fwd_mask": "0x0",
+            "stp_state": "1",
+            "forward_delay": "200",
+            "ageing_time": "30000",
+            "multicast_snooping": "1",
+            "multicast_query_interval": "12500",
+            "nf_call_arptables": "0",
+            "priority": "32768",
+            "bridge_id": "8000.000000000000",
+            "hash_max": "512",
+            "multicast_querier": "0",
+            "multicast_startup_query_interval": "3124",
+            "nf_call_iptables": "0",
+            "multicast_query_use_ifaddr": "0",
+            "multicast_last_member_count": "2",
+            "multicast_startup_query_count": "2",
+            "root_path_cost": "0",
+            "multicast_membership_interval": "26000",
+            "multicast_last_member_interval": "100",
+            "vlan_protocol": "0x8100",
+            "max_age": "2000",
+            "multicast_querier_interval": "25500",
+            "group_addr": "1:80:c2:0:0:0",
+            "tcn_timer": "0",
+            "gc_timer": "26320",
+            "root_id": "8000.000000000000",
+            "hash_elasticity": "4",
+            "nf_call_ip6tables": "0",
+            "multicast_query_response_interval": "1000",
+            "topology_change_detected": "0"
+          },
+          "is_bridge": true
+        },
+        "addresses": [
+          {
+            "address": "192.168.122.1/24",
+            "source": "static",
+            "scope": "global",
+            "family": 2
+          }
+        ]
+      },
+      {
+        "udev_data": {
+          "ID_MM_CANDIDATE": "1",
+          "ID_NET_LINK_FILE": "/lib/systemd/network/99-default.link",
+          "DEVPATH": "/devices/virtual/net/vethNH78UK",
+          "ID_NET_DRIVER": "veth",
+          "SUBSYSTEM": "net",
+          "IFINDEX": "10",
+          "USEC_INITIALIZED": "32415842",
+          "SYSTEMD_ALIAS": "/sys/subsystem/net/devices/vethNH78UK",
+          "TAGS": ":systemd:",
+          "attrs": {
+            "uevent": "INTERFACE=vethNH78UK\nIFINDEX=10",
+            "proto_down": "0",
+            "duplex": "full",
+            "subsystem": "net",
+            "ifindex": "10",
+            "dev_port": "0",
+            "speed": "10000",
+            "gro_flush_timeout": "0",
+            "address": "fe:d6:10:53:b4:f0",
+            "upper_lxdbr0": null,
+            "operstate": "up",
+            "name_assign_type": "3",
+            "tx_queue_len": "1000",
+            "master": null,
+            "phys_switch_id": null,
+            "dev_id": "0x0",
+            "flags": "0x1303",
+            "type": "1",
+            "phys_port_id": null,
+            "ifalias": "",
+            "carrier_changes": "2",
+            "mtu": "1500",
+            "dormant": "0",
+            "addr_len": "6",
+            "broadcast": "ff:ff:ff:ff:ff:ff",
+            "addr_assign_type": "3",
+            "link_mode": "0",
+            "phys_port_name": null,
+            "netdev_group": "0",
+            "iflink": "9",
+            "carrier": "1"
+          },
+          "INTERFACE": "vethNH78UK",
+          "NM_UNMANAGED": "1"
+        },
+        "bond": {
+          "mode": null,
+          "slaves": [],
+          "is_master": false,
+          "is_slave": false
+        },
+        "netlink_data": {
+          "flags": 69699,
+          "name": "vethNH78UK",
+          "ifindex": 10,
+          "arptype": 1,
+          "family": 0
+        },
+        "type": "eth",
+        "bridge": {
+          "is_port": true,
+          "interfaces": [],
+          "options": {
+            "multicast_router": "1",
+            "path_cost": "2",
+            "unicast_flood": "1",
+            "forward_delay_timer": "0",
+            "priority": "32",
+            "designated_bridge": "8000.fed61053b4f0",
+            "state": "3",
+            "message_age_timer": "0",
+            "proxyarp": "0",
+            "learning": "1",
+            "designated_cost": "0",
+            "port_id": "0x8001",
+            "designated_root": "8000.fed61053b4f0",
+            "change_ack": "0",
+            "hold_timer": "0",
+            "hairpin_mode": "0",
+            "proxyarp_wifi": "0",
+            "designated_port": "32769",
+            "root_block": "0",
+            "config_pending": "0",
+            "bpdu_guard": "0",
+            "port_no": "0x1",
+            "multicast_fast_leave": "0"
+          },
+          "is_bridge": false
+        },
+        "addresses": [
+          {
+            "address": "fe80::fcd6:10ff:fe53:b4f0/64",
+            "source": "static",
+            "scope": "link",
+            "family": 10
+          }
+        ]
+      },
+      {
+        "udev_data": {
+          "ID_MM_CANDIDATE": "1",
+          "ID_NET_LINK_FILE": "/lib/systemd/network/99-default.link",
+          "DEVPATH": "/devices/pci0000:00/0000:00:14.0/usb3/3-3/3-3.1/3-3.1.3/3-3.1.3:1.0/net/enx0050b6c11ec4",
+          "ID_USB_INTERFACE_NUM": "00",
+          "attrs": {
+            "uevent": "INTERFACE=enx0050b6c11ec4\nIFINDEX=12",
+            "device": null,
+            "proto_down": "0",
+            "duplex": "full",
+            "subsystem": "net",
+            "ifindex": "12",
+            "dev_port": "0",
+            "speed": "1000",
+            "gro_flush_timeout": "0",
+            "address": "00:50:b6:c1:1e:c4",
+            "operstate": "up",
+            "name_assign_type": "4",
+            "tx_queue_len": "1000",
+            "phys_switch_id": null,
+            "dev_id": "0x0",
+            "flags": "0x1003",
+            "type": "1",
+            "phys_port_id": null,
+            "ifalias": "",
+            "carrier_changes": "2",
+            "mtu": "1500",
+            "dormant": "0",
+            "addr_len": "6",
+            "broadcast": "ff:ff:ff:ff:ff:ff",
+            "addr_assign_type": "0",
+            "link_mode": "0",
+            "phys_port_name": null,
+            "netdev_group": "0",
+            "iflink": "12",
+            "carrier": "1"
+          },
+          "ID_SERIAL": "Lenovo_ThinkPad_Dock_Giga_0050B6C11EC4",
+          "SUBSYSTEM": "net",
+          "SYSTEMD_ALIAS": "/sys/subsystem/net/devices/enx0050b6c11ec4 /sys/subsystem/net/devices/enx0050b6c11ec4",
+          "IFINDEX": "12",
+          "ID_USB_DRIVER": "r8152",
+          "ID_OUI_FROM_DATABASE": "GOOD WAY IND. CO., LTD.",
+          "INTERFACE": "enx0050b6c11ec4",
+          "ID_VENDOR_ID": "17ef",
+          "ID_BUS": "usb",
+          "ID_MODEL_ENC": "ThinkPad\\x20Dock\\x20Giga",
+          "ID_MODEL": "ThinkPad_Dock_Giga",
+          "ID_REVISION": "3000",
+          "ID_NET_DRIVER": "r8152",
+          "ID_VENDOR_ENC": "Lenovo",
+          "ID_NET_NAME": "enp0s20u3u1u3",
+          "ID_TYPE": "generic",
+          "ID_PATH": "pci-0000:00:14.0-usb-0:3.1.3:1.0",
+          "ID_MODEL_ID": "304f",
+          "USEC_INITIALIZED": "34248108169",
+          "ID_VENDOR": "Lenovo",
+          "ID_SERIAL_SHORT": "0050B6C11EC4",
+          "ID_VENDOR_FROM_DATABASE": "Lenovo",
+          "ID_NET_NAME_PATH": "enp0s20u3u1u3",
+          "ID_PATH_TAG": "pci-0000_00_14_0-usb-0_3_1_3_1_0",
+          "ID_USB_INTERFACES": ":ffff00:020600:0a0000:",
+          "ID_NET_NAME_MAC": "enx0050b6c11ec4",
+          "TAGS": ":systemd:"
+        },
+        "bond": {
+          "mode": null,
+          "slaves": [],
+          "is_master": false,
+          "is_slave": false
+        },
+        "netlink_data": {
+          "flags": 69699,
+          "name": "enx0050b6c11ec4",
+          "ifindex": 12,
+          "arptype": 1,
+          "family": 0
+        },
+        "type": "eth",
+        "bridge": {
+          "is_port": false,
+          "interfaces": [],
+          "options": {},
+          "is_bridge": false
+        },
+        "addresses": [
+          {
+            "address": "10.100.1.125/22",
+            "source": "dhcp",
+            "scope": "global",
+            "family": 2
+          },
+          {
+            "address": "fe80::8761:5fab:f8b:a6fb/64",
+            "source": "static",
+            "scope": "link",
+            "family": 10
+          }
+        ]
+      },
+      {
+        "udev_data": {
+          "ID_MM_CANDIDATE": "1",
+          "ID_NET_LINK_FILE": "/lib/systemd/network/99-default.link",
+          "DEVPATH": "/devices/pci0000:00/0000:00:1c.1/0000:04:00.0/net/wlp4s0",
+          "ID_PCI_CLASS_FROM_DATABASE": "Network controller",
+          "SUBSYSTEM": "net",
+          "IFINDEX": "4",
+          "ID_OUI_FROM_DATABASE": "Intel Corporate",
+          "ID_MODEL_FROM_DATABASE": "Wireless 7265 (Dual Band Wireless-AC 7265)",
+          "ID_VENDOR_ID": "0x8086",
+          "ID_BUS": "pci",
+          "ID_PCI_SUBCLASS_FROM_DATABASE": "Network controller",
+          "INTERFACE": "wlp4s0",
+          "ID_NET_DRIVER": "iwlwifi",
+          "DEVTYPE": "wlan",
+          "ID_NET_NAME": "wlp4s0",
+          "ID_PATH": "pci-0000:04:00.0",
+          "ID_MODEL_ID": "0x095b",
+          "USEC_INITIALIZED": "20672104",
+          "SYSTEMD_ALIAS": "/sys/subsystem/net/devices/wlp4s0 /sys/subsystem/net/devices/wlp4s0",
+          "attrs": {
+            "uevent": "DEVTYPE=wlan\nINTERFACE=wlp4s0\nIFINDEX=4",
+            "device": null,
+            "proto_down": "0",
+            "duplex": null,
+            "subsystem": "net",
+            "ifindex": "4",
+            "dev_port": "0",
+            "speed": null,
+            "gro_flush_timeout": "0",
+            "address": "60:57:18:9b:a4:bf",
+            "operstate": "up",
+            "name_assign_type": "4",
+            "tx_queue_len": "1000",
+            "phys_switch_id": null,
+            "dev_id": "0x0",
+            "flags": "0x1003",
+            "type": "1",
+            "phys_port_id": null,
+            "ifalias": "",
+            "carrier_changes": "18",
+            "mtu": "1500",
+            "dormant": "0",
+            "addr_len": "6",
+            "broadcast": "ff:ff:ff:ff:ff:ff",
+            "addr_assign_type": "0",
+            "link_mode": "1",
+            "phys_port_name": null,
+            "netdev_group": "0",
+            "phy80211": null,
+            "iflink": "4",
+            "carrier": "1"
+          },
+          "ID_VENDOR_FROM_DATABASE": "Intel Corporation",
+          "ID_NET_NAME_PATH": "wlp4s0",
+          "ID_PATH_TAG": "pci-0000_04_00_0",
+          "ID_NET_NAME_MAC": "wlx6057189ba4bf",
+          "TAGS": ":systemd:"
+        },
+        "bond": {
+          "mode": null,
+          "slaves": [],
+          "is_master": false,
+          "is_slave": false
+        },
+        "netlink_data": {
+          "flags": 69699,
+          "name": "wlp4s0",
+          "ifindex": 4,
+          "arptype": 1,
+          "family": 0
+        },
+        "wlan": {
+          "visible_ssids": [],
+          "scan_state": null,
+          "ssid": "BizDojo-5Ghz"
+        },
+        "type": "wlan",
+        "bridge": {
+          "is_port": false,
+          "interfaces": [],
+          "options": {},
+          "is_bridge": false
+        },
+        "addresses": [
+          {
+            "address": "10.100.2.229/22",
+            "source": "dhcp",
+            "scope": "global",
+            "family": 2
+          },
+          {
+            "address": "fe80::727c:b9fe:c9e6:b898/64",
+            "source": "static",
+            "scope": "link",
+            "family": 10
+          }
+        ]
+      },
+      {
+        "udev_data": {
+          "ID_MM_CANDIDATE": "1",
+          "ID_NET_LINK_FILE": "/lib/systemd/network/99-default.link",
+          "DEVPATH": "/devices/virtual/net/lo",
+          "USEC_INITIALIZED": "958219",
+          "IFINDEX": "1",
+          "attrs": {
+            "uevent": "INTERFACE=lo\nIFINDEX=1",
+            "proto_down": "0",
+            "duplex": null,
+            "subsystem": "net",
+            "ifindex": "1",
+            "dev_port": "0",
+            "speed": null,
+            "gro_flush_timeout": "0",
+            "address": "00:00:00:00:00:00",
+            "operstate": "unknown",
+            "name_assign_type": null,
+            "tx_queue_len": "1",
+            "phys_switch_id": null,
+            "dev_id": "0x0",
+            "flags": "0x9",
+            "type": "772",
+            "phys_port_id": null,
+            "ifalias": "",
+            "carrier_changes": "0",
+            "mtu": "65536",
+            "dormant": "0",
+            "addr_len": "6",
+            "broadcast": "00:00:00:00:00:00",
+            "addr_assign_type": "0",
+            "link_mode": "0",
+            "phys_port_name": null,
+            "netdev_group": "0",
+            "iflink": "1",
+            "carrier": "1"
+          },
+          "SUBSYSTEM": "net",
+          "INTERFACE": "lo"
+        },
+        "bond": {
+          "mode": null,
+          "slaves": [],
+          "is_master": false,
+          "is_slave": false
+        },
+        "netlink_data": {
+          "flags": 65609,
+          "name": "lo",
+          "ifindex": 1,
+          "arptype": 772,
+          "family": 0
+        },
+        "type": "lo",
+        "bridge": {
+          "is_port": false,
+          "interfaces": [],
+          "options": {},
+          "is_bridge": false
+        },
+        "addresses": [
+          {
+            "address": "127.0.0.1/8",
+            "source": "static",
+            "scope": "host",
+            "family": 2
+          },
+          {
+            "address": "::1/128",
+            "source": "static",
+            "scope": "host",
+            "family": 10
+          }
+        ]
+      }
+    ],
+    "routes": [
+      {
+        "ifindex": 12,
+        "table": 254,
+        "dst": "default",
+        "family": 2,
+        "type": 1
+      },
+      {
+        "ifindex": 4,
+        "table": 254,
+        "dst": "default",
+        "family": 2,
+        "type": 1
+      },
+      {
+        "ifindex": 12,
+        "table": 254,
+        "dst": "10.100.0.0/22",
+        "family": 2,
+        "type": 1
+      },
+      {
+        "ifindex": 4,
+        "table": 254,
+        "dst": "10.100.0.0/22",
+        "family": 2,
+        "type": 1
+      },
+      {
+        "ifindex": 5,
+        "table": 254,
+        "dst": "10.144.165.0/24",
+        "family": 2,
+        "type": 1
+      },
+      {
+        "ifindex": 5,
+        "table": 254,
+        "dst": "169.254.0.0/16",
+        "family": 2,
+        "type": 1
+      },
+      {
+        "ifindex": 6,
+        "table": 254,
+        "dst": "172.17.0.0/16",
+        "family": 2,
+        "type": 1
+      },
+      {
+        "ifindex": 7,
+        "table": 254,
+        "dst": "192.168.122.0/24",
+        "family": 2,
+        "type": 1
+      },
+      {
+        "ifindex": 4,
+        "table": 255,
+        "dst": "10.100.0.0",
+        "family": 2,
+        "type": 3
+      },
+      {
+        "ifindex": 12,
+        "table": 255,
+        "dst": "10.100.1.125",
+        "family": 2,
+        "type": 2
+      },
+      {
+        "ifindex": 4,
+        "table": 255,
+        "dst": "10.100.2.229",
+        "family": 2,
+        "type": 2
+      },
+      {
+        "ifindex": 4,
+        "table": 255,
+        "dst": "10.100.3.255",
+        "family": 2,
+        "type": 3
+      },
+      {
+        "ifindex": 5,
+        "table": 255,
+        "dst": "10.144.165.0",
+        "family": 2,
+        "type": 3
+      },
+      {
+        "ifindex": 5,
+        "table": 255,
+        "dst": "10.144.165.1",
+        "family": 2,
+        "type": 2
+      },
+      {
+        "ifindex": 5,
+        "table": 255,
+        "dst": "10.144.165.255",
+        "family": 2,
+        "type": 3
+      },
+      {
+        "ifindex": 1,
+        "table": 255,
+        "dst": "127.0.0.0",
+        "family": 2,
+        "type": 3
+      },
+      {
+        "ifindex": 1,
+        "table": 255,
+        "dst": "127.0.0.0/8",
+        "family": 2,
+        "type": 2
+      },
+      {
+        "ifindex": 1,
+        "table": 255,
+        "dst": "127.0.0.1",
+        "family": 2,
+        "type": 2
+      },
+      {
+        "ifindex": 1,
+        "table": 255,
+        "dst": "127.255.255.255",
+        "family": 2,
+        "type": 3
+      },
+      {
+        "ifindex": 6,
+        "table": 255,
+        "dst": "172.17.0.0",
+        "family": 2,
+        "type": 3
+      },
+      {
+        "ifindex": 6,
+        "table": 255,
+        "dst": "172.17.0.1",
+        "family": 2,
+        "type": 2
+      },
+      {
+        "ifindex": 6,
+        "table": 255,
+        "dst": "172.17.255.255",
+        "family": 2,
+        "type": 3
+      },
+      {
+        "ifindex": 7,
+        "table": 255,
+        "dst": "192.168.122.0",
+        "family": 2,
+        "type": 3
+      },
+      {
+        "ifindex": 7,
+        "table": 255,
+        "dst": "192.168.122.1",
+        "family": 2,
+        "type": 2
+      },
+      {
+        "ifindex": 7,
+        "table": 255,
+        "dst": "192.168.122.255",
+        "family": 2,
+        "type": 3
+      },
+      {
+        "ifindex": 5,
+        "table": 254,
+        "dst": "fe80::/64",
+        "family": 10,
+        "type": 1
+      },
+      {
+        "ifindex": 1,
+        "table": 0,
+        "dst": "default",
+        "family": 10,
+        "type": 7
+      },
+      {
+        "ifindex": 1,
+        "table": 255,
+        "dst": "::1",
+        "family": 10,
+        "type": 2
+      },
+      {
+        "ifindex": 1,
+        "table": 255,
+        "dst": "fe80::727c:b9fe:c9e6:b898",
+        "family": 10,
+        "type": 2
+      },
+      {
+        "ifindex": 1,
+        "table": 255,
+        "dst": "fe80::8761:5fab:f8b:a6fb",
+        "family": 10,
+        "type": 2
+      },
+      {
+        "ifindex": 1,
+        "table": 255,
+        "dst": "fe80::f8ab:30ff:fefd:67d1",
+        "family": 10,
+        "type": 2
+      },
+      {
+        "ifindex": 1,
+        "table": 255,
+        "dst": "fe80::fcd6:10ff:fe53:b4f0",
+        "family": 10,
+        "type": 2
+      },
+      {
+        "ifindex": 5,
+        "table": 255,
+        "dst": "ff00::/8",
+        "family": 10,
+        "type": 1
       }
     ]
   }
