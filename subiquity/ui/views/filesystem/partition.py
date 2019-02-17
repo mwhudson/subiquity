@@ -179,10 +179,10 @@ class PartitionForm(Form):
                 show_use = True
         if self.form_pile is not None:
             for i, (w, o) in enumerate(self.form_pile.contents):
-                if w is self.mount._table and show_use:
-                    self.form_pile.contents[i] = (self.use_swap._table, o)
-                elif w is self.use_swap._table and not show_use:
-                    self.form_pile.contents[i] = (self.mount._table, o)
+                if w is self.mount._rows and show_use:
+                    self.form_pile.contents[i] = (self.use_swap._rows, o)
+                elif w is self.use_swap._rows and not show_use:
+                    self.form_pile.contents[i] = (self.mount._rows, o)
         if getattr(self.device, 'flag', None) != "boot":
             fstype_for_check = fstype
             if fstype_for_check is None:
@@ -262,9 +262,9 @@ class PartitionForm(Form):
     def as_rows(self):
         r = super().as_rows()
         if self.existing_fs_type == "swap":
-            exclude = self.mount._table
+            exclude = self.mount._rows
         else:
-            exclude = self.use_swap._table
+            exclude = self.use_swap._rows
         i = r.index(exclude)
         del r[i-1:i+1]
         return r

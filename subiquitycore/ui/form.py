@@ -23,13 +23,13 @@ from urwid import (
     delegate_to_widget_mixin,
     emit_signal,
     MetaSignals,
-    Padding as UrwidPadding,
     Text,
     WidgetDecoration,
     )
 
 from subiquitycore.ui.buttons import cancel_btn, done_btn
 from subiquitycore.ui.container import (
+    Pile,
     WidgetWrap,
 )
 from subiquitycore.ui.interactive import (
@@ -39,11 +39,6 @@ from subiquitycore.ui.interactive import (
     EmailEditor,
     )
 from subiquitycore.ui.selector import Selector
-from subiquitycore.ui.table import (
-    ColSpec,
-    TablePile,
-    TableRow,
-    )
 from subiquitycore.ui.utils import (
     button_pile,
     Color,
@@ -102,7 +97,7 @@ class FormField(abc.ABC):
 
     next_index = 0
     takes_default_style = True
-    caption_first = True
+    separate_caption = True
 
     def __init__(self, caption=None, help=None):
         self.caption = caption
@@ -123,9 +118,6 @@ class WantsToKnowFormField(object):
     """A marker class."""
     def set_bound_form_field(self, bff):
         self.bff = bff
-
-
-form_colspecs = {1: ColSpec(pack=False)}
 
 
 class BoundFormField(object):
@@ -152,29 +144,19 @@ class BoundFormField(object):
         if self.field.takes_default_style:
             widget = Color.string_input(widget)
 
-        self.caption_text = Text(self.field.caption)
         self.under_text = Text(self.help)
 
-        if self.field.caption_first:
-            self.caption_text.align = 'right'
-            first_row = [self.caption_text, _Validator(self, widget)]
-        else:
-            first_row = [
-                _Validator(
-                    self,
-                    UrwidPadding(
-                        widget, align='right', width=widget_width(widget))),
-                self.caption_text,
-                ]
+        rows = []
 
-        self._rows = [
-            Toggleable(TableRow(row)) for row in [
-                first_row,
-                [Text(""),          self.under_text],
-                ]
-            ]
+        if self.field.separate_caption:
+            self.caption_text = Text(self.field.caption)
+            rows.append(self.caption_text)
 
-        self._table = TablePile(self._rows, spacing=2, colspecs=form_colspecs)
+        rows.append(_Validator(self, widget))
+        rows.append(self.under_text)
+
+        self._rows = Toggleable(Pile([('pack', row) for row in rows]))
+        return self._rows
 
     def clean(self, value):
         cleaner = getattr(self.form, "clean_" + self.field.name, None)
@@ -270,8 +252,7 @@ class BoundFormField(object):
     @enabled.setter
     def enabled(self, val):
         self._enabled = val
-        for row in self._rows:
-            row.enabled = val
+        self._rows.enabled = val
 
 
 def simple_field(widget_maker):
@@ -348,8 +329,6 @@ class ReadOnlyField(FormField):
 
 class CheckBoxEditor(CheckBox):
 
-    reserve_columns = 3
-
     @property
     def value(self):
         return self.state
@@ -361,11 +340,11 @@ class CheckBoxEditor(CheckBox):
 
 class BooleanField(FormField):
 
-    caption_first = False
+    separate_caption = False
     takes_default_style = False
 
     def _make_widget(self, form):
-        return CheckBoxEditor('')
+        return CheckBoxEditor(self.caption)
 
 
 class MetaForm(MetaSignals):
@@ -428,13 +407,11 @@ class Form(object, metaclass=MetaForm):
     def as_rows(self):
         if len(self._fields) == 0:
             return []
-        t0 = self._fields[0]._table
-        rows = [t0]
-        for field in self._fields[1:]:
+        rows = []
+        for field in self._fields:
+            rows.append(field._rows)
             rows.append(Text(""))
-            t = field._table
-            t0.bind(t)
-            rows.append(t)
+        del rows[-1]
         return rows
 
     def as_screen(self, focus_buttons=True, excerpt=None):
