@@ -23,6 +23,7 @@ import math
 import os
 import sys
 import platform
+import tempfile
 
 log = logging.getLogger('subiquity.models.filesystem')
 
@@ -712,7 +713,7 @@ class DM_Crypt:
     type = attr.ib(default="dm_crypt")
     dm_name = attr.ib(default=None)
     volume = attr.ib(default=None)  # _Formattable
-    key = attr.ib(default=None)
+    keyfile = attr.ib(default=None)
 
 
 @attr.s(cmp=False)
@@ -863,11 +864,14 @@ class FilesystemModel(object):
         dms = []
         for vg in self._vgs:
             if vg._passphrase:
+                fd, keyfile = tempfile.mkstemp()
+                with os.fdopen(fd, 'w') as fp:
+                    fp.write(vg._passphrase)
                 for volume in vg.devices:
                     dms.append(DM_Crypt(
                         id="dm-" + volume.id,
                         volume=volume,
-                        key=vg._passphrase))
+                        keyfile=keyfile))
 
         work = self._partitions + self._raids + dms + self._vgs + self._lvs
 
