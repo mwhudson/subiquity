@@ -46,7 +46,7 @@ class Subiquity(Application):
             "Network",
             "Proxy",
             "Mirror",
-            "Refresh",
+            "Refresh2",
             "Filesystem",
             "Identity",
             "SSH",

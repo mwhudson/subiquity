@@ -13,28 +13,45 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import enum
 import logging
+import time
 
 from subiquitycore.controller import BaseController
+from subiquitycore.core import Skip
 
 from subiquity.ui.views.refresh import RefreshView
 
 log = logging.getLogger("subiquitycore.controller.refresh")
 
 
+class CHECK_STATE(enum.Enum):
+    UNKNOWN = 1
+    AVAILABLE = 2
+    UNAVAILABLE = 3
+
+
 class RefreshController(BaseController):
 
     def __init__(self, common):
         super().__init__(common)
-        self.offered = False
+        self.update_state = CHECK_STATE.UNAVAILABLE
+        self.offered_at_first = False
+        self.run_in_bg(lambda : time.sleep(1), self._slept)
 
-    def default(self):
-        if self.offered:
-            # XXX should call self.cancel if we are moving backwards!!
-            self.done()
-        else:
-            self.offered = True
+    def _slept(self, fut):
+        self.update_state = CHECK_STATE.AVAILABLE
+
+    def default(self, index=1):
+        if self.offered_at_first and index == 2:
+            raise Skip()
+        if self.update_state == CHECK_STATE.UNAVAILABLE:
+            raise Skip()
+        if self.update_state == CHECK_STATE.AVAILABLE:
+            self.offered_at_first = True
             self.ui.set_body(RefreshView(self))
+        else:
+            raise NotImplementedError()
 
     def done(self):
         self.signal.emit_signal("next-screen")

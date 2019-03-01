@@ -21,6 +21,15 @@ from .keyboard import KeyboardController
 from .proxy import ProxyController
 from .mirror import MirrorController
 from .refresh import RefreshController
+
+class Refresh2Controller:
+    def __init__(self, common):
+        self.controller = common['controllers']['Refresh']
+    def default(self):
+        self.controller.default(2)
+    def register_signals(self):
+        pass
+
 from subiquitycore.controllers.login import LoginController
 from subiquitycore.controllers.network import NetworkController
 from .snaplist import SnapListController
@@ -37,6 +46,7 @@ __all__ = [
     'LoginController',
     'NetworkController',
     'RefreshController',
+    'Refresh2Controller',
     'SnapListController',
     'SSHController',
     'WelcomeController',

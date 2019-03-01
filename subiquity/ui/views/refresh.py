@@ -27,11 +27,19 @@ log = logging.getLogger('subiquity.refresh')
 class RefreshView(BaseView):
 
     title = _("Installer update available")
-    excerpt = _("A new version of the installer is available.")
+    offer_excerpt = _("A new version of the installer is available.")
+    progress_excerpt = _("Please wait while the updated installer is being "
+                         "downloaded. The installer will restart "
+                         "automatically when the download is complete.")
 
     def __init__(self, controller):
         self.controller = controller
 
+        self.offer_update()
+
+        super().__init__(self._w)
+
+    def offer_update(self, sender=None):
         rows = [Text("hi")]
 
         buttons = button_pile([
@@ -40,11 +48,18 @@ class RefreshView(BaseView):
             cancel_btn(_("Back"), on_press=self.cancel),
             ])
         buttons.base_widget.focus_position = 1
-
-        super().__init__(screen(rows, buttons, excerpt=_(self.excerpt)))
+        self._w = screen(rows, buttons, excerpt=_(self.offer_excerpt))
 
     def update(self, sender=None):
-        pass
+        self.controller.ui.set_header("Downloading update...")
+        rows = [Text("hi")]
+
+        buttons = [
+            cancel_btn(_("Cancel"), on_press=self.offer_update),
+            ]
+
+        self._w = screen(rows, buttons, excerpt=_(self.progress_excerpt))
+        #self.controller.start_refresh()
 
     def done(self, result=None):
         self.controller.done()
