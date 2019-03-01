@@ -15,7 +15,10 @@
 
 import enum
 import logging
+import os
 import time
+
+import requests.exceptions
 
 from subiquitycore.controller import BaseController
 from subiquitycore.core import Skip
@@ -26,7 +29,7 @@ log = logging.getLogger("subiquitycore.controller.refresh")
 
 
 class CHECK_STATE(enum.Enum):
-    UNKNOWN = 1
+    CHECKING = 1
     AVAILABLE = 2
     UNAVAILABLE = 3
 
@@ -35,21 +38,40 @@ class RefreshController(BaseController):
 
     def __init__(self, common):
         super().__init__(common)
-        self.update_state = CHECK_STATE.UNAVAILABLE
+        self.update_state = CHECK_STATE.CHECKING
         self.offered_at_first = False
-        self.run_in_bg(lambda : time.sleep(1), self._slept)
+        self.run_in_bg(self._bg_check_for_update, self._check_result)
 
-    def _slept(self, fut):
-        self.update_state = CHECK_STATE.AVAILABLE
+    def _bg_check_for_update(self):
+        return self.snapd_connection.get('v2/find', select='refresh')
+
+    def _check_result(self, fut):
+        try:
+            response = fut.result()
+            response.raise_for_status()
+        except requests.exceptions.RequestException:
+            log.exception("checking for update")
+            self.update_state = CHECK_STATE.UNAVAILABLE
+        result = response.json()
+        for snap in result["result"]:
+            if snap["name"] == os.environ.get("SNAP_NAME", "subiquity"):
+                self.update_state = CHECK_STATE.AVAILABLE
+                return
+        self.update_state = CHECK_STATE.UNAVAILABLE
 
     def default(self, index=1):
         if self.offered_at_first and index == 2:
             raise Skip()
         if self.update_state == CHECK_STATE.UNAVAILABLE:
             raise Skip()
-        if self.update_state == CHECK_STATE.AVAILABLE:
+        if self.update_state == CHECK_STATE.AVAILABLE and index == 1:
             self.offered_at_first = True
             self.ui.set_body(RefreshView(self))
+        elif self.update_state == CHECK_STATE.CHECKING:
+            if index == 2:
+                self.ui.set_body(RefreshView(self, still_checking=True))
+            else:
+                raise Skip()
         else:
             raise NotImplementedError()
 

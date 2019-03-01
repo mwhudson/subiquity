@@ -32,12 +32,18 @@ class RefreshView(BaseView):
                          "downloaded. The installer will restart "
                          "automatically when the download is complete.")
 
-    def __init__(self, controller):
+    def __init__(self, controller, still_checking=False):
         self.controller = controller
 
-        self.offer_update()
+        if still_checking:
+            self.still_checking()
+        else:
+            self.offer_update()
 
         super().__init__(self._w)
+
+    def still_checking(self):
+        pass
 
     def offer_update(self, sender=None):
         rows = [Text("hi")]
