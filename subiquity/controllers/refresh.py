@@ -17,6 +17,8 @@ import logging
 
 from subiquitycore.controller import BaseController
 
+from subiquity.ui.views.refresh import RefreshView
+
 log = logging.getLogger("subiquitycore.controller.refresh")
 
 
@@ -24,8 +26,17 @@ class RefreshController(BaseController):
 
     def __init__(self, common):
         super().__init__(common)
+        self.offered = False
 
     def default(self):
+        if self.offered:
+            # XXX should call self.cancel if we are moving backwards!!
+            self.done()
+        else:
+            self.offered = True
+            self.ui.set_body(RefreshView(self))
+
+    def done(self):
         self.signal.emit_signal("next-screen")
 
     def cancel(self, sender=None):
