@@ -15,15 +15,32 @@
 
 import logging
 
-from urwid import Text
+from urwid import (
+    ProgressBar,
+    Text,
+    )
 
 from subiquitycore.view import BaseView
 from subiquitycore.ui.buttons import forward_btn, done_btn, cancel_btn
 from subiquitycore.ui.utils import button_pile, screen
 
 from subiquity.controllers.refresh import CHECK_STATE
+from subiquity.ui.spinner import Spinner
 
 log = logging.getLogger('subiquity.refresh')
+
+
+class SnapdProgressBar(ProgressBar):
+    def __init__(self):
+        self.label = ""
+        self.done = ""
+        self.total = ""
+        super().__init__(
+            normal='progress_incomplete',
+            complete='progress_complete')
+
+    def get_text(self):
+        return "{} {} / {}" % (self.label, self.done, self.total)
 
 
 class RefreshView(BaseView):
@@ -48,6 +65,7 @@ class RefreshView(BaseView):
 
     def __init__(self, controller, still_checking=False):
         self.controller = controller
+        self.spinner = None
 
         if self.controller.update_state == CHECK_STATE.CHECKING:
             self.still_checking()
@@ -67,15 +85,19 @@ class RefreshView(BaseView):
             pass
 
     def still_checking(self):
-        rows = [Text("spinner")]
+        self.spinner = Spinner(self.controller.loop, style="texts")
+        self.spinner.start()
+        rows = [self.spinner]
 
         buttons = [
-            done_btn(_(""), on_press=self.offer_update),
+            done_btn(_("Continue without updating"), on_press=self.done),
             ]
 
         self._w = screen(rows, buttons, excerpt=_(self.progress_excerpt))
 
     def offer_update(self, sender=None):
+        if self.spinner is not None:
+            self.spinner.stop()
         rows = [Text("hi")]
 
         buttons = button_pile([
@@ -87,10 +109,12 @@ class RefreshView(BaseView):
         self._w = screen(rows, buttons, excerpt=_(self.offer_excerpt))
 
     def check_failed(self):
+        if self.spinner is not None:
+            self.spinner.stop()
         rows = [Text("hi")]
 
         buttons = button_pile([
-            forward_btn(_("Update"), on_press=self.update),
+            forward_btn(_("Retry"), on_press=self.still_checking),
             done_btn(_("Continue without updating"), on_press=self.done),
             cancel_btn(_("Back"), on_press=self.cancel),
             ])
@@ -99,17 +123,44 @@ class RefreshView(BaseView):
 
     def update(self, sender=None):
         self.controller.ui.set_header("Downloading update...")
-        rows = [Text("hi")]
+        self.doing_bar = SnapdProgressBar()
+        rows = [self.doing_bar]
 
         buttons = [
-            forward_btn(_("Continue without updating"), on_press=self.done),
+            forward_btn(_("Cancel update"), on_press=self.offer_update),
             ]
 
         self._w = screen(rows, buttons, excerpt=_(self.still_checking_excerpt))
-        #self.controller.start_refresh()
+        self.controller.start_refresh(self.update_started)
+
+    def update_started(self, change_id):
+        self.change_id = change_id
+        self.update_progress()
+
+    def update_progress(self):
+        self.controller.get_progress(self.change_id, self.updated_progress)
+
+    def updated_progress(self, change):
+        if change['Done']:
+            # Unlikely to get here because we should be being restarted!
+            return
+        for task in change['tasks']:
+            if task['status'] == "Doing":
+                self.doing_label = task['progress']['label']
+                done = task['progress']['done']
+                total = task['progress']['total']
+                self.doing_bar.label = task['progress']['label']
+                self.doing_bar.done = done
+                self.doing_bar.total = total
+                self.doing_bar.set_completion(100*done/total)
+        self.controller.loop.set_alarm_in(0.1, self.update_progress)
 
     def done(self, result=None):
+        if self.spinner is not None:
+            self.spinner.stop()
         self.controller.done()
 
     def cancel(self, result=None):
+        if self.spinner is not None:
+            self.spinner.stop()
         self.controller.cancel()
