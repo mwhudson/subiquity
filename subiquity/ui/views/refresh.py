@@ -21,31 +21,72 @@ from subiquitycore.view import BaseView
 from subiquitycore.ui.buttons import forward_btn, done_btn, cancel_btn
 from subiquitycore.ui.utils import button_pile, screen
 
+from subiquity.controllers.refresh import CHECK_STATE
+
 log = logging.getLogger('subiquity.refresh')
 
 
 class RefreshView(BaseView):
 
-    title = _("Installer update available")
-    offer_excerpt = _("A new version of the installer is available.")
-    progress_excerpt = _("Please wait while the updated installer is being "
-                         "downloaded. The installer will restart "
-                         "automatically when the download is complete.")
+    title = _(
+        "Installer update available"
+        )
+    offer_excerpt = _(
+        "A new version of the installer is available."
+        )
+    progress_excerpt = _(
+        "Please wait while the updated installer is being downloaded. The "
+        "installer will restart automatically when the download is complete."
+        )
+    still_checking_excerpt = _(
+        "Contacting the snap store to check if a new version of the "
+        "installer is available."
+        )
+    check_failed_excerpt = _(
+        "Contacting the snap store failed:"
+        )
 
     def __init__(self, controller, still_checking=False):
         self.controller = controller
 
-        if still_checking:
+        if self.controller.update_state == CHECK_STATE.CHECKING:
             self.still_checking()
         else:
             self.offer_update()
 
         super().__init__(self._w)
 
+    def update_check_status(self):
+        if self.controller.update_state == CHECK_STATE.UNAVAILABLE:
+            self.done()
+        elif self.controller.update_state == CHECK_STATE.FAILED:
+            self.check_failed()
+        elif self.controller.update_state == CHECK_STATE.AVAILABLE:
+            self.offer_update()
+        else:
+            pass
+
     def still_checking(self):
-        pass
+        rows = [Text("spinner")]
+
+        buttons = [
+            done_btn(_(""), on_press=self.offer_update),
+            ]
+
+        self._w = screen(rows, buttons, excerpt=_(self.progress_excerpt))
 
     def offer_update(self, sender=None):
+        rows = [Text("hi")]
+
+        buttons = button_pile([
+            forward_btn(_("Update"), on_press=self.update),
+            done_btn(_("Continue without updating"), on_press=self.done),
+            cancel_btn(_("Back"), on_press=self.cancel),
+            ])
+        buttons.base_widget.focus_position = 1
+        self._w = screen(rows, buttons, excerpt=_(self.offer_excerpt))
+
+    def check_failed(self):
         rows = [Text("hi")]
 
         buttons = button_pile([
@@ -61,10 +102,10 @@ class RefreshView(BaseView):
         rows = [Text("hi")]
 
         buttons = [
-            cancel_btn(_("Cancel"), on_press=self.offer_update),
+            forward_btn(_("Continue without updating"), on_press=self.done),
             ]
 
-        self._w = screen(rows, buttons, excerpt=_(self.progress_excerpt))
+        self._w = screen(rows, buttons, excerpt=_(self.still_checking_excerpt))
         #self.controller.start_refresh()
 
     def done(self, result=None):

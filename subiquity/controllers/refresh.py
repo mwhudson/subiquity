@@ -32,6 +32,7 @@ class CHECK_STATE(enum.Enum):
     CHECKING = 1
     AVAILABLE = 2
     UNAVAILABLE = 3
+    FAILED = 4
 
 
 class RefreshController(BaseController):
@@ -39,8 +40,10 @@ class RefreshController(BaseController):
     def __init__(self, common):
         super().__init__(common)
         self.update_state = CHECK_STATE.CHECKING
+        self.update_failure = None
         self.offered_at_first = False
         self.run_in_bg(self._bg_check_for_update, self._check_result)
+        self.view = None
 
     def _bg_check_for_update(self):
         return self.snapd_connection.get('v2/find', select='refresh')
@@ -49,34 +52,42 @@ class RefreshController(BaseController):
         try:
             response = fut.result()
             response.raise_for_status()
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as e:
             log.exception("checking for update")
-            self.update_state = CHECK_STATE.UNAVAILABLE
+            self.update_state = CHECK_STATE.FAILED
+            self.update_failure = e
         result = response.json()
         for snap in result["result"]:
             if snap["name"] == os.environ.get("SNAP_NAME", "subiquity"):
                 self.update_state = CHECK_STATE.AVAILABLE
                 return
         self.update_state = CHECK_STATE.UNAVAILABLE
+        if self.view is not None:
+            self.view.update_check_status()
 
     def default(self, index=1):
         if self.offered_at_first and index == 2:
             raise Skip()
-        if self.update_state == CHECK_STATE.UNAVAILABLE:
+        elif self.update_state == CHECK_STATE.UNAVAILABLE:
             raise Skip()
-        if self.update_state == CHECK_STATE.AVAILABLE and index == 1:
+        elif self.update_state == CHECK_STATE.AVAILABLE and index == 1:
             self.offered_at_first = True
-            self.ui.set_body(RefreshView(self))
+            self.view = RefreshView(self)
         elif self.update_state == CHECK_STATE.CHECKING:
             if index == 2:
-                self.ui.set_body(RefreshView(self, still_checking=True))
+                self.view = RefreshView(self, still_checking=True)
             else:
                 raise Skip()
+        elif self.update_state == CHECK_STATE.FAILED:
+            raise Skip()
         else:
             raise NotImplementedError()
+        self.ui.set_body(self.view)
 
     def done(self):
+        self.view = None
         self.signal.emit_signal("next-screen")
 
     def cancel(self, sender=None):
+        self.view = None
         self.signal.emit_signal("prev-screen")
