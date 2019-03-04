@@ -292,7 +292,7 @@ class Application:
             self.controllers = [c for c in self.controllers
                                 if c in opts.screens]
         ui.progress_completion = len(self.controllers)
-        self.common['controllers'] = dict.fromkeys(self.controllers)
+        self.common['controllers'] = {}
         self.controller_index = -1
 
     def _connect_base_signals(self):
@@ -458,6 +458,8 @@ class Application:
             controllers_mod = __import__('%s.controllers' % self.project,
                                          None, None, [''])
             for k in self.controllers:
+                if k in self.common['controllers']:
+                    continue
                 log.debug("Importing controller: {}".format(k))
                 klass = getattr(controllers_mod, k+"Controller")
                 self.common['controllers'][k] = klass(self.common)
