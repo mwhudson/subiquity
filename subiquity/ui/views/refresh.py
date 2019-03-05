@@ -21,8 +21,8 @@ from urwid import (
     )
 
 from subiquitycore.view import BaseView
-from subiquitycore.ui.anchors import StepsProgressBar
 from subiquitycore.ui.buttons import forward_btn, done_btn, cancel_btn
+from subiquitycore.ui.container import ListBox
 from subiquitycore.ui.utils import button_pile, screen
 
 from subiquity.controllers.refresh import CHECK_STATE
@@ -103,7 +103,8 @@ class RefreshView(BaseView):
         self.controller = controller
         self.spinner = None
 
-        self.last_task_id = None
+        self.task_to_bar = {}
+        self.lb_taskbars = {}
 
         if self.controller.update_state == CHECK_STATE.CHECKING:
             self.still_checking()
@@ -161,14 +162,13 @@ class RefreshView(BaseView):
 
     def update(self, sender=None):
         self.controller.ui.set_header("Downloading update...")
-        self.task_bar = SnapdProgressBar()
-        rows = [self.task_bar]
+        self.lb_taskbars = ListBox()
 
         buttons = [
             cancel_btn(_("Cancel update"), on_press=self.offer_update),
             ]
 
-        self._w = screen(rows, buttons, excerpt=_(self.progress_excerpt))
+        self._w = screen(self.lb_taskbars, buttons, excerpt=_(self.progress_excerpt))
         self.controller.start_update(self.update_started)
 
     def update_started(self, change_id):
@@ -185,21 +185,32 @@ class RefreshView(BaseView):
             self.done()
             return
         for task in change['tasks']:
+            tid = task['id']
+            if task['status'] == "Done":
+                bar = self.task_to_bar.get(tid)
+                if bar is not None:
+                    self.lb_taskbars.base_widget.body.remove(bar)
+                    del self.task_to_bar[tid]
             if task['status'] == "Doing":
+                if tid not in self.task_to_bar:
+                    bar = SnapdProgressBar()
+                    self.lb_taskbars.base_widget.body.append(bar)
+                    self.task_to_bar[tid] = bar
+                else:
+                    bar = self.task_to_bar[tid]
                 total = task['progress']['total']
                 done = task['progress']['done']
                 total = task['progress']['total']
-                self.task_bar.label = task['summary']
+                bar.label = task['summary']
                 if total == 1:
-                    self.task_bar.start_spinning()
-                    self.task_bar.spin()
-                    self.task_bar.set_completion(0)
+                    bar.start_spinning()
+                    bar.spin()
+                    bar.set_completion(0)
                 else:
-                    self.task_bar.stop_spinning()
-                    self.task_bar.done_text = fmt(done)
-                    self.task_bar.total_text = fmt(total) + " MiB"
-                    self.task_bar.set_completion(100*done/total)
-                self.last_task_id == task['id']
+                    bar.stop_spinning()
+                    bar.done_text = fmt(done)
+                    bar.total_text = fmt(total) + " MiB"
+                    bar.set_completion(100*done/total)
         self.controller.loop.set_alarm_in(0.1, self.update_progress)
 
     def done(self, result=None):

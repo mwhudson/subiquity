@@ -66,6 +66,8 @@ class RefreshController(BaseController):
             self.view.update_check_status()
 
     def start_update(self, callback):
+        update_marker = os.path.join(self.application.state_dir, 'restarting')
+        open(update_marker, 'w').close()
         self.run_in_bg(
             self._bg_start_update,
             lambda fut: self.update_started(fut, callback))
