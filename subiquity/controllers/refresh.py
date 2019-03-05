@@ -103,10 +103,7 @@ class RefreshController(BaseController):
             self.update_state = CHECK_STATE.FAILED
             self.update_failure = e
         result = response.json()
-        #log.debug("%s", result.keys())
-        #log.debug("%s", result)
-        ### should massage example data so this can be result['result']!!!
-        callback(result)
+        callback(result['result'])
 
     def default(self, index=1):
         if self.updated:
