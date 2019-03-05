@@ -69,7 +69,7 @@ class SnapdProgressBar(ProgressBar):
         if len(self.label) > left:
             label = self.label[:left-3] + '...'
         else:
-            label = self.label
+            label = self.label + ' ' * (left - len(self.label))
         return label + ' ' + suffix
 
 
