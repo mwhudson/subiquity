@@ -73,6 +73,11 @@ class SnapdProgressBar(ProgressBar):
         return label + ' ' + suffix
 
 
+def fmt(q):
+    q /= 1024*1024
+    return "{:.2f}".format(q)
+
+
 class RefreshView(BaseView):
 
     title = _(
@@ -133,7 +138,7 @@ class RefreshView(BaseView):
         rows = [Text("hi")]
 
         buttons = button_pile([
-            forward_btn(_("Update"), on_press=self.update),
+            done_btn(_("Update"), on_press=self.update),
             done_btn(_("Continue without updating"), on_press=self.done),
             cancel_btn(_("Back"), on_press=self.cancel),
             ])
@@ -159,7 +164,7 @@ class RefreshView(BaseView):
         rows = [self.doing_bar]
 
         buttons = [
-            forward_btn(_("Cancel update"), on_press=self.offer_update),
+            cancel_btn(_("Cancel update"), on_press=self.offer_update),
             ]
 
         self._w = screen(rows, buttons, excerpt=_(self.progress_excerpt))
@@ -191,8 +196,8 @@ class RefreshView(BaseView):
                     self.doing_bar.set_completion(0)
                 else:
                     self.doing_bar.stop_spinning()
-                    self.doing_bar.done_text = done
-                    self.doing_bar.total_text = total
+                    self.doing_bar.done_text = fmt(done)
+                    self.doing_bar.total_text = fmt(total) + " MiB"
                     self.doing_bar.set_completion(100*done/total)
                 self.last_task_id == task['id']
         self.controller.loop.set_alarm_in(0.1, self.update_progress)
