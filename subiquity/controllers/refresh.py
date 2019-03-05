@@ -16,17 +16,11 @@
 import enum
 import logging
 import os
-import time
 
 import requests.exceptions
 
 from subiquitycore.controller import BaseController
 from subiquitycore.core import Skip
-
-from subiquity.ui.views.refresh import RefreshView
-
-log = logging.getLogger("subiquitycore.controller.refresh")
-
 
 class CHECK_STATE(enum.Enum):
     CHECKING = 1
@@ -34,11 +28,17 @@ class CHECK_STATE(enum.Enum):
     UNAVAILABLE = 3
     FAILED = 4
 
+from subiquity.ui.views.refresh import RefreshView
+
+log = logging.getLogger("subiquitycore.controller.refresh")
+
+
 
 class RefreshController(BaseController):
 
     def __init__(self, common):
         super().__init__(common)
+        self.snap_name = os.environ.get("SNAP_NAME", "subiquity")
         self.update_state = CHECK_STATE.CHECKING
         self.update_failure = None
         self.offered_at_first = False
@@ -64,6 +64,49 @@ class RefreshController(BaseController):
         self.update_state = CHECK_STATE.UNAVAILABLE
         if self.view is not None:
             self.view.update_check_status()
+
+    def start_update(self, callback):
+        self.run_in_bg(
+            self._bg_start_update,
+            lambda fut: self.update_started(fut, callback))
+
+    def _bg_start_update(self):
+        return self.snapd_connection.post(
+            'v2/snaps/subiquity', {'action':'refresh'})
+
+    def update_started(self, fut, callback):
+        try:
+            response = fut.result()
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            log.exception("checking for update")
+            self.update_state = CHECK_STATE.FAILED
+            self.update_failure = e
+        result = response.json()
+        log.debug("%s", result)
+        callback(result['change'])
+
+    def get_progress(self, change, callback):
+        self.run_in_bg(
+            lambda: self._bg_get_progress(change),
+            lambda fut: self.got_progress(fut, callback))
+
+    def _bg_get_progress(self, change):
+        return self.snapd_connection.get('v2/changes/{}'.format(change))
+
+    def got_progress(self, fut, callback):
+        try:
+            response = fut.result()
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            log.exception("checking for update")
+            self.update_state = CHECK_STATE.FAILED
+            self.update_failure = e
+        result = response.json()
+        #log.debug("%s", result.keys())
+        #log.debug("%s", result)
+        ### should massage example data so this can be result['result']!!!
+        callback(result)
 
     def default(self, index=1):
         if self.offered_at_first and index == 2:

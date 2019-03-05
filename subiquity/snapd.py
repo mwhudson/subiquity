@@ -88,6 +88,6 @@ class FakeSnapdConnection:
         if os.path.isdir(filepath):
             i = self.path_responses.get(filepath, 0)
             self.path_responses[filepath] = i + 1
-            return _FakeFileResponse('{}/{:04}.json', filepath, i)
+            return _FakeFileResponse('{}/{:04}.json'.format(filepath, i))
         raise Exception(
             "Don't know how to fake GET response to {}".format((path, args)))

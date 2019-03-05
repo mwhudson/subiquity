@@ -29,18 +29,48 @@ from subiquity.ui.spinner import Spinner
 
 log = logging.getLogger('subiquity.refresh')
 
+spin_texts = ['-', '\\', '|', '/']
 
 class SnapdProgressBar(ProgressBar):
     def __init__(self):
         self.label = ""
-        self.done = ""
-        self.total = ""
+        self.done_text = ""
+        self.total_text = ""
+        self.spinning = True
+        self.spin_text = ''
+        self.spin_i = 0
+        self.maxcol = 76
+
         super().__init__(
             normal='progress_incomplete',
             complete='progress_complete')
 
+    def start_spinning(self):
+        self.spinning = True
+
+    def stop_spinning(self):
+        self.spinning = False
+
+    def spin(self):
+        self.spin_text = spin_texts[self.spin_i % len(spin_texts)]
+        self.spin_i += 1
+        self._invalidate()
+
+    def render(self, size, focus=False):
+        self.maxcol = size[0]
+        return super().render(size, focus)
+
     def get_text(self):
-        return "{} {} / {}" % (self.label, self.done, self.total)
+        if self.spinning:
+            suffix = self.spin_text
+        else:
+            suffix =  "{} / {}".format(self.done_text, self.total_text)
+        left = self.maxcol - len(suffix) - 3
+        if len(self.label) > left:
+            label = self.label[:left-3] + '...'
+        else:
+            label = self.label
+        return label + ' ' + suffix
 
 
 class RefreshView(BaseView):
@@ -66,6 +96,8 @@ class RefreshView(BaseView):
     def __init__(self, controller, still_checking=False):
         self.controller = controller
         self.spinner = None
+
+        self.last_task_id = None
 
         if self.controller.update_state == CHECK_STATE.CHECKING:
             self.still_checking()
@@ -93,7 +125,7 @@ class RefreshView(BaseView):
             done_btn(_("Continue without updating"), on_press=self.done),
             ]
 
-        self._w = screen(rows, buttons, excerpt=_(self.progress_excerpt))
+        self._w = screen(rows, buttons, excerpt=_(self.still_checking_excerpt))
 
     def offer_update(self, sender=None):
         if self.spinner is not None:
@@ -130,29 +162,39 @@ class RefreshView(BaseView):
             forward_btn(_("Cancel update"), on_press=self.offer_update),
             ]
 
-        self._w = screen(rows, buttons, excerpt=_(self.still_checking_excerpt))
-        self.controller.start_refresh(self.update_started)
+        self._w = screen(rows, buttons, excerpt=_(self.progress_excerpt))
+        self.controller.start_update(self.update_started)
 
     def update_started(self, change_id):
         self.change_id = change_id
         self.update_progress()
 
-    def update_progress(self):
+    def update_progress(self, loop=None, ud=None):
         self.controller.get_progress(self.change_id, self.updated_progress)
 
     def updated_progress(self, change):
-        if change['Done']:
-            # Unlikely to get here because we should be being restarted!
+        if change['status'] == 'Done':
+            # Won't get here when not in dry run mode as we'll have been
+            # restarted.
+            self.done()
             return
         for task in change['tasks']:
             if task['status'] == "Doing":
+                total = task['progress']['total']
                 self.doing_label = task['progress']['label']
                 done = task['progress']['done']
                 total = task['progress']['total']
-                self.doing_bar.label = task['progress']['label']
-                self.doing_bar.done = done
-                self.doing_bar.total = total
-                self.doing_bar.set_completion(100*done/total)
+                self.doing_bar.label = task['summary']
+                if total == 1:
+                    self.doing_bar.start_spinning()
+                    self.doing_bar.spin()
+                    self.doing_bar.set_completion(0)
+                else:
+                    self.doing_bar.stop_spinning()
+                    self.doing_bar.done_text = done
+                    self.doing_bar.total_text = total
+                    self.doing_bar.set_completion(100*done/total)
+                self.last_task_id == task['id']
         self.controller.loop.set_alarm_in(0.1, self.update_progress)
 
     def done(self, result=None):
