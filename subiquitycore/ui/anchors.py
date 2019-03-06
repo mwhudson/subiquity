@@ -44,6 +44,12 @@ class Header(WidgetWrap):
 
 class StepsProgressBar(ProgressBar):
 
+    def __init__(self, **kw):
+        super().__init__(
+            normal='progress_incomplete',
+            complete='progress_complete',
+            **kw)
+
     def get_text(self):
         return "{} / {}".format(self.current, self.done)
 
@@ -60,9 +66,7 @@ class Footer(WidgetWrap):
             message = Text(message)
         message = Padding.center_79(message, min_width=76)
         progress_bar = Padding.center_60(
-            StepsProgressBar(normal='progress_incomplete',
-                             complete='progress_complete',
-                             current=current, done=complete))
+            StepsProgressBar(current=current, done=complete))
         status = [
             progress_bar,
             Padding.line_break(""),

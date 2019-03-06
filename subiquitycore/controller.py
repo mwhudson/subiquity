@@ -27,6 +27,8 @@ class BaseController(ABC):
     signals = []
 
     def __init__(self, common):
+        self.application = common['application']
+        self.updated = common['updated']
         self.ui = common['ui']
         self.signal = common['signal']
         self.opts = common['opts']

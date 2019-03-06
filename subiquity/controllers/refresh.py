@@ -109,7 +109,9 @@ class RefreshController(BaseController):
         callback(result)
 
     def default(self, index=1):
-        if self.offered_at_first and index == 2:
+        if self.updated:
+            raise Skip()
+        elif self.offered_at_first and index == 2:
             raise Skip()
         elif self.update_state == CHECK_STATE.UNAVAILABLE:
             raise Skip()

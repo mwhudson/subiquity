@@ -21,6 +21,7 @@ from urwid import (
     )
 
 from subiquitycore.view import BaseView
+from subiquitycore.ui.anchors import StepsProgressBar
 from subiquitycore.ui.buttons import forward_btn, done_btn, cancel_btn
 from subiquitycore.ui.utils import button_pile, screen
 
@@ -160,8 +161,8 @@ class RefreshView(BaseView):
 
     def update(self, sender=None):
         self.controller.ui.set_header("Downloading update...")
-        self.doing_bar = SnapdProgressBar()
-        rows = [self.doing_bar]
+        self.task_bar = SnapdProgressBar()
+        rows = [self.task_bar]
 
         buttons = [
             cancel_btn(_("Cancel update"), on_press=self.offer_update),
@@ -186,19 +187,18 @@ class RefreshView(BaseView):
         for task in change['tasks']:
             if task['status'] == "Doing":
                 total = task['progress']['total']
-                self.doing_label = task['progress']['label']
                 done = task['progress']['done']
                 total = task['progress']['total']
-                self.doing_bar.label = task['summary']
+                self.task_bar.label = task['summary']
                 if total == 1:
-                    self.doing_bar.start_spinning()
-                    self.doing_bar.spin()
-                    self.doing_bar.set_completion(0)
+                    self.task_bar.start_spinning()
+                    self.task_bar.spin()
+                    self.task_bar.set_completion(0)
                 else:
-                    self.doing_bar.stop_spinning()
-                    self.doing_bar.done_text = fmt(done)
-                    self.doing_bar.total_text = fmt(total) + " MiB"
-                    self.doing_bar.set_completion(100*done/total)
+                    self.task_bar.stop_spinning()
+                    self.task_bar.done_text = fmt(done)
+                    self.task_bar.total_text = fmt(total) + " MiB"
+                    self.task_bar.set_completion(100*done/total)
                 self.last_task_id == task['id']
         self.controller.loop.set_alarm_in(0.1, self.update_progress)
 
