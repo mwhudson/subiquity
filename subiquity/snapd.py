@@ -32,6 +32,13 @@ class SnapdConnection:
         self.url_base = "http+unix://{}/".format(quote_plus(sock))
         self.session = requests_unixsocket.Session()
 
+    def post(self, path, body, **args):
+        if args:
+            path += '?' + urlencode(args)
+        return self.session.post(
+            self.url_base + path, data=json.dumps(body),
+            timeout=60)
+
     def get(self, path, **args):
         if args:
             path += '?' + urlencode(args)
