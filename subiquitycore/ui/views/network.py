@@ -104,7 +104,7 @@ class NetworkView(BaseView):
     def __init__(self, model, controller):
         self.model = model
         self.controller = controller
-        self.dev_to_row = {}
+        self.dev_to_table = {}
         self.cur_netdevs = []
         self.error = Text("", align='center')
 
@@ -208,7 +208,7 @@ class NetworkView(BaseView):
         return (dev.name, dev.type, notes)
 
     def new_link(self, new_dev):
-        if new_dev in self.dev_to_row:
+        if new_dev in self.dev_to_table:
             self.update_link(new_dev)
             return
         for i, cur_dev in enumerate(self.cur_netdevs):
@@ -217,41 +217,45 @@ class NetworkView(BaseView):
                 break
         else:
             netdev_i = len(self.cur_netdevs)
-        new_rows = self._rows_for_device(new_dev, netdev_i)
-        self.device_pile.contents[3*netdev_i+1:3*netdev_i+1] = [
-            (r, self.device_pile.options('pack')) for r in new_rows]
+        w = self._device_widget(new_dev, netdev_i)
+        self.device_pile.contents[netdev_i+1:netdev_i+1] = [
+            (w, self.device_pile.options('pack'))]
 
     def update_link(self, dev):
-        row = self.dev_to_row[dev]
+        table = self.dev_to_table[dev]
+        [row] = table.table_rows
+        row = row.base_widget
         for i, text in enumerate(self._cells_for_device(dev)):
             row.columns[2*(i+1)].set_text(text)
+        table.invalidate()
 
-    def _remove_rows(self, start, end):
+    def _remove_row(self, netdev_i):
         # MonitoredFocusList clamps the focus position to the new
         # length of the list when you remove elements but it doesn't
         # check that that the element it moves the focus to is
         # selectable...
-        new_length = len(self.device_pile.contents) - (end - start)
+        new_length = len(self.device_pile.contents) - 1
         refocus = self.device_pile.focus_position >= new_length
-        del self.device_pile.contents[start:end]
+        del self.device_pile.contents[netdev_i]
         if refocus:
             self.device_pile._select_last_selectable()
         else:
             while not self.device_pile.focus.selectable():
                 self.device_pile.focus_position += 1
+            self.device_pile.focus._select_first_selectable()
 
     def del_link(self, dev):
         log.debug("del_link %s", (dev in self.cur_netdevs))
         if dev in self.cur_netdevs:
             netdev_i = self.cur_netdevs.index(dev)
-            self._remove_rows(3*netdev_i, 3*(netdev_i+1))
+            self._remove_row(netdev_i+1)
             del self.cur_netdevs[netdev_i]
         if isinstance(self._w, StretchyOverlay):
             stretchy = self._w.stretchy
             if getattr(stretchy, 'device', None) is dev:
                 self.remove_overlay()
 
-    def _rows_for_device(self, dev, netdev_i=None):
+    def _device_widget(self, dev, netdev_i=None):
         if netdev_i is None:
             netdev_i = len(self.cur_netdevs)
         rows = []
@@ -273,9 +277,9 @@ class NetworkView(BaseView):
             menu,
             Text("]"),
             ], menu)
-        self.dev_to_row[dev] = row.base_widget
         self.cur_netdevs[netdev_i:netdev_i] = [dev]
         table = TablePile([row], colspecs=self.device_colspecs, spacing=2)
+        self.dev_to_table[dev] = table
         table.bind(self.heading_table)
         rows.append(table)
         if dev.type == "vlan":
@@ -289,7 +293,7 @@ class NetworkView(BaseView):
                 dev.info.hwaddr, dev.info.vendor, dev.info.model])
         rows.append(Color.info_minor(Text("  " + info)))
         rows.append(Text(""))
-        return rows
+        return Pile([('pack', r) for r in rows])
 
     def _build_model_inputs(self):
         self.heading_table = TablePile([
@@ -302,7 +306,7 @@ class NetworkView(BaseView):
             spacing=2, colspecs=self.device_colspecs)
         rows = [self.heading_table]
         for dev in self.model.get_all_netdevs():
-            rows.extend(self._rows_for_device(dev))
+            rows.append(self._device_widget(dev))
         return rows
 
     def _create_bond(self, sender=None):
