@@ -107,12 +107,13 @@ class NetworkView(BaseView):
         self.dev_to_row = {}
         self.cur_netdevs = []
         self.error = Text("", align='center')
-        self.device_table = TablePile(
-            self._build_model_inputs(),
-            spacing=2, colspecs={
-                0: ColSpec(rpad=1),
-                4: ColSpec(can_shrink=True, rpad=1),
-                })
+
+        self.device_colspecs = {
+            0: ColSpec(rpad=1),
+            4: ColSpec(can_shrink=True, rpad=1),
+            }
+
+        self.device_pile = Pile(self._build_model_inputs())
 
         self._create_bond_btn = menu_btn(
             _("Create bond"), on_press=self._create_bond)
@@ -120,7 +121,7 @@ class NetworkView(BaseView):
         bp.align = 'left'
 
         rows = [
-            self.device_table,
+            self.device_pile,
             bp,
         ]
 
@@ -217,19 +218,33 @@ class NetworkView(BaseView):
         else:
             netdev_i = len(self.cur_netdevs)
         new_rows = self._rows_for_device(new_dev, netdev_i)
-        self.device_table.insert_rows(3*netdev_i+1, new_rows)
+        self.device_pile.contents[3*netdev_i+1:3*netdev_i+1] = [
+            (r, self.device_pile.options('pack')) for r in new_rows]
 
     def update_link(self, dev):
         row = self.dev_to_row[dev]
-        self.device_table.invalidate()
         for i, text in enumerate(self._cells_for_device(dev)):
             row.columns[2*(i+1)].set_text(text)
+
+    def _remove_rows(self, start, end):
+        # MonitoredFocusList clamps the focus position to the new
+        # length of the list when you remove elements but it doesn't
+        # check that that the element it moves the focus to is
+        # selectable...
+        new_length = len(self.device_pile.contents) - (end - start)
+        refocus = self.device_pile.focus_position >= new_length
+        del self.device_pile.contents[start:end]
+        if refocus:
+            self.device_pile._select_last_selectable()
+        else:
+            while not self.device_pile.focus.selectable():
+                self.device_pile.focus_position += 1
 
     def del_link(self, dev):
         log.debug("del_link %s", (dev in self.cur_netdevs))
         if dev in self.cur_netdevs:
             netdev_i = self.cur_netdevs.index(dev)
-            self.device_table.remove_rows(3*netdev_i, 3*(netdev_i+1))
+            self._remove_rows(3*netdev_i, 3*(netdev_i+1))
             del self.cur_netdevs[netdev_i]
         if isinstance(self._w, StretchyOverlay):
             stretchy = self._w.stretchy
@@ -260,7 +275,9 @@ class NetworkView(BaseView):
             ], menu)
         self.dev_to_row[dev] = row.base_widget
         self.cur_netdevs[netdev_i:netdev_i] = [dev]
-        rows.append(row)
+        table = TablePile([row], colspecs=self.device_colspecs, spacing=2)
+        table.bind(self.heading_table)
+        rows.append(table)
         if dev.type == "vlan":
             info = _("VLAN {id} on interface {link}").format(
                 **dev.config)
@@ -270,18 +287,20 @@ class NetworkView(BaseView):
         else:
             info = " / ".join([
                 dev.info.hwaddr, dev.info.vendor, dev.info.model])
-        rows.append(Color.info_minor(TableRow([
-            Text(""),
-            (4, Text(info)),
-            Text("")])))
-        rows.append(Color.info_minor(TableRow([(4, Text(""))])))
+        rows.append(Color.info_minor(Text("  " + info)))
+        rows.append(Text(""))
         return rows
 
     def _build_model_inputs(self):
-        rows = []
-        rows.append(TableRow([
-            Color.info_minor(Text(header))
-            for header in ["", "NAME", "TYPE", "NOTES / ADDRESSES", ""]]))
+        self.heading_table = TablePile([
+            TableRow([
+                Color.info_minor(Text(header)) for header in [
+                    "", "NAME", "TYPE", "NOTES / ADDRESSES", "",
+                    ]
+                ])
+            ],
+            spacing=2, colspecs=self.device_colspecs)
+        rows = [self.heading_table]
         for dev in self.model.get_all_netdevs():
             rows.extend(self._rows_for_device(dev))
         return rows
