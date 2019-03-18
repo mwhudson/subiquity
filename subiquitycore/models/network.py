@@ -110,6 +110,12 @@ class NetworkDev(object):
         self.config = {}
         self.info = None
 
+    def modified(self):
+        if self.info is None:
+            return True
+        else:
+            return self.config != self.model.config_for_device(self.info)
+
     @property
     def name(self):
         return self._name

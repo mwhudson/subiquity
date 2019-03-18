@@ -1,4 +1,4 @@
-# Copyright 2015 Canonical, Ltd.
+# Copyright 2015 Canonical, Ltd.done_
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -39,6 +39,7 @@ from subiquitycore.ui.buttons import (
     cancel_btn,
     done_btn,
     menu_btn,
+    other_btn,
     )
 from subiquitycore.ui.container import (
     Pile,
@@ -125,12 +126,12 @@ class NetworkView(BaseView):
             bp,
         ]
 
-        buttons = button_pile([
+        self.buttons = button_pile([
                     done_btn(_("Done"), on_press=self.done),
                     back_btn(_("Back"), on_press=self.cancel),
                     ])
         self.bottom = Pile([
-            ('pack', buttons),
+            ('pack', self.buttons),
         ])
 
         self.error_showing = False
@@ -141,17 +142,37 @@ class NetworkView(BaseView):
             focus_buttons=True,
             excerpt=self.excerpt))
 
-    def _build_buttons(self):
-        back = back_btn(_("Back"), on_press=self.cancel)
-        done = done_btn(_("Done"), on_press=self.done)
-        return button_pile([done, back])
-
     _action_INFO = _stretchy_shower(ViewInterfaceInfo)
     _action_EDIT_WLAN = _stretchy_shower(NetworkConfigureWLANStretchy)
     _action_EDIT_IPV4 = _stretchy_shower(EditNetworkStretchy, 4)
     _action_EDIT_IPV6 = _stretchy_shower(EditNetworkStretchy, 6)
     _action_EDIT_BOND = _stretchy_shower(BondStretchy)
     _action_ADD_VLAN = _stretchy_shower(AddVlanStretchy)
+
+    def _make_buttons(self):
+        if len(self.model.get_all_netdevs()) == 0:
+            buttons = [
+                done_btn(_("Continue without network"), on_press=self.done),
+                ]
+        elif self.applying:
+            buttons = [
+                done_btn(_("Cancel"), on_press=self.apply),
+                ]
+        elif self.edits_made:
+            buttons = [
+                done_btn(_("Apply"), on_press=self.apply),
+                other_btn(_("Reset"), on_press=self.reset),
+                ]
+        elif self.controller.has_default_route:
+            buttons = [
+                done_btn(_("Done"), on_press=self.apply),
+                ]
+        else:
+            buttons = [
+                done_btn(_("Continue without network"), on_press=self.apply),
+                ]
+        buttons.append(back_btn(_("Back"), on_press=self.cancel))
+        return buttons
 
     def _action_DELETE(self, device):
         touched_devs = set()
