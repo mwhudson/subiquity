@@ -111,6 +111,7 @@ class NetworkView(BaseView):
 
         self.device_colspecs = {
             0: ColSpec(rpad=1),
+            3: ColSpec(min_width=15),
             4: ColSpec(can_shrink=True, rpad=1),
             }
 
@@ -197,36 +198,37 @@ class NetworkView(BaseView):
             if dev.name in dev2.config.get('interfaces', []):
                 notes.append(_("enslaved to {}").format(dev2.name))
                 break
-        for v in 4, 6:
-            configured_ip_addresses = []
-            for ip in dev.config.get('addresses', []):
-                if addr_version(ip) == v:
-                    configured_ip_addresses.append(ip)
-            notes.extend([
-                "{} (static)".format(a)
-                for a in configured_ip_addresses
-                ])
-            if dev.config.get('dhcp{v}'.format(v=v)):
-                if v == 4:
-                    fam = AF_INET
-                elif v == 6:
-                    fam = AF_INET6
-                fam_addresses = []
-                if dev.info is not None:
-                    for a in dev.info.addresses.values():
-                        if a.family == fam and a.source == 'dhcp':
-                            fam_addresses.append("{} (from dhcp)".format(
-                                a.address))
-                if fam_addresses:
-                    notes.extend(fam_addresses)
-                else:
-                    notes.append(
-                        _("DHCPv{v} has supplied no addresses").format(v=v))
         if notes:
             notes = ", ".join(notes)
         else:
             notes = '-'
-        return (dev.name, dev.type, notes)
+        extra_rows = []
+        dhcp_addresses = {}
+        if dev.info is not None:
+            for a in dev.info.addresses.values():
+                if a.family == AF_INET:
+                    v = 4
+                elif a.family == AF_INET6:
+                    v = 6
+                else:
+                    continue
+                if 1 or a.source == 'dhcp':
+                    dhcp_addresses.setdefault(v, []).append(str(a.address))
+        for v in 4, 6:
+            if dev.config.get('dhcp{v}'.format(v=v), False):
+                addrs = dhcp_addresses.get(v)
+                if addrs:
+                    extra_rows.extend([("DHCP", addr) for addr in addrs])
+                else:
+                    extra_rows.append(("DHCP", "v{v} pending".format(v=v)))
+            else:
+                for ip in dev.config.get('addresses', []):
+                    if addr_version(ip) == v:
+                        extra_rows.append(('static', str(ip)))
+        extra_rows = [
+            TableRow([Text(""), Text(label), (2, Text(value))]) for label, value in extra_rows
+            ]
+        return (dev.name, dev.type, notes, extra_rows)
 
     def new_link(self, new_dev):
         if new_dev in self.dev_to_table:
@@ -244,10 +246,14 @@ class NetworkView(BaseView):
 
     def update_link(self, dev):
         table = self.dev_to_table[dev]
-        [row] = table.table_rows
-        row = row.base_widget
-        for i, text in enumerate(self._cells_for_device(dev)):
+        rows = table.table_rows
+        row = rows[0].base_widget
+        cells = list(self._cells_for_device(dev))
+        extra_rows = cells.pop()
+        for i, text in enumerate(cells):
             row.columns[2*(i+1)].set_text(text)
+        table.remove_rows(1, len(table.table_rows))
+        table.insert_rows(1, extra_rows)
         table.invalidate()
 
     def _remove_row(self, netdev_i):
@@ -280,7 +286,7 @@ class NetworkView(BaseView):
         if netdev_i is None:
             netdev_i = len(self.cur_netdevs)
         rows = []
-        name, typ, addresses = self._cells_for_device(dev)
+        name, typ, addresses, extra_rows = self._cells_for_device(dev)
         actions = []
         for action in NetDevAction:
             meth = getattr(self, '_action_' + action.name)
@@ -290,16 +296,17 @@ class NetworkView(BaseView):
                     (_(action.value), True, (action, meth), opens_dialog))
         menu = ActionMenu(actions)
         connect_signal(menu, 'action', self._action, dev)
-        row = make_action_menu_row([
+        trows = [make_action_menu_row([
             Text("["),
             Text(name),
             Text(typ),
             Text(addresses, wrap='clip'),
             menu,
             Text("]"),
-            ], menu)
+            ], menu)]
         self.cur_netdevs[netdev_i:netdev_i] = [dev]
-        table = TablePile([row], colspecs=self.device_colspecs, spacing=2)
+        trows.extend(extra_rows)
+        table = TablePile(trows, colspecs=self.device_colspecs, spacing=2)
         self.dev_to_table[dev] = table
         table.bind(self.heading_table)
         rows.append(table)
@@ -320,7 +327,7 @@ class NetworkView(BaseView):
         self.heading_table = TablePile([
             TableRow([
                 Color.info_minor(Text(header)) for header in [
-                    "", "NAME", "TYPE", "NOTES / ADDRESSES", "",
+                    "", "NAME", "TYPE", "NOTES", "",
                     ]
                 ])
             ],
