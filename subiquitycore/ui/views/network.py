@@ -150,31 +150,6 @@ class NetworkView(BaseView):
     _action_EDIT_BOND = _stretchy_shower(BondStretchy)
     _action_ADD_VLAN = _stretchy_shower(AddVlanStretchy)
 
-    def _make_buttons(self):
-        if len(self.model.get_all_netdevs()) == 0:
-            buttons = [
-                done_btn(_("Continue without network"), on_press=self.done),
-                ]
-        elif self.applying:
-            buttons = [
-                done_btn(_("Cancel"), on_press=self.apply),
-                ]
-        elif self.edits_made:
-            buttons = [
-                done_btn(_("Apply"), on_press=self.apply),
-                other_btn(_("Reset"), on_press=self.reset),
-                ]
-        elif self.controller.has_default_route:
-            buttons = [
-                done_btn(_("Done"), on_press=self.apply),
-                ]
-        else:
-            buttons = [
-                done_btn(_("Continue without network"), on_press=self.apply),
-                ]
-        buttons.append(back_btn(_("Back"), on_press=self.cancel))
-        return buttons
-
     def _action_DELETE(self, device):
         touched_devs = set()
         if device.type == "bond":
