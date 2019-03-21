@@ -45,6 +45,7 @@ from subiquitycore.ui.container import (
     Pile,
     WidgetWrap,
     )
+from subiquitycore.ui.spinner import Spinner
 from subiquitycore.ui.stretchy import StretchyOverlay
 from subiquitycore.ui.table import ColSpec, TablePile, TableRow
 from subiquitycore.ui.utils import (
@@ -128,7 +129,7 @@ class NetworkView(BaseView):
         ]
 
         self.buttons = button_pile([
-                    done_btn(_("Done"), on_press=self.done),
+                    done_btn("TBD", on_press=self.done),
                     back_btn(_("Back"), on_press=self.cancel),
                     ])
         self.bottom = Pile([
@@ -165,8 +166,17 @@ class NetworkView(BaseView):
         log.debug("_action %s %s", action.name, device.name)
         meth(device)
 
-    def _cells_for_device(self, dev):
+    def route_watcher(self, routes):
+        if routes:
+            label = _("Done")
+        else:
+            label = _("Continue without network")
+        self.buttons.base_widget[0].set_label(label)
+
+    def _notes_for_device(self, dev):
         notes = []
+        if dev.type == "eth" and not dev.is_connected():
+            notes.append(_("not connected"))
         for dev2 in self.model.get_all_netdevs():
             if dev2.type != "bond":
                 continue
@@ -177,6 +187,33 @@ class NetworkView(BaseView):
             notes = ", ".join(notes)
         else:
             notes = '-'
+        return notes
+
+    def _rows_for_device(self, dev):
+        rows = [
+            [dev.name, dev.type, self._notes_for_device(dev)],
+            ]
+        dhcp_addresses = dev.dhcp_addresses()
+        for v in 4, 6:
+            if dev.dhcp_enabled(v):
+                label = _("DHCPv{v}").format(v=v)
+                addrs = dhcp_addresses.get(v)
+                if addrs:
+                    rows.extend([(label, addr) for addr in addrs])
+                elif dev.dhcp_state(v) == "PENDING":
+                    rows.append((label, Spinner()))
+                elif dev.dhcp_state(v) == "TIMEDOUT":
+                    if dev.explicitly_configured:
+                        rows.append((label, _("timed out")))
+                    elif v == 4:
+                        rows.append((_("disabled", "initial DHCP failed")))
+            else:
+                for ip in dev.config.get('addresses', []):
+                    if addr_version(ip) == v:
+                        extra_rows.append(('static', str(ip)))
+        
+        
+    def _cells_for_device(self, dev):
         extra_rows = []
         dhcp_addresses = {}
         if dev.info is not None:
@@ -187,7 +224,7 @@ class NetworkView(BaseView):
                     v = 6
                 else:
                     continue
-                if 1 or a.source == 'dhcp':
+                if a.source == 'dhcp':
                     dhcp_addresses.setdefault(v, []).append(str(a.address))
         for v in 4, 6:
             if dev.config.get('dhcp{v}'.format(v=v), False):

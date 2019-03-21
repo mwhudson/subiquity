@@ -52,10 +52,15 @@ class DownNetworkDevices(BackgroundTask):
         self.devs_to_delete = devs_to_delete
 
     def __repr__(self):
-        return 'DownNetworkDevices(%s)' % ([dev.name for dev in
-                                            self.devs_to_down],)
+        return 'DownNetworkDevices({}, {})'.format(
+            [dev.name for dev in self.devs_to_down],
+            [dev.name for dev in self.devs_to_delete],
+            )
 
     def start(self):
+        pass
+
+    def _bg_run(self):
         for dev in self.devs_to_down:
             try:
                 log.debug('downing %s', dev.name)
@@ -71,8 +76,6 @@ class DownNetworkDevices(BackgroundTask):
                 run_command(cmd, check=True)
             except subprocess.CalledProcessError as cp:
                 log.info("deleting %s failed with %r", dev.name, cp.stderr)
-
-    def _bg_run(self):
         return True
 
     def end(self, observer, fut):
@@ -120,6 +123,19 @@ class WaitForDefaultRouteTask(CancelableTask):
 
     def cancel(self):
         os.write(self.fail_w, b'x')
+
+class ApplyWatcher(TaskWatcher):
+    def __init__(self, view):
+        self.view = view
+
+    def task_complete(self, stage):
+        pass
+
+    def tasks_finished(self):
+        self.view.hide_apply_spinner()
+
+    def task_error(self, stage, info):
+        self.view.show_apply_error(stage, info)
 
 
 class SubiquityNetworkEventReceiver(NetworkEventReceiver):
@@ -195,7 +211,6 @@ network:
             password: password
 '''
 
-
 class NetworkController(BaseController, TaskWatcher):
 
     root = "/"
@@ -204,9 +219,9 @@ class NetworkController(BaseController, TaskWatcher):
         super().__init__(common)
         self.model = self.base_model.network
         self.answers = self.all_answers.get("Network", {})
+        self.view = None
         if self.opts.dry_run:
             self.root = os.path.abspath(".subiquity")
-            self.tried_once = False
             netplan_path = self.netplan_path
             netplan_dir = os.path.dirname(netplan_path)
             if os.path.exists(netplan_dir):
@@ -218,10 +233,10 @@ class NetworkController(BaseController, TaskWatcher):
         self.model.parse_netplan_configs(self.root)
 
         self.network_event_receiver = SubiquityNetworkEventReceiver(self.model)
-        self.network_event_receiver.add_default_route_watcher(self.got_route)
+        self.network_event_receiver.add_default_route_watcher(self.route_watcher)
         self._done_by_action = False
 
-    def got_route(self, routes):
+    def route_watcher(self, routes):
         if routes:
             self.signal.emit_signal('network-change')
 
@@ -258,7 +273,14 @@ class NetworkController(BaseController, TaskWatcher):
     def start_scan(self, dev):
         self.observer.trigger_scan(dev.ifindex)
 
+    def done(self):
+        self.event_receiver.remove_default_route_watcher(self.view.route_watcher)
+        self.view = None
+        self.signal.emit_signal('next-screen')
+
     def cancel(self):
+        self.event_receiver.remove_default_route_watcher(self.view.route_watcher)
+        self.view = None
         self.signal.emit_signal('prev-screen')
 
     def _action_get(self, id):
@@ -322,10 +344,93 @@ class NetworkController(BaseController, TaskWatcher):
         else:
             raise Exception("could not process action {}".format(action))
 
+    def initial_config(self):
+        # Any device that does not have a (global) address by the time
+        # we get to the network screen is marked as disabled, with an
+        # explanation.
+        for dev in self.model.get_all_netdevs():
+            has_global_address = False
+            for a in dev.address:
+                if a.scope == "global":
+                    has_global_address = True
+                    break
+            if not has_global_address:
+                dev.remove_ip_networks_for_version(4)
+                dev.remove_ip_networks_for_version(6)
+                dev.disabled_reason = _("autoconfiguration failed")
+
+    def apply_config(self, silent=False):
+        config = self.model.render()
+
+        devs_to_delete = []
+        devs_to_down = []
+        for dev in self.model.get_all_netdevs(include_deleted=True):
+            if dev.info is None:
+                continue
+            if dev.is_virtual:
+                devs_to_delete.append(dev)
+                continue
+            if dev.config != self.model.config.config_for_device(dev.info):
+                devs_to_down.append(dev)
+
+        log.debug("network config: \n%s",
+                  yaml.dump(sanitize_config(config), default_flow_style=False))
+
+        for p in netplan.configs_in_root(self.root, masked=True):
+            if p == self.netplan_path:
+                continue
+            os.rename(p, p + ".dist-" + self.opts.project)
+
+        write_file(self.netplan_path, '\n'.join((
+            ("# This is the network config written by '%s'" %
+             self.opts.project),
+            yaml.dump(config, default_flow_style=False))), omode="w")
+
+        self.model.parse_netplan_configs(self.root)
+
+        if self.opts.dry_run:
+            delay = 0.1/self.scale_factor
+            tasks = [
+                ('one', BackgroundProcess(['sleep', str(delay)])),
+                ('two', PythonSleep(delay)),
+                ('three', BackgroundProcess(['sleep', str(delay)])),
+                ]
+            if os.path.exists('/lib/netplan/generate'):
+                # If netplan appears to be installed, run generate to at
+                # least test that what we wrote is acceptable to netplan.
+                tasks.append(('generate',
+                              BackgroundProcess(['netplan', 'generate',
+                                                 '--root', self.root])))
+        else:
+            tasks = []
+            if devs_to_down or devs_to_delete:
+                tasks.extend([
+                    ('stop-networkd',
+                     BackgroundProcess(['systemctl',
+                                        'stop', 'systemd-networkd.service'])),
+                    ('down',
+                     DownNetworkDevices(self.observer.rtlistener,
+                                        devs_to_down, devs_to_delete)),
+                    ])
+            tasks.extend([
+                ('apply', BackgroundProcess(['netplan', 'apply'])),
+                ])
+
+        if not self.silent:
+            self.view.show_apply_spinner()
+        ts = TaskSequence(self.run_in_bg, tasks, ApplyWatcher(self.view))
+        ts.run()
+
     def default(self):
-        view = NetworkView(self.model, self)
-        self.network_event_receiver.view = view
-        self.ui.set_body(view)
+        if not self.view_shown:
+            self.update_initial_configs()
+        self.view = NetworkView(self.model, self)
+        if not self.view_shown:
+            self.apply_changes(silent=True)
+            self.view_shown = True
+        self.event_receiver.add_default_route_watcher(self.view.route_watcher)
+        self.network_event_receiver.view = self.view
+        self.ui.set_body(self.view)
         if self.answers.get('accept-default', False):
             self.network_finish(self.model.render())
         elif self.answers.get('actions', False):
@@ -361,87 +466,3 @@ class NetworkController(BaseController, TaskWatcher):
             existing.config['parameters'] = params
             existing.name = result['name']
             return existing
-
-    def network_finish(self, config):
-        log.debug("network config: \n%s",
-                  yaml.dump(sanitize_config(config), default_flow_style=False))
-
-        for p in netplan.configs_in_root(self.root, masked=True):
-            if p == self.netplan_path:
-                continue
-            os.rename(p, p + ".dist-" + self.opts.project)
-
-        write_file(self.netplan_path, '\n'.join((
-            ("# This is the network config written by '%s'" %
-             self.opts.project),
-            yaml.dump(config, default_flow_style=False))), omode="w")
-
-        self.model.parse_netplan_configs(self.root)
-        if self.opts.dry_run:
-            delay = 0.1/self.scale_factor
-            tasks = [
-                ('one', BackgroundProcess(['sleep', str(delay)])),
-                ('two', PythonSleep(delay)),
-                ('three', BackgroundProcess(['sleep', str(delay)])),
-                ]
-            if os.path.exists('/lib/netplan/generate'):
-                # If netplan appears to be installed, run generate to at
-                # least test that what we wrote is acceptable to netplan.
-                tasks.append(('generate',
-                              BackgroundProcess(['netplan', 'generate',
-                                                 '--root', self.root])))
-            if not self.tried_once:
-                tasks.append(
-                    ('timeout',
-                     WaitForDefaultRouteTask(3, self.network_event_receiver))
-                )
-                tasks.append(('fail', BackgroundProcess(['false'])))
-                self.tried_once = True
-        else:
-            devs_to_delete = []
-            devs_to_down = []
-            for dev in self.model.get_all_netdevs(include_deleted=True):
-                if dev.info is None:
-                    continue
-                devcfg = self.model.config.config_for_device(dev.info)
-                if dev.is_virtual:
-                    devs_to_delete.append(dev)
-                elif dev.config != devcfg:
-                    devs_to_down.append(dev)
-            tasks = []
-            if devs_to_down or devs_to_delete:
-                tasks.extend([
-                    ('stop-networkd',
-                     BackgroundProcess(['systemctl',
-                                        'stop', 'systemd-networkd.service'])),
-                    ('down',
-                     DownNetworkDevices(self.observer.rtlistener,
-                                        devs_to_down, devs_to_delete)),
-                    ])
-            tasks.extend([
-                ('apply', BackgroundProcess(['netplan', 'apply'])),
-                ('timeout',
-                 WaitForDefaultRouteTask(30, self.network_event_receiver)),
-                ])
-
-        def cancel():
-            self.cs.cancel()
-            self.task_error('canceled')
-        self.acw = ApplyingConfigWidget(len(tasks), cancel)
-        self.ui.frame.body.show_overlay(self.acw, min_width=60)
-
-        self.cs = TaskSequence(self.run_in_bg, tasks, self)
-        self.cs.run()
-
-    def task_complete(self, stage):
-        self.acw.advance()
-
-    def task_error(self, stage, info=None):
-        self.ui.frame.body.remove_overlay()
-        self.ui.frame.body.show_network_error(stage, info)
-        if self.answers.get('accept-default', False) or self._done_by_action:
-            self.network_finish(self.model.render())
-
-    def tasks_finished(self):
-        self.loop.set_alarm_in(
-            0.0, lambda loop, ud: self.signal.emit_signal('next-screen'))
