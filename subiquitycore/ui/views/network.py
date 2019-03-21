@@ -173,9 +173,15 @@ class NetworkView(BaseView):
             label = _("Continue without network")
         self.buttons.base_widget[0].set_label(label)
 
+    def show_apply_spinner(self):
+        pass
+
+    def hide_apply_spinner(self):
+        pass
+
     def _notes_for_device(self, dev):
         notes = []
-        if dev.type == "eth" and not dev.is_connected():
+        if dev.type == "eth" and not dev.info.is_connected:
             notes.append(_("not connected"))
         for dev2 in self.model.get_all_netdevs():
             if dev2.type != "bond":
@@ -203,16 +209,21 @@ class NetworkView(BaseView):
                 elif dev.dhcp_state(v) == "PENDING":
                     rows.append((label, Spinner()))
                 elif dev.dhcp_state(v) == "TIMEDOUT":
-                    if dev.explicitly_configured:
-                        rows.append((label, _("timed out")))
-                    elif v == 4:
-                        rows.append((_("disabled", "initial DHCP failed")))
+                    rows.append((label, _("timed out")))
             else:
+                addrs = []
                 for ip in dev.config.get('addresses', []):
                     if addr_version(ip) == v:
-                        extra_rows.append(('static', str(ip)))
-        
-        
+                        addrs.append(str(ip))
+                if addrs:
+                    rows.append((_('static'), ', '.join(addrs)))
+        if len(rows) == 1:
+            reason = dev.disabled_reason
+            if reason is None:
+                reason = ""
+            rows.append((_("disabled"), reason))
+        return rows
+
     def _cells_for_device(self, dev):
         extra_rows = []
         dhcp_addresses = {}
@@ -240,7 +251,7 @@ class NetworkView(BaseView):
         extra_rows = [
             TableRow([Text(""), Text(label), (2, Text(value))]) for label, value in extra_rows
             ]
-        return (dev.name, dev.type, notes, extra_rows)
+        return (dev.name, dev.type, '', extra_rows)
 
     def new_link(self, new_dev):
         if new_dev in self.dev_to_table:
@@ -298,7 +309,18 @@ class NetworkView(BaseView):
         if netdev_i is None:
             netdev_i = len(self.cur_netdevs)
         rows = []
-        name, typ, addresses, extra_rows = self._cells_for_device(dev)
+
+        def mt(t):
+            if isinstance(t, str):
+                return Text(t)
+            else:
+                return t
+
+        rows_ = self._rows_for_device(dev)
+
+        name, typ, notes = rows_[0]
+        extra_rows = [TableRow([Text(""), mt(r[0]), (2, mt(r[1]))]) for r in rows_[1:]]
+
         actions = []
         for action in NetDevAction:
             meth = getattr(self, '_action_' + action.name)
@@ -312,7 +334,7 @@ class NetworkView(BaseView):
             Text("["),
             Text(name),
             Text(typ),
-            Text(addresses, wrap='clip'),
+            Text(notes, wrap='clip'),
             menu,
             Text("]"),
             ], menu)]
