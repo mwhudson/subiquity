@@ -368,7 +368,7 @@ class NetworkView(BaseView):
     def done(self, result=None):
         if self.error_showing:
             self.bottom.contents[0:2] = []
-        self.controller.network_finish(self.model.render())
+        self.controller.done()
 
     def cancel(self, button=None):
         self.controller.cancel()
