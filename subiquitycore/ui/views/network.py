@@ -56,6 +56,7 @@ from subiquitycore.ui.utils import (
     Padding,
     screen,
     )
+from subiquitycore.ui.width import widget_width
 from .network_configure_manual_interface import (
     AddVlanStretchy,
     BondStretchy,
@@ -169,11 +170,13 @@ class NetworkView(BaseView):
         meth(device)
 
     def route_watcher(self, routes):
+        log.debug('view route_watcher %s', routes)
         if routes:
             label = _("Done")
         else:
             label = _("Continue without network")
         self.buttons.base_widget[0].set_label(label)
+        self.buttons.width = max(14, widget_width(self.buttons.base_widget[0]))
 
     def show_apply_spinner(self):
         s = Spinner(self.controller.loop)
