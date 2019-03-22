@@ -118,7 +118,7 @@ class NetworkDev(object):
             }
 
     def dhcp_addresses(self):
-        r = {}
+        r = {4: [], 6: []}
         if self.info is not None:
             for a in self.info.addresses.values():
                 if a.family == AF_INET:
@@ -128,14 +128,14 @@ class NetworkDev(object):
                 else:
                     continue
                 if a.source == 'dhcp':
-                    r.setdefault(v, []).append(str(a.address))
+                    r[v].append(str(a.address))
         return r
 
     def dhcp_enabled(self, version):
-        return self.config.get('dchp{v}'.format(v=version), False)
+        return self.config.get('dhcp{v}'.format(v=version), False)
 
     def dhcp_state(self, version):
-        if not self.config.get('dchp{v}'.format(v=version), False):
+        if not self.config.get('dhcp{v}'.format(v=version), False):
             return None
         return self._dhcp_state[version]
 

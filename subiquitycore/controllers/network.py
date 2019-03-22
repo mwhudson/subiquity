@@ -220,6 +220,7 @@ class NetworkController(BaseController):
         self.answers = self.all_answers.get("Network", {})
         self.view = None
         self.view_shown = False
+        self.dhcp_check_handle = None
         if self.opts.dry_run:
             self.root = os.path.abspath(".subiquity")
             netplan_path = self.netplan_path
@@ -274,12 +275,12 @@ class NetworkController(BaseController):
         self.observer.trigger_scan(dev.ifindex)
 
     def done(self):
-        self.event_receiver.remove_default_route_watcher(self.view.route_watcher)
+        self.network_event_receiver.remove_default_route_watcher(self.view.route_watcher)
         self.view = None
         self.signal.emit_signal('next-screen')
 
     def cancel(self):
-        self.event_receiver.remove_default_route_watcher(self.view.route_watcher)
+        self.network_event_receiver.remove_default_route_watcher(self.view.route_watcher)
         self.view = None
         self.signal.emit_signal('prev-screen')
 
@@ -362,11 +363,23 @@ class NetworkController(BaseController):
                 log.debug("disabling %s", dev.name)
                 dev.disabled_reason = _("autoconfiguration failed")
 
+    def check_dchp_results(self, device_versions):
+        log.debug('check_dchp_results for %s', device_versions)
+        for dev, v in device_versions:
+            if not dev.dhcp_addresses()[v]:
+                dev.set_dhcp_state(v, "TIMEDOUT")
+                self.network_event_receiver.update_link(dev.ifindex)
+
     def apply_config(self, silent=False):
+        if self.dhcp_check_handle is not None:
+            self.loop.remove_alarm(self.dhcp_check_handle)
+            self.dhcp_check_handle = None
+
         config = self.model.render()
 
         devs_to_delete = []
         devs_to_down = []
+        dhcp_device_versions = []
         for dev in self.model.get_all_netdevs(include_deleted=True):
             if dev.info is None:
                 continue
@@ -375,6 +388,11 @@ class NetworkController(BaseController):
                 continue
             if dev.config != self.model.config.config_for_device(dev.info):
                 devs_to_down.append(dev)
+            for v in 4, 6:
+                if dev.dhcp_enabled(v):
+                    dev.set_dhcp_state(v, "PENDING")
+                    self.network_event_receiver.update_link(dev.ifindex)
+                    dhcp_device_versions.append((dev, v))
 
         log.debug("network config: \n%s",
                   yaml.dump(sanitize_config(config), default_flow_style=False))
@@ -423,6 +441,11 @@ class NetworkController(BaseController):
             self.view.show_apply_spinner()
         ts = TaskSequence(self.run_in_bg, tasks, ApplyWatcher(self.view))
         ts.run()
+        if dhcp_device_versions:
+            self.dhcp_check_handle = self.loop.set_alarm_in(
+                10,
+                lambda loop, ud: self.check_dchp_results(ud),
+                dhcp_device_versions)
 
     def default(self):
         if not self.view_shown:

@@ -42,6 +42,7 @@ from subiquitycore.ui.buttons import (
     other_btn,
     )
 from subiquitycore.ui.container import (
+    Columns,
     Pile,
     WidgetWrap,
     )
@@ -52,6 +53,7 @@ from subiquitycore.ui.utils import (
     button_pile,
     Color,
     make_action_menu_row,
+    Padding,
     screen,
     )
 from .network_configure_manual_interface import (
@@ -174,10 +176,20 @@ class NetworkView(BaseView):
         self.buttons.base_widget[0].set_label(label)
 
     def show_apply_spinner(self):
-        pass
+        s = Spinner(self.controller.loop)
+        s.start()
+        c = Padding.center_50(Columns([
+            ('pack', Text(_("Applying changes"))),
+            ('pack', s),
+            ], dividechars=1))
+        self.bottom.contents[0:0] = [
+            (c, self.bottom.options()),
+            (Text(""), self.bottom.options()),
+            ]
 
     def hide_apply_spinner(self):
-        pass
+        if len(self.bottom.contents) > 2:
+            self.bottom.contents[0:2] = []
 
     def _notes_for_device(self, dev):
         notes = []
@@ -201,15 +213,21 @@ class NetworkView(BaseView):
             ]
         dhcp_addresses = dev.dhcp_addresses()
         for v in 4, 6:
+            log.debug("yy %s %s %s", dev.name, v, dev.dhcp_enabled(v))
             if dev.dhcp_enabled(v):
                 label = _("DHCPv{v}").format(v=v)
                 addrs = dhcp_addresses.get(v)
                 if addrs:
                     rows.extend([(label, addr) for addr in addrs])
                 elif dev.dhcp_state(v) == "PENDING":
-                    rows.append((label, Spinner()))
+                    s = Spinner(self.controller.loop)
+                    s.rate = 0.3
+                    s.start()
+                    rows.append((label, s))
                 elif dev.dhcp_state(v) == "TIMEDOUT":
                     rows.append((label, _("timed out")))
+                else:
+                    rows.append((label, _("wtf {}".format(dev.dhcp_state(v)))))
             else:
                 addrs = []
                 for ip in dev.config.get('addresses', []):
@@ -223,35 +241,6 @@ class NetworkView(BaseView):
                 reason = ""
             rows.append((_("disabled"), reason))
         return rows
-
-    def _cells_for_device(self, dev):
-        extra_rows = []
-        dhcp_addresses = {}
-        if dev.info is not None:
-            for a in dev.info.addresses.values():
-                if a.family == AF_INET:
-                    v = 4
-                elif a.family == AF_INET6:
-                    v = 6
-                else:
-                    continue
-                if a.source == 'dhcp':
-                    dhcp_addresses.setdefault(v, []).append(str(a.address))
-        for v in 4, 6:
-            if dev.config.get('dhcp{v}'.format(v=v), False):
-                addrs = dhcp_addresses.get(v)
-                if addrs:
-                    extra_rows.extend([("DHCP", addr) for addr in addrs])
-                else:
-                    extra_rows.append(("DHCP", "v{v} pending".format(v=v)))
-            else:
-                for ip in dev.config.get('addresses', []):
-                    if addr_version(ip) == v:
-                        extra_rows.append(('static', str(ip)))
-        extra_rows = [
-            TableRow([Text(""), Text(label), (2, Text(value))]) for label, value in extra_rows
-            ]
-        return (dev.name, dev.type, '', extra_rows)
 
     def new_link(self, new_dev):
         if new_dev in self.dev_to_table:
@@ -269,13 +258,18 @@ class NetworkView(BaseView):
 
     def update_link(self, dev):
         table = self.dev_to_table[dev]
-        rows = table.table_rows
-        row = rows[0].base_widget
-        cells = list(self._cells_for_device(dev))
-        extra_rows = cells.pop()
-        for i, text in enumerate(cells):
-            row.columns[2*(i+1)].set_text(text)
+        first_row = table.table_rows[0].base_widget
+        new_rows = list(self._rows_for_device(dev))
+        log.debug("xx %s", new_rows[1:])
+        for i, text in enumerate(new_rows[0]):
+            first_row.columns[2*(i+1)].set_text(text)
         table.remove_rows(1, len(table.table_rows))
+        def mt(t):
+            if isinstance(t, str):
+                return Text(t)
+            else:
+                return t
+        extra_rows = [TableRow([Text(""), mt(r[0]), (2, mt(r[1]))]) for r in new_rows[1:]]
         table.insert_rows(1, extra_rows)
         table.invalidate()
 
