@@ -16,7 +16,6 @@
 from functools import partial
 import logging
 import os
-import select
 import subprocess
 
 import yaml
@@ -27,7 +26,6 @@ from subiquitycore.models.network import BondParameters, sanitize_config
 from subiquitycore.tasksequence import (
     BackgroundTask,
     BackgroundProcess,
-    CancelableTask,
     PythonSleep,
     TaskSequence,
     TaskWatcher,
@@ -83,45 +81,6 @@ class DownNetworkDevices(BackgroundTask):
         else:
             observer.task_failed()
 
-
-class WaitForDefaultRouteTask(CancelableTask):
-
-    def __init__(self, timeout, event_receiver):
-        self.timeout = timeout
-        self.event_receiver = event_receiver
-
-    def __repr__(self):
-        return 'WaitForDefaultRouteTask(%r)' % (self.timeout,)
-
-    def got_routes(self, routes):
-        if routes:
-            self.event_receiver.remove_default_route_watcher(self.got_route)
-            os.write(self.success_w, b'x')
-
-    def start(self):
-        self.fail_r, self.fail_w = os.pipe()
-        self.success_r, self.success_w = os.pipe()
-        self.event_receiver.add_default_route_watcher(self.got_route)
-
-    def _bg_run(self):
-        try:
-            r, _, _ = select.select([self.fail_r, self.success_r], [], [],
-                                    self.timeout)
-            return self.success_r in r
-        finally:
-            os.close(self.fail_r)
-            os.close(self.fail_w)
-            os.close(self.success_r)
-            os.close(self.success_w)
-
-    def end(self, observer, fut):
-        if fut.result():
-            observer.task_succeeded()
-        else:
-            observer.task_failed('timeout')
-
-    def cancel(self):
-        os.write(self.fail_w, b'x')
 
 class ApplyWatcher(TaskWatcher):
     def __init__(self, view):
@@ -210,6 +169,7 @@ network:
             password: password
 '''
 
+
 class NetworkController(BaseController):
 
     root = "/"
@@ -234,7 +194,8 @@ class NetworkController(BaseController):
         self.model.parse_netplan_configs(self.root)
 
         self.network_event_receiver = SubiquityNetworkEventReceiver(self.model)
-        self.network_event_receiver.add_default_route_watcher(self.route_watcher)
+        self.network_event_receiver.add_default_route_watcher(
+            self.route_watcher)
         self._done_by_action = False
 
     def route_watcher(self, routes):
@@ -275,12 +236,16 @@ class NetworkController(BaseController):
         self.observer.trigger_scan(dev.ifindex)
 
     def done(self):
-        self.network_event_receiver.remove_default_route_watcher(self.view.route_watcher)
+        self.network_event_receiver.remove_default_route_watcher(
+            self.view.route_watcher)
         self.view = None
+        self.model.has_network = bool(
+            self.network_event_receiver.default_routes)
         self.signal.emit_signal('next-screen')
 
     def cancel(self):
-        self.network_event_receiver.remove_default_route_watcher(self.view.route_watcher)
+        self.network_event_receiver.remove_default_route_watcher(
+            self.view.route_watcher)
         self.view = None
         self.signal.emit_signal('prev-screen')
 
@@ -390,8 +355,9 @@ class NetworkController(BaseController):
                 devs_to_down.append(dev)
             for v in 4, 6:
                 if dev.dhcp_enabled(v):
-                    dev.set_dhcp_state(v, "PENDING")
-                    self.network_event_receiver.update_link(dev.ifindex)
+                    if not silent:
+                        dev.set_dhcp_state(v, "PENDING")
+                        self.network_event_receiver.update_link(dev.ifindex)
                     dhcp_device_versions.append((dev, v))
 
         log.debug("network config: \n%s",
@@ -454,11 +420,12 @@ class NetworkController(BaseController):
         if not self.view_shown:
             self.apply_config(silent=True)
             self.view_shown = True
-        self.network_event_receiver.add_default_route_watcher(self.view.route_watcher)
+        self.network_event_receiver.add_default_route_watcher(
+            self.view.route_watcher)
         self.network_event_receiver.view = self.view
         self.ui.set_body(self.view)
         if self.answers.get('accept-default', False):
-            self.network_finish(self.model.render())
+            self.done()
         elif self.answers.get('actions', False):
             self._run_iterator(self._run_actions(self.answers['actions']))
 

@@ -20,12 +20,9 @@ Provides network device listings and extended network information
 """
 
 import logging
-from socket import AF_INET, AF_INET6
 
 from urwid import (
     connect_signal,
-    LineBox,
-    ProgressBar,
     Text,
     )
 
@@ -36,15 +33,12 @@ from subiquitycore.models.network import (
 from subiquitycore.ui.actionmenu import ActionMenu
 from subiquitycore.ui.buttons import (
     back_btn,
-    cancel_btn,
     done_btn,
     menu_btn,
-    other_btn,
     )
 from subiquitycore.ui.container import (
     Columns,
     Pile,
-    WidgetWrap,
     )
 from subiquitycore.ui.spinner import Spinner
 from subiquitycore.ui.stretchy import StretchyOverlay
@@ -69,26 +63,6 @@ from subiquitycore.view import BaseView
 
 
 log = logging.getLogger('subiquitycore.views.network')
-
-
-class ApplyingConfigWidget(WidgetWrap):
-
-    def __init__(self, step_count, cancel_func):
-        self.cancel_func = cancel_func
-        button = cancel_btn(_("Cancel"), on_press=self.do_cancel)
-        self.bar = ProgressBar(normal='progress_incomplete',
-                               complete='progress_complete',
-                               current=0, done=step_count)
-        box = LineBox(Pile([self.bar,
-                            button_pile([button])]),
-                      title=_("Applying network config"))
-        super().__init__(box)
-
-    def advance(self):
-        self.bar.current += 1
-
-    def do_cancel(self, sender):
-        self.cancel_func()
 
 
 def _stretchy_shower(cls, *args):
@@ -211,38 +185,43 @@ class NetworkView(BaseView):
         return notes
 
     def _rows_for_device(self, dev):
-        rows = [
-            [dev.name, dev.type, self._notes_for_device(dev)],
-            ]
+        rows = [[
+            Text(dev.name),
+            Text(dev.type),
+            Text(self._notes_for_device(dev), wrap='clip')
+            ]]
         dhcp_addresses = dev.dhcp_addresses()
         for v in 4, 6:
             log.debug("yy %s %s %s", dev.name, v, dev.dhcp_enabled(v))
             if dev.dhcp_enabled(v):
-                label = _("DHCPv{v}").format(v=v)
+                label = Text(_("DHCPv{v}").format(v=v))
                 addrs = dhcp_addresses.get(v)
                 if addrs:
-                    rows.extend([(label, addr) for addr in addrs])
+                    rows.extend([(label, Text(addr)) for addr in addrs])
                 elif dev.dhcp_state(v) == "PENDING":
                     s = Spinner(self.controller.loop)
                     s.rate = 0.3
                     s.start()
                     rows.append((label, s))
                 elif dev.dhcp_state(v) == "TIMEDOUT":
-                    rows.append((label, _("timed out")))
+                    rows.append((label, Text(_("timed out"))))
                 else:
-                    rows.append((label, _("wtf {}".format(dev.dhcp_state(v)))))
+                    rows.append((
+                        label,
+                        Text(_("unknown state {}".format(dev.dhcp_state(v))))
+                        ))
             else:
                 addrs = []
                 for ip in dev.config.get('addresses', []):
                     if addr_version(ip) == v:
                         addrs.append(str(ip))
                 if addrs:
-                    rows.append((_('static'), ', '.join(addrs)))
+                    rows.append((Text(_('static')), Text(', '.join(addrs))))
         if len(rows) == 1:
             reason = dev.disabled_reason
             if reason is None:
                 reason = ""
-            rows.append((_("disabled"), reason))
+            rows.append((Text(_("disabled")), Text(reason)))
         return rows
 
     def new_link(self, new_dev):
@@ -263,16 +242,13 @@ class NetworkView(BaseView):
         table = self.dev_to_table[dev]
         first_row = table.table_rows[0].base_widget
         new_rows = list(self._rows_for_device(dev))
-        log.debug("xx %s", new_rows[1:])
         for i, text in enumerate(new_rows[0]):
-            first_row.columns[2*(i+1)].set_text(text)
+            first_row.columns[2*(i+1)].set_text(text.text)
         table.remove_rows(1, len(table.table_rows))
-        def mt(t):
-            if isinstance(t, str):
-                return Text(t)
-            else:
-                return t
-        extra_rows = [TableRow([Text(""), mt(r[0]), (2, mt(r[1]))]) for r in new_rows[1:]]
+
+        extra_rows = [
+            TableRow([label, (2, text)]) for label, text in new_rows[1:]
+            ]
         table.insert_rows(1, extra_rows)
         table.invalidate()
 
@@ -307,17 +283,12 @@ class NetworkView(BaseView):
             netdev_i = len(self.cur_netdevs)
         rows = []
 
-        def mt(t):
-            if isinstance(t, str):
-                return Text(t)
-            else:
-                return t
+        drows = self._rows_for_device(dev)
 
-        rows_ = self._rows_for_device(dev)
-
-        name, typ, notes = rows_[0]
-        extra_rows = [TableRow([Text(""), mt(r[0]), (2, mt(r[1]))]) for r in rows_[1:]]
-
+        name, typ, notes = drows[0]
+        extra_rows = [
+            TableRow([label, (2, text)]) for label, text in drows[1:]
+            ]
         actions = []
         for action in NetDevAction:
             meth = getattr(self, '_action_' + action.name)
@@ -328,12 +299,7 @@ class NetworkView(BaseView):
         menu = ActionMenu(actions)
         connect_signal(menu, 'action', self._action, dev)
         trows = [make_action_menu_row([
-            Text("["),
-            Text(name),
-            Text(typ),
-            Text(notes, wrap='clip'),
-            menu,
-            Text("]"),
+            Text("["), name, typ, notes, menu, Text("]"),
             ], menu)]
         self.cur_netdevs[netdev_i:netdev_i] = [dev]
         trows.extend(extra_rows)
