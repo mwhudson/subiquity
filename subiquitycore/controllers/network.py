@@ -346,6 +346,12 @@ class NetworkController(BaseController):
         devs_to_down = []
         dhcp_device_versions = []
         for dev in self.model.get_all_netdevs(include_deleted=True):
+            for v in 4, 6:
+                if dev.dhcp_enabled(v):
+                    if not silent:
+                        dev.set_dhcp_state(v, "PENDING")
+                        self.network_event_receiver.update_link(dev.ifindex)
+                    dhcp_device_versions.append((dev, v))
             if dev.info is None:
                 continue
             if dev.is_virtual:
@@ -353,12 +359,6 @@ class NetworkController(BaseController):
                 continue
             if dev.config != self.model.config.config_for_device(dev.info):
                 devs_to_down.append(dev)
-            for v in 4, 6:
-                if dev.dhcp_enabled(v):
-                    if not silent:
-                        dev.set_dhcp_state(v, "PENDING")
-                        self.network_event_receiver.update_link(dev.ifindex)
-                    dhcp_device_versions.append((dev, v))
 
         log.debug("network config: \n%s",
                   yaml.dump(sanitize_config(config), default_flow_style=False))

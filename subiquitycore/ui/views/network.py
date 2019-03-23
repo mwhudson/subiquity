@@ -184,12 +184,8 @@ class NetworkView(BaseView):
             notes = '-'
         return notes
 
-    def _rows_for_device(self, dev):
-        rows = [[
-            Text(dev.name),
-            Text(dev.type),
-            Text(self._notes_for_device(dev), wrap='clip')
-            ]]
+    def _address_rows_for_device(self, dev):
+        address_info = []
         dhcp_addresses = dev.dhcp_addresses()
         for v in 4, 6:
             log.debug("yy %s %s %s", dev.name, v, dev.dhcp_enabled(v))
@@ -197,16 +193,17 @@ class NetworkView(BaseView):
                 label = Text(_("DHCPv{v}").format(v=v))
                 addrs = dhcp_addresses.get(v)
                 if addrs:
-                    rows.extend([(label, Text(addr)) for addr in addrs])
+                    address_info.extend(
+                        [(label, Text(addr)) for addr in addrs])
                 elif dev.dhcp_state(v) == "PENDING":
-                    s = Spinner(self.controller.loop)
+                    s = Spinner(self.controller.loop, align='left')
                     s.rate = 0.3
                     s.start()
-                    rows.append((label, s))
+                    address_info.append((label, s))
                 elif dev.dhcp_state(v) == "TIMEDOUT":
-                    rows.append((label, Text(_("timed out"))))
+                    address_info.append((label, Text(_("timed out"))))
                 else:
-                    rows.append((
+                    address_info.append((
                         label,
                         Text(_("unknown state {}".format(dev.dhcp_state(v))))
                         ))
@@ -216,12 +213,23 @@ class NetworkView(BaseView):
                     if addr_version(ip) == v:
                         addrs.append(str(ip))
                 if addrs:
-                    rows.append((Text(_('static')), Text(', '.join(addrs))))
-        if len(rows) == 1:
-            reason = dev.disabled_reason
-            if reason is None:
-                reason = ""
-            rows.append((Text(_("disabled")), Text(reason)))
+                    address_info.append(
+                        (Text(_('static')), Text(', '.join(addrs))))
+        if len(address_info) == 0:
+            for dev2 in self.model.get_all_netdevs():
+                if dev2.type == "bond" and \
+                  dev.name in dev2.config.get('interfaces', []):
+                    break
+                if dev2.type == "vlan" and dev.name == dev2.config.get('link'):
+                    break
+            else:
+                reason = dev.disabled_reason
+                if reason is None:
+                    reason = ""
+                address_info.append((Text(_("disabled")), Text(reason)))
+        rows = []
+        for label, value in address_info:
+            rows.append(TableRow([Text(""), label, (2, value)]))
         return rows
 
     def new_link(self, new_dev):
@@ -239,18 +247,22 @@ class NetworkView(BaseView):
             (w, self.device_pile.options('pack'))]
 
     def update_link(self, dev):
-        table = self.dev_to_table[dev]
-        first_row = table.table_rows[0].base_widget
-        new_rows = list(self._rows_for_device(dev))
-        for i, text in enumerate(new_rows[0]):
-            first_row.columns[2*(i+1)].set_text(text.text)
-        table.remove_rows(1, len(table.table_rows))
-
-        extra_rows = [
-            TableRow([label, (2, text)]) for label, text in new_rows[1:]
-            ]
-        table.insert_rows(1, extra_rows)
-        table.invalidate()
+        # Update the display of dev to represent the current state.
+        #
+        # The easiest way of doing this would be to just create a new table
+        # widget for the device and replace the current one with it. But that
+        # is jarring if the menu for the current device is open, so instead we
+        # overwrite the content of the first (menu) row of the old table with
+        # the contents of the first row of the new table, and replace all other
+        # rows of the old table with new content (which is OK as they cannot be
+        # focused).
+        old_table = self.dev_to_table[dev]
+        first_row = old_table.table_rows[0].base_widget
+        first_row.cells[1][1].set_text(dev.name)
+        first_row.cells[2][1].set_text(dev.type)
+        first_row.cells[3][1].set_text(self._notes_for_device(dev))
+        old_table.remove_rows(1, len(old_table.table_rows))
+        old_table.insert_rows(1, self._address_rows_for_device(dev))
 
     def _remove_row(self, netdev_i):
         # MonitoredFocusList clamps the focus position to the new
@@ -281,14 +293,8 @@ class NetworkView(BaseView):
     def _device_widget(self, dev, netdev_i=None):
         if netdev_i is None:
             netdev_i = len(self.cur_netdevs)
-        rows = []
+        self.cur_netdevs[netdev_i:netdev_i] = [dev]
 
-        drows = self._rows_for_device(dev)
-
-        name, typ, notes = drows[0]
-        extra_rows = [
-            TableRow([label, (2, text)]) for label, text in drows[1:]
-            ]
         actions = []
         for action in NetDevAction:
             meth = getattr(self, '_action_' + action.name)
@@ -296,17 +302,23 @@ class NetworkView(BaseView):
             if dev.supports_action(action):
                 actions.append(
                     (_(action.value), True, (action, meth), opens_dialog))
+
         menu = ActionMenu(actions)
         connect_signal(menu, 'action', self._action, dev)
+
         trows = [make_action_menu_row([
-            Text("["), name, typ, notes, menu, Text("]"),
-            ], menu)]
-        self.cur_netdevs[netdev_i:netdev_i] = [dev]
-        trows.extend(extra_rows)
+            Text("["),
+            Text(dev.name),
+            Text(dev.type),
+            Text(self._notes_for_device(dev), wrap='clip'),
+            menu,
+            Text("]"),
+            ], menu)] + self._address_rows_for_device(dev)
+
         table = TablePile(trows, colspecs=self.device_colspecs, spacing=2)
         self.dev_to_table[dev] = table
         table.bind(self.heading_table)
-        rows.append(table)
+
         if dev.type == "vlan":
             info = _("VLAN {id} on interface {link}").format(
                 **dev.config)
@@ -316,9 +328,12 @@ class NetworkView(BaseView):
         else:
             info = " / ".join([
                 dev.info.hwaddr, dev.info.vendor, dev.info.model])
-        rows.append(Color.info_minor(Text("  " + info)))
-        rows.append(Text(""))
-        return Pile([('pack', r) for r in rows])
+
+        return Pile([
+            ('pack', table),
+            ('pack', Color.info_minor(Text("  " + info))),
+            ('pack', Text("")),
+            ])
 
     def _build_model_inputs(self):
         self.heading_table = TablePile([
