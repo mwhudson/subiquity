@@ -875,11 +875,11 @@ class FilesystemModel(object):
     fs_by_name['fat32'] = FS('fat32', True)
 
     def __init__(self):
-        self._disk_info = []
+        self._existing_config = []
         self.reset()
 
     def reset(self):
-        self._actions = [Disk.from_info(info) for info in self._disk_info]
+        self._actions = deserialize(self._existing_config)
 
     def render(self):
         # the curtin storage config has the constraint that an action
@@ -982,26 +982,12 @@ class FilesystemModel(object):
         return mounted_disks
 
     def load_probe_data(self, storage):
-        currently_mounted = self._get_system_mounted_disks()
-        for path, info in storage.items():
-            log.debug("fs probe %s", path)
-            if path in currently_mounted:
-                continue
-            if info.type == 'disk':
-                if info.is_virtual:
-                    continue
-                if info.raw["MAJOR"] in ("2", "11"):  # serial and cd devices
-                    continue
-                if info.raw['attrs'].get('ro') == "1":
-                    continue
-                if "ID_CDROM" in info.raw:
-                    continue
-                # log.debug('disk={}\n{}'.format(
-                #    path, json.dumps(data, indent=4, sort_keys=True)))
-                if info.size < self.lower_size_limit:
-                    continue
-                self._disk_info.append(info)
-                self._actions.append(Disk.from_info(info))
+        # This should run storage though curtin's
+        # extract_storage_config function when that lands.
+        import json
+        with open('examples/existing-partitions.json') as fp:
+            self._existing_config = json.load(fp)["storage"]["config"]
+        self.reset()
 
     def disk_by_path(self, path):
         for a in self._actions:
@@ -1189,7 +1175,7 @@ class FilesystemModel(object):
 
 def deserialize(config):
     byid = {}
-    bytype = collections.defaultdict(list)
+    objs = []
     for action in config:
         c = _type_to_cls[action['type']]
         kw = {}
@@ -1205,22 +1191,10 @@ def deserialize(config):
             else:
                 kw[n] = v
         obj = c(**kw)
-        for f in attr.fields(c):
-            backlink = f.metadata.get('backlink', None)
-            if backlink is None:
-                continue
-            target = getattr(obj, f.name)
-            if isinstance(getattr(target, backlink), set):
-                getattr(target, backlink).add(obj)
-            elif isinstance(getattr(target, backlink), list):
-                getattr(target, backlink).append(obj)
-            elif getattr(target, backlink) is None:
-                setattr(target, backlink, obj)
-            else:
-                xxx
+        obj.preserve = True
         byid[action['id']] = obj
-        bytype[action['type']].append(obj)
-    return bytype
+        objs.append(obj)
+    return objs
 
 
 if __name__ == '__main__':
