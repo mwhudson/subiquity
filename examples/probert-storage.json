@@ -1,0 +1,1387 @@
+{
+    "storage": {
+        "bcache": {
+            "backing": {},
+            "caching": {}
+        },
+        "blockdev": {
+            "/dev/dm-0": {
+                "DEVLINKS": "/dev/disk/by-id/dm-uuid-CRYPT-LUKS1-58e2a364c3104e8d8a09f8fceb392e26-sda3_crypt /dev/mapper/sda3_crypt /dev/disk/by-id/lvm-pv-uuid-QAg6PG-1WJR-8l94-J8yJ-NZMk-DRIq-zpJb23 /dev/disk/by-id/dm-name-sda3_crypt",
+                "DEVNAME": "/dev/dm-0",
+                "DEVPATH": "/devices/virtual/block/dm-0",
+                "DEVTYPE": "disk",
+                "DM_ACTIVATION": "1",
+                "DM_NAME": "sda3_crypt",
+                "DM_STATE": "ACTIVE",
+                "DM_SUSPENDED": "0",
+                "DM_TABLE_STATE": "LIVE",
+                "DM_UDEV_DISABLE_LIBRARY_FALLBACK_FLAG": "1",
+                "DM_UDEV_PRIMARY_SOURCE_FLAG": "1",
+                "DM_UDEV_RULES": "1",
+                "DM_UDEV_RULES_VSN": "2",
+                "DM_UUID": "CRYPT-LUKS1-58e2a364c3104e8d8a09f8fceb392e26-sda3_crypt",
+                "ID_FS_TYPE": "LVM2_member",
+                "ID_FS_USAGE": "raid",
+                "ID_FS_UUID": "QAg6PG-1WJR-8l94-J8yJ-NZMk-DRIq-zpJb23",
+                "ID_FS_UUID_ENC": "QAg6PG-1WJR-8l94-J8yJ-NZMk-DRIq-zpJb23",
+                "ID_FS_VERSION": "LVM2 001",
+                "ID_MODEL": "LVM PV QAg6PG-1WJR-8l94-J8yJ-NZMk-DRIq-zpJb23 on /dev/dm-0",
+                "MAJOR": "253",
+                "MINOR": "0",
+                "SUBSYSTEM": "block",
+                "SYSTEMD_ALIAS": "/dev/block/253:0",
+                "SYSTEMD_READY": "1",
+                "SYSTEMD_WANTS": "lvm2-pvscan@253:0.service",
+                "TAGS": ":systemd:",
+                "USEC_INITIALIZED": "122073958",
+                "attrs": {
+                    "alignment_offset": "0",
+                    "bdi": null,
+                    "capability": "10",
+                    "dev": "253:0",
+                    "discard_alignment": "0",
+                    "ext_range": "1",
+                    "hidden": "0",
+                    "inflight": "       0        0",
+                    "range": "1",
+                    "removable": "0",
+                    "ro": "0",
+                    "size": "498799214592",
+                    "stat": "37185781        0 1225096338 27339116 32850825        0 544575232 3931922132        0  8364636 3964836856",
+                    "subsystem": "block",
+                    "uevent": "MAJOR=253\nMINOR=0\nDEVNAME=dm-0\nDEVTYPE=disk"
+                }
+            },
+            "/dev/dm-1": {
+                "DEVLINKS": "/dev/disk/by-uuid/77d6df4a-99f4-4c15-90e2-bbf0a7592e20 /dev/mapper/ubuntu--vg-root /dev/disk/by-id/dm-name-ubuntu--vg-root /dev/ubuntu-vg/root /dev/disk/by-id/dm-uuid-LVM-2PaT2BBJSoyqa8M3Rdi2ueOzjcDmj4cd0Epa6lhHVNXl8oZv2YbKUjmjLYk64Bis",
+                "DEVNAME": "/dev/dm-1",
+                "DEVPATH": "/devices/virtual/block/dm-1",
+                "DEVTYPE": "disk",
+                "DM_ACTIVATION": "1",
+                "DM_LV_NAME": "root",
+                "DM_NAME": "ubuntu--vg-root",
+                "DM_STATE": "ACTIVE",
+                "DM_SUSPENDED": "0",
+                "DM_TABLE_STATE": "LIVE",
+                "DM_UDEV_DISABLE_LIBRARY_FALLBACK_FLAG": "1",
+                "DM_UDEV_PRIMARY_SOURCE_FLAG": "1",
+                "DM_UDEV_RULES": "1",
+                "DM_UDEV_RULES_VSN": "2",
+                "DM_UUID": "LVM-2PaT2BBJSoyqa8M3Rdi2ueOzjcDmj4cd0Epa6lhHVNXl8oZv2YbKUjmjLYk64Bis",
+                "DM_VG_NAME": "ubuntu-vg",
+                "ID_FS_TYPE": "ext4",
+                "ID_FS_USAGE": "filesystem",
+                "ID_FS_UUID": "77d6df4a-99f4-4c15-90e2-bbf0a7592e20",
+                "ID_FS_UUID_ENC": "77d6df4a-99f4-4c15-90e2-bbf0a7592e20",
+                "ID_FS_VERSION": "1.0",
+                "MAJOR": "253",
+                "MINOR": "1",
+                "SUBSYSTEM": "block",
+                "TAGS": ":systemd:",
+                "USEC_INITIALIZED": "122126255",
+                "attrs": {
+                    "alignment_offset": "0",
+                    "bdi": null,
+                    "capability": "10",
+                    "dev": "253:1",
+                    "discard_alignment": "0",
+                    "ext_range": "1",
+                    "hidden": "0",
+                    "inflight": "       0        0",
+                    "range": "1",
+                    "removable": "0",
+                    "ro": "0",
+                    "size": "497767415808",
+                    "stat": "36971233        0 1223374242 27293540 32383682        0 542559384 3892686552        0  8402488 3928019412",
+                    "subsystem": "block",
+                    "uevent": "MAJOR=253\nMINOR=1\nDEVNAME=dm-1\nDEVTYPE=disk"
+                }
+            },
+            "/dev/dm-2": {
+                "DEVLINKS": "/dev/mapper/ubuntu--vg-swap_1 /dev/ubuntu-vg/swap_1 /dev/disk/by-id/dm-uuid-LVM-2PaT2BBJSoyqa8M3Rdi2ueOzjcDmj4cdBrWbos29lQYZMLN8sKfN2NHqWpN6f3GE /dev/disk/by-id/dm-name-ubuntu--vg-swap_1 /dev/disk/by-uuid/889fb46c-7b29-44f1-95a6-42c6fe4cdd35",
+                "DEVNAME": "/dev/dm-2",
+                "DEVPATH": "/devices/virtual/block/dm-2",
+                "DEVTYPE": "disk",
+                "DM_ACTIVATION": "1",
+                "DM_LV_NAME": "swap_1",
+                "DM_NAME": "ubuntu--vg-swap_1",
+                "DM_STATE": "ACTIVE",
+                "DM_SUSPENDED": "0",
+                "DM_TABLE_STATE": "LIVE",
+                "DM_UDEV_DISABLE_LIBRARY_FALLBACK_FLAG": "1",
+                "DM_UDEV_PRIMARY_SOURCE_FLAG": "1",
+                "DM_UDEV_RULES": "1",
+                "DM_UDEV_RULES_VSN": "2",
+                "DM_UUID": "LVM-2PaT2BBJSoyqa8M3Rdi2ueOzjcDmj4cdBrWbos29lQYZMLN8sKfN2NHqWpN6f3GE",
+                "DM_VG_NAME": "ubuntu-vg",
+                "ID_FS_TYPE": "swap",
+                "ID_FS_USAGE": "other",
+                "ID_FS_UUID": "889fb46c-7b29-44f1-95a6-42c6fe4cdd35",
+                "ID_FS_UUID_ENC": "889fb46c-7b29-44f1-95a6-42c6fe4cdd35",
+                "ID_FS_VERSION": "1",
+                "MAJOR": "253",
+                "MINOR": "2",
+                "SUBSYSTEM": "block",
+                "TAGS": ":systemd:",
+                "USEC_INITIALIZED": "122126252",
+                "attrs": {
+                    "alignment_offset": "0",
+                    "bdi": null,
+                    "capability": "10",
+                    "dev": "253:2",
+                    "discard_alignment": "0",
+                    "ext_range": "1",
+                    "hidden": "0",
+                    "inflight": "       0        0",
+                    "range": "1",
+                    "removable": "0",
+                    "ro": "0",
+                    "size": "1027604480",
+                    "stat": "  214314        0  1719992   120268   251981        0  2015848 39280384        0    76828 39494012",
+                    "subsystem": "block",
+                    "uevent": "MAJOR=253\nMINOR=2\nDEVNAME=dm-2\nDEVTYPE=disk"
+                }
+            },
+            "/dev/sda": {
+                "DEVLINKS": "/dev/disk/by-id/ata-CT500MX500SSD4_1813E134E05A /dev/disk/by-path/pci-0000:00:1f.2-ata-4 /dev/disk/by-id/wwn-0x500a0751e134e05a",
+                "DEVNAME": "/dev/sda",
+                "DEVPATH": "/devices/pci0000:00/0000:00:1f.2/ata4/host3/target3:0:0/3:0:0:0/block/sda",
+                "DEVTYPE": "disk",
+                "ID_ATA": "1",
+                "ID_ATA_DOWNLOAD_MICROCODE": "1",
+                "ID_ATA_FEATURE_SET_APM": "1",
+                "ID_ATA_FEATURE_SET_APM_CURRENT_VALUE": "254",
+                "ID_ATA_FEATURE_SET_APM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_PM": "1",
+                "ID_ATA_FEATURE_SET_PM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_SECURITY": "1",
+                "ID_ATA_FEATURE_SET_SECURITY_ENABLED": "0",
+                "ID_ATA_FEATURE_SET_SECURITY_ENHANCED_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SECURITY_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SECURITY_FROZEN": "1",
+                "ID_ATA_FEATURE_SET_SMART": "1",
+                "ID_ATA_FEATURE_SET_SMART_ENABLED": "1",
+                "ID_ATA_ROTATION_RATE_RPM": "0",
+                "ID_ATA_SATA": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN1": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN2": "1",
+                "ID_ATA_WRITE_CACHE": "1",
+                "ID_ATA_WRITE_CACHE_ENABLED": "1",
+                "ID_BUS": "ata",
+                "ID_MODEL": "CT500MX500SSD4",
+                "ID_MODEL_ENC": "CT500MX500SSD4\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20",
+                "ID_PART_TABLE_TYPE": "gpt",
+                "ID_PART_TABLE_UUID": "2f087327-fc31-4acd-8725-c6d2ed6f3ebb",
+                "ID_PATH": "pci-0000:00:1f.2-ata-4",
+                "ID_PATH_TAG": "pci-0000_00_1f_2-ata-4",
+                "ID_REVISION": "M3CR020",
+                "ID_SERIAL": "CT500MX500SSD4_1813E134E05A",
+                "ID_SERIAL_SHORT": "1813E134E05A",
+                "ID_TYPE": "disk",
+                "ID_WWN": "0x500a0751e134e05a",
+                "ID_WWN_WITH_EXTENSION": "0x500a0751e134e05a",
+                "MAJOR": "8",
+                "MINOR": "0",
+                "SUBSYSTEM": "block",
+                "TAGS": ":systemd:",
+                "USEC_INITIALIZED": "1883225",
+                "attrs": {
+                    "alignment_offset": "0",
+                    "bdi": null,
+                    "capability": "50",
+                    "dev": "8:0",
+                    "device": null,
+                    "discard_alignment": "0",
+                    "events": "",
+                    "events_async": "",
+                    "events_poll_msecs": "-1",
+                    "ext_range": "256",
+                    "hidden": "0",
+                    "inflight": "       0        0",
+                    "range": "16",
+                    "removable": "0",
+                    "ro": "0",
+                    "size": "500107862016",
+                    "stat": "35182994  1990706 1225128811 20714860 28279968  4672432 544575434 88443996        0  7279248 109139768",
+                    "subsystem": "block",
+                    "uevent": "MAJOR=8\nMINOR=0\nDEVNAME=sda\nDEVTYPE=disk"
+                }
+            },
+            "/dev/sda1": {
+                "DEVLINKS": "/dev/disk/by-uuid/11C7-B9F1 /dev/disk/by-id/wwn-0x500a0751e134e05a-part1 /dev/disk/by-path/pci-0000:00:1f.2-ata-4-part1 /dev/disk/by-partlabel/EFI\\x20System\\x20Partition /dev/disk/by-partuuid/80df94dc-7176-4609-acd1-a672db742f0b /dev/disk/by-id/ata-CT500MX500SSD4_1813E134E05A-part1",
+                "DEVNAME": "/dev/sda1",
+                "DEVPATH": "/devices/pci0000:00/0000:00:1f.2/ata4/host3/target3:0:0/3:0:0:0/block/sda/sda1",
+                "DEVTYPE": "partition",
+                "ID_ATA": "1",
+                "ID_ATA_DOWNLOAD_MICROCODE": "1",
+                "ID_ATA_FEATURE_SET_APM": "1",
+                "ID_ATA_FEATURE_SET_APM_CURRENT_VALUE": "254",
+                "ID_ATA_FEATURE_SET_APM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_PM": "1",
+                "ID_ATA_FEATURE_SET_PM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_SECURITY": "1",
+                "ID_ATA_FEATURE_SET_SECURITY_ENABLED": "0",
+                "ID_ATA_FEATURE_SET_SECURITY_ENHANCED_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SECURITY_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SECURITY_FROZEN": "1",
+                "ID_ATA_FEATURE_SET_SMART": "1",
+                "ID_ATA_FEATURE_SET_SMART_ENABLED": "1",
+                "ID_ATA_ROTATION_RATE_RPM": "0",
+                "ID_ATA_SATA": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN1": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN2": "1",
+                "ID_ATA_WRITE_CACHE": "1",
+                "ID_ATA_WRITE_CACHE_ENABLED": "1",
+                "ID_BUS": "ata",
+                "ID_FS_TYPE": "vfat",
+                "ID_FS_USAGE": "filesystem",
+                "ID_FS_UUID": "11C7-B9F1",
+                "ID_FS_UUID_ENC": "11C7-B9F1",
+                "ID_FS_VERSION": "FAT32",
+                "ID_MODEL": "CT500MX500SSD4",
+                "ID_MODEL_ENC": "CT500MX500SSD4\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20",
+                "ID_PART_ENTRY_DISK": "8:0",
+                "ID_PART_ENTRY_NAME": "EFI\\x20System\\x20Partition",
+                "ID_PART_ENTRY_NUMBER": "1",
+                "ID_PART_ENTRY_OFFSET": "2048",
+                "ID_PART_ENTRY_SCHEME": "gpt",
+                "ID_PART_ENTRY_SIZE": "1048576",
+                "ID_PART_ENTRY_TYPE": "c12a7328-f81f-11d2-ba4b-00a0c93ec93b",
+                "ID_PART_ENTRY_UUID": "80df94dc-7176-4609-acd1-a672db742f0b",
+                "ID_PART_TABLE_TYPE": "gpt",
+                "ID_PART_TABLE_UUID": "2f087327-fc31-4acd-8725-c6d2ed6f3ebb",
+                "ID_PATH": "pci-0000:00:1f.2-ata-4",
+                "ID_PATH_TAG": "pci-0000_00_1f_2-ata-4",
+                "ID_REVISION": "M3CR020",
+                "ID_SERIAL": "CT500MX500SSD4_1813E134E05A",
+                "ID_SERIAL_SHORT": "1813E134E05A",
+                "ID_TYPE": "disk",
+                "ID_WWN": "0x500a0751e134e05a",
+                "ID_WWN_WITH_EXTENSION": "0x500a0751e134e05a",
+                "MAJOR": "8",
+                "MINOR": "1",
+                "PARTN": "1",
+                "PARTNAME": "EFI System Partition",
+                "SUBSYSTEM": "block",
+                "TAGS": ":systemd:",
+                "UDISKS_IGNORE": "1",
+                "USEC_INITIALIZED": "1894478",
+                "attrs": {
+                    "alignment_offset": "0",
+                    "dev": "8:1",
+                    "discard_alignment": "0",
+                    "inflight": "       0        0",
+                    "partition": "1",
+                    "ro": "0",
+                    "size": "536870912",
+                    "start": "2048",
+                    "stat": "     269       97    13826      384        2        0        2        0        0      308      384",
+                    "subsystem": "block",
+                    "uevent": "MAJOR=8\nMINOR=1\nDEVNAME=sda1\nDEVTYPE=partition\nPARTN=1\nPARTNAME=EFI System Partition"
+                }
+            },
+            "/dev/sda2": {
+                "DEVLINKS": "/dev/disk/by-path/pci-0000:00:1f.2-ata-4-part2 /dev/disk/by-id/wwn-0x500a0751e134e05a-part2 /dev/disk/by-uuid/49617a79-186d-42d5-a4e8-be2a9dc287b2 /dev/disk/by-partuuid/656dffce-2933-459c-8581-bf07cdd94902 /dev/disk/by-id/ata-CT500MX500SSD4_1813E134E05A-part2",
+                "DEVNAME": "/dev/sda2",
+                "DEVPATH": "/devices/pci0000:00/0000:00:1f.2/ata4/host3/target3:0:0/3:0:0:0/block/sda/sda2",
+                "DEVTYPE": "partition",
+                "ID_ATA": "1",
+                "ID_ATA_DOWNLOAD_MICROCODE": "1",
+                "ID_ATA_FEATURE_SET_APM": "1",
+                "ID_ATA_FEATURE_SET_APM_CURRENT_VALUE": "254",
+                "ID_ATA_FEATURE_SET_APM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_PM": "1",
+                "ID_ATA_FEATURE_SET_PM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_SECURITY": "1",
+                "ID_ATA_FEATURE_SET_SECURITY_ENABLED": "0",
+                "ID_ATA_FEATURE_SET_SECURITY_ENHANCED_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SECURITY_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SECURITY_FROZEN": "1",
+                "ID_ATA_FEATURE_SET_SMART": "1",
+                "ID_ATA_FEATURE_SET_SMART_ENABLED": "1",
+                "ID_ATA_ROTATION_RATE_RPM": "0",
+                "ID_ATA_SATA": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN1": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN2": "1",
+                "ID_ATA_WRITE_CACHE": "1",
+                "ID_ATA_WRITE_CACHE_ENABLED": "1",
+                "ID_BUS": "ata",
+                "ID_FS_TYPE": "ext4",
+                "ID_FS_USAGE": "filesystem",
+                "ID_FS_UUID": "49617a79-186d-42d5-a4e8-be2a9dc287b2",
+                "ID_FS_UUID_ENC": "49617a79-186d-42d5-a4e8-be2a9dc287b2",
+                "ID_FS_VERSION": "1.0",
+                "ID_MODEL": "CT500MX500SSD4",
+                "ID_MODEL_ENC": "CT500MX500SSD4\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20",
+                "ID_PART_ENTRY_DISK": "8:0",
+                "ID_PART_ENTRY_NUMBER": "2",
+                "ID_PART_ENTRY_OFFSET": "1050624",
+                "ID_PART_ENTRY_SCHEME": "gpt",
+                "ID_PART_ENTRY_SIZE": "1499136",
+                "ID_PART_ENTRY_TYPE": "0fc63daf-8483-4772-8e79-3d69d8477de4",
+                "ID_PART_ENTRY_UUID": "656dffce-2933-459c-8581-bf07cdd94902",
+                "ID_PART_TABLE_TYPE": "gpt",
+                "ID_PART_TABLE_UUID": "2f087327-fc31-4acd-8725-c6d2ed6f3ebb",
+                "ID_PATH": "pci-0000:00:1f.2-ata-4",
+                "ID_PATH_TAG": "pci-0000_00_1f_2-ata-4",
+                "ID_REVISION": "M3CR020",
+                "ID_SERIAL": "CT500MX500SSD4_1813E134E05A",
+                "ID_SERIAL_SHORT": "1813E134E05A",
+                "ID_TYPE": "disk",
+                "ID_WWN": "0x500a0751e134e05a",
+                "ID_WWN_WITH_EXTENSION": "0x500a0751e134e05a",
+                "MAJOR": "8",
+                "MINOR": "2",
+                "PARTN": "2",
+                "SUBSYSTEM": "block",
+                "TAGS": ":systemd:",
+                "USEC_INITIALIZED": "1893774",
+                "attrs": {
+                    "alignment_offset": "0",
+                    "dev": "8:2",
+                    "discard_alignment": "0",
+                    "inflight": "       0        0",
+                    "partition": "2",
+                    "ro": "0",
+                    "size": "767557632",
+                    "start": "1050624",
+                    "stat": "     340       42    12482      668       17        8      200      132        0      580      800",
+                    "subsystem": "block",
+                    "uevent": "MAJOR=8\nMINOR=2\nDEVNAME=sda2\nDEVTYPE=partition\nPARTN=2"
+                }
+            },
+            "/dev/sda3": {
+                "DEVLINKS": "/dev/disk/by-partuuid/9d854317-e2e8-4ebf-aee0-777aa896e479 /dev/disk/by-id/ata-CT500MX500SSD4_1813E134E05A-part3 /dev/disk/by-path/pci-0000:00:1f.2-ata-4-part3 /dev/disk/by-uuid/58e2a364-c310-4e8d-8a09-f8fceb392e26 /dev/disk/by-id/wwn-0x500a0751e134e05a-part3",
+                "DEVNAME": "/dev/sda3",
+                "DEVPATH": "/devices/pci0000:00/0000:00:1f.2/ata4/host3/target3:0:0/3:0:0:0/block/sda/sda3",
+                "DEVTYPE": "partition",
+                "ID_ATA": "1",
+                "ID_ATA_DOWNLOAD_MICROCODE": "1",
+                "ID_ATA_FEATURE_SET_APM": "1",
+                "ID_ATA_FEATURE_SET_APM_CURRENT_VALUE": "254",
+                "ID_ATA_FEATURE_SET_APM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_PM": "1",
+                "ID_ATA_FEATURE_SET_PM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_SECURITY": "1",
+                "ID_ATA_FEATURE_SET_SECURITY_ENABLED": "0",
+                "ID_ATA_FEATURE_SET_SECURITY_ENHANCED_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SECURITY_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SECURITY_FROZEN": "1",
+                "ID_ATA_FEATURE_SET_SMART": "1",
+                "ID_ATA_FEATURE_SET_SMART_ENABLED": "1",
+                "ID_ATA_ROTATION_RATE_RPM": "0",
+                "ID_ATA_SATA": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN1": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN2": "1",
+                "ID_ATA_WRITE_CACHE": "1",
+                "ID_ATA_WRITE_CACHE_ENABLED": "1",
+                "ID_BUS": "ata",
+                "ID_FS_TYPE": "crypto_LUKS",
+                "ID_FS_USAGE": "crypto",
+                "ID_FS_UUID": "58e2a364-c310-4e8d-8a09-f8fceb392e26",
+                "ID_FS_UUID_ENC": "58e2a364-c310-4e8d-8a09-f8fceb392e26",
+                "ID_FS_VERSION": "1",
+                "ID_MODEL": "CT500MX500SSD4",
+                "ID_MODEL_ENC": "CT500MX500SSD4\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20",
+                "ID_PART_ENTRY_DISK": "8:0",
+                "ID_PART_ENTRY_NUMBER": "3",
+                "ID_PART_ENTRY_OFFSET": "2549760",
+                "ID_PART_ENTRY_SCHEME": "gpt",
+                "ID_PART_ENTRY_SIZE": "974221312",
+                "ID_PART_ENTRY_TYPE": "0fc63daf-8483-4772-8e79-3d69d8477de4",
+                "ID_PART_ENTRY_UUID": "9d854317-e2e8-4ebf-aee0-777aa896e479",
+                "ID_PART_TABLE_TYPE": "gpt",
+                "ID_PART_TABLE_UUID": "2f087327-fc31-4acd-8725-c6d2ed6f3ebb",
+                "ID_PATH": "pci-0000:00:1f.2-ata-4",
+                "ID_PATH_TAG": "pci-0000_00_1f_2-ata-4",
+                "ID_REVISION": "M3CR020",
+                "ID_SERIAL": "CT500MX500SSD4_1813E134E05A",
+                "ID_SERIAL_SHORT": "1813E134E05A",
+                "ID_TYPE": "disk",
+                "ID_WWN": "0x500a0751e134e05a",
+                "ID_WWN_WITH_EXTENSION": "0x500a0751e134e05a",
+                "MAJOR": "8",
+                "MINOR": "3",
+                "PARTN": "3",
+                "SUBSYSTEM": "block",
+                "TAGS": ":systemd:",
+                "USEC_INITIALIZED": "1888651",
+                "attrs": {
+                    "alignment_offset": "0",
+                    "dev": "8:3",
+                    "discard_alignment": "0",
+                    "inflight": "       0        0",
+                    "partition": "3",
+                    "ro": "0",
+                    "size": "498801311744",
+                    "start": "2549760",
+                    "stat": "35182285  1990567 1225098127 20713632 27955450  4672424 544575232 88243092        0  7140220 108932428",
+                    "subsystem": "block",
+                    "uevent": "MAJOR=8\nMINOR=3\nDEVNAME=sda3\nDEVTYPE=partition\nPARTN=3"
+                }
+            },
+            "/dev/sdb": {
+                "DEVLINKS": "/dev/disk/by-id/ata-Crucial_CT512MX100SSD1_14250C57FECE /dev/disk/by-id/wwn-0x500a07510c57fece /dev/disk/by-path/pci-0000:00:14.0-usb-0:3.1.1:1.0-scsi-0:0:0:0",
+                "DEVNAME": "/dev/sdb",
+                "DEVPATH": "/devices/pci0000:00/0000:00:14.0/usb3/3-3/3-3.1/3-3.1.1/3-3.1.1:1.0/host4/target4:0:0/4:0:0:0/block/sdb",
+                "DEVTYPE": "disk",
+                "ID_ATA": "1",
+                "ID_ATA_DOWNLOAD_MICROCODE": "1",
+                "ID_ATA_FEATURE_SET_APM": "1",
+                "ID_ATA_FEATURE_SET_APM_CURRENT_VALUE": "254",
+                "ID_ATA_FEATURE_SET_APM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_HPA": "1",
+                "ID_ATA_FEATURE_SET_HPA_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_PM": "1",
+                "ID_ATA_FEATURE_SET_PM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_SECURITY": "1",
+                "ID_ATA_FEATURE_SET_SECURITY_ENABLED": "0",
+                "ID_ATA_FEATURE_SET_SECURITY_ENHANCED_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SECURITY_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SMART": "1",
+                "ID_ATA_FEATURE_SET_SMART_ENABLED": "1",
+                "ID_ATA_ROTATION_RATE_RPM": "0",
+                "ID_ATA_SATA": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN1": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN2": "1",
+                "ID_ATA_WRITE_CACHE": "1",
+                "ID_ATA_WRITE_CACHE_ENABLED": "1",
+                "ID_BUS": "ata",
+                "ID_MODEL": "Crucial_CT512MX100SSD1",
+                "ID_MODEL_ENC": "Crucial_CT512MX100SSD1\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20",
+                "ID_PART_TABLE_TYPE": "dos",
+                "ID_PART_TABLE_UUID": "20b39872",
+                "ID_PATH": "pci-0000:00:14.0-usb-0:3.1.1:1.0-scsi-0:0:0:0",
+                "ID_PATH_TAG": "pci-0000_00_14_0-usb-0_3_1_1_1_0-scsi-0_0_0_0",
+                "ID_REVISION": "MU01",
+                "ID_SERIAL": "Crucial_CT512MX100SSD1_14250C57FECE",
+                "ID_SERIAL_SHORT": "14250C57FECE",
+                "ID_TYPE": "disk",
+                "ID_WWN": "0x500a07510c57fece",
+                "ID_WWN_WITH_EXTENSION": "0x500a07510c57fece",
+                "MAJOR": "8",
+                "MINOR": "16",
+                "SUBSYSTEM": "block",
+                "TAGS": ":systemd:",
+                "USEC_INITIALIZED": "132166873997",
+                "attrs": {
+                    "alignment_offset": "0",
+                    "bdi": null,
+                    "capability": "50",
+                    "dev": "8:16",
+                    "device": null,
+                    "discard_alignment": "0",
+                    "events": "",
+                    "events_async": "",
+                    "events_poll_msecs": "-1",
+                    "ext_range": "256",
+                    "hidden": "0",
+                    "inflight": "       0        0",
+                    "range": "16",
+                    "removable": "0",
+                    "ro": "0",
+                    "size": "512110190592",
+                    "stat": "   14384       36   126170     8640      136      179     2504      460        0      912     9100",
+                    "subsystem": "block",
+                    "uevent": "MAJOR=8\nMINOR=16\nDEVNAME=sdb\nDEVTYPE=disk"
+                }
+            },
+            "/dev/sdb1": {
+                "DEVLINKS": "/dev/disk/by-label/backup_ssd /dev/disk/by-id/ata-Crucial_CT512MX100SSD1_14250C57FECE-part1 /dev/disk/by-path/pci-0000:00:14.0-usb-0:3.1.1:1.0-scsi-0:0:0:0-part1 /dev/disk/by-uuid/4442a585-3ab3-4dad-b690-d85e3a4a0993 /dev/disk/by-id/wwn-0x500a07510c57fece-part1 /dev/disk/by-partuuid/20b39872-01",
+                "DEVNAME": "/dev/sdb1",
+                "DEVPATH": "/devices/pci0000:00/0000:00:14.0/usb3/3-3/3-3.1/3-3.1.1/3-3.1.1:1.0/host4/target4:0:0/4:0:0:0/block/sdb/sdb1",
+                "DEVTYPE": "partition",
+                "ID_ATA": "1",
+                "ID_ATA_DOWNLOAD_MICROCODE": "1",
+                "ID_ATA_FEATURE_SET_APM": "1",
+                "ID_ATA_FEATURE_SET_APM_CURRENT_VALUE": "254",
+                "ID_ATA_FEATURE_SET_APM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_HPA": "1",
+                "ID_ATA_FEATURE_SET_HPA_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_PM": "1",
+                "ID_ATA_FEATURE_SET_PM_ENABLED": "1",
+                "ID_ATA_FEATURE_SET_SECURITY": "1",
+                "ID_ATA_FEATURE_SET_SECURITY_ENABLED": "0",
+                "ID_ATA_FEATURE_SET_SECURITY_ENHANCED_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SECURITY_ERASE_UNIT_MIN": "2",
+                "ID_ATA_FEATURE_SET_SMART": "1",
+                "ID_ATA_FEATURE_SET_SMART_ENABLED": "1",
+                "ID_ATA_ROTATION_RATE_RPM": "0",
+                "ID_ATA_SATA": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN1": "1",
+                "ID_ATA_SATA_SIGNAL_RATE_GEN2": "1",
+                "ID_ATA_WRITE_CACHE": "1",
+                "ID_ATA_WRITE_CACHE_ENABLED": "1",
+                "ID_BUS": "ata",
+                "ID_FS_LABEL": "backup_ssd",
+                "ID_FS_LABEL_ENC": "backup_ssd",
+                "ID_FS_TYPE": "ext4",
+                "ID_FS_USAGE": "filesystem",
+                "ID_FS_UUID": "4442a585-3ab3-4dad-b690-d85e3a4a0993",
+                "ID_FS_UUID_ENC": "4442a585-3ab3-4dad-b690-d85e3a4a0993",
+                "ID_FS_VERSION": "1.0",
+                "ID_MODEL": "Crucial_CT512MX100SSD1",
+                "ID_MODEL_ENC": "Crucial_CT512MX100SSD1\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20\\x20",
+                "ID_PART_ENTRY_DISK": "8:16",
+                "ID_PART_ENTRY_NUMBER": "1",
+                "ID_PART_ENTRY_OFFSET": "2048",
+                "ID_PART_ENTRY_SCHEME": "dos",
+                "ID_PART_ENTRY_SIZE": "1000213168",
+                "ID_PART_ENTRY_TYPE": "0x83",
+                "ID_PART_ENTRY_UUID": "20b39872-01",
+                "ID_PART_TABLE_TYPE": "dos",
+                "ID_PART_TABLE_UUID": "20b39872",
+                "ID_PATH": "pci-0000:00:14.0-usb-0:3.1.1:1.0-scsi-0:0:0:0",
+                "ID_PATH_TAG": "pci-0000_00_14_0-usb-0_3_1_1_1_0-scsi-0_0_0_0",
+                "ID_REVISION": "MU01",
+                "ID_SERIAL": "Crucial_CT512MX100SSD1_14250C57FECE",
+                "ID_SERIAL_SHORT": "14250C57FECE",
+                "ID_TYPE": "disk",
+                "ID_WWN": "0x500a07510c57fece",
+                "ID_WWN_WITH_EXTENSION": "0x500a07510c57fece",
+                "MAJOR": "8",
+                "MINOR": "17",
+                "PARTN": "1",
+                "SUBSYSTEM": "block",
+                "TAGS": ":systemd:",
+                "USEC_INITIALIZED": "132170443472",
+                "attrs": {
+                    "alignment_offset": "0",
+                    "dev": "8:17",
+                    "discard_alignment": "0",
+                    "inflight": "       0        0",
+                    "partition": "1",
+                    "ro": "0",
+                    "size": "512109142016",
+                    "start": "2048",
+                    "stat": "   14368       36   125098     8628      134      179     2504      440        0      884     9068",
+                    "subsystem": "block",
+                    "uevent": "MAJOR=8\nMINOR=17\nDEVNAME=sdb1\nDEVTYPE=partition\nPARTN=1"
+                }
+            }
+        },
+        "filesystem": {
+            "/dev/dm-1": {
+                "TYPE": "ext4",
+                "USAGE": "filesystem",
+                "UUID": "77d6df4a-99f4-4c15-90e2-bbf0a7592e20",
+                "UUID_ENC": "77d6df4a-99f4-4c15-90e2-bbf0a7592e20",
+                "VERSION": "1.0"
+            },
+            "/dev/sda1": {
+                "TYPE": "vfat",
+                "USAGE": "filesystem",
+                "UUID": "11C7-B9F1",
+                "UUID_ENC": "11C7-B9F1",
+                "VERSION": "FAT32"
+            },
+            "/dev/sda2": {
+                "TYPE": "ext4",
+                "USAGE": "filesystem",
+                "UUID": "49617a79-186d-42d5-a4e8-be2a9dc287b2",
+                "UUID_ENC": "49617a79-186d-42d5-a4e8-be2a9dc287b2",
+                "VERSION": "1.0"
+            },
+            "/dev/sdb1": {
+                "LABEL": "backup_ssd",
+                "LABEL_ENC": "backup_ssd",
+                "TYPE": "ext4",
+                "USAGE": "filesystem",
+                "UUID": "4442a585-3ab3-4dad-b690-d85e3a4a0993",
+                "UUID_ENC": "4442a585-3ab3-4dad-b690-d85e3a4a0993",
+                "VERSION": "1.0"
+            }
+        },
+        "lvm": {
+            "logical_volumes": {
+                "ubuntu-vg/root": {
+                    "fullname": "ubuntu-vg/root",
+                    "name": "root",
+                    "size": "497767415808B",
+                    "volgroup": "ubuntu-vg"
+                },
+                "ubuntu-vg/swap_1": {
+                    "fullname": "ubuntu-vg/swap_1",
+                    "name": "swap_1",
+                    "size": "1027604480B",
+                    "volgroup": "ubuntu-vg"
+                }
+            },
+            "physical_volumes": {
+                "ubuntu-vg": [
+                    "/dev/mapper/sda3_crypt"
+                ]
+            },
+            "volume_groups": {
+                "ubuntu-vg": {
+                    "devices": [
+                        "/dev/mapper/sda3_crypt"
+                    ],
+                    "name": "ubuntu-vg",
+                    "size": "498795020288B"
+                }
+            }
+        },
+        "mount": [
+            {
+                "children": [
+                    {
+                        "children": [
+                            {
+                                "fstype": "securityfs",
+                                "options": "rw,nosuid,nodev,noexec,relatime",
+                                "source": "securityfs",
+                                "target": "/sys/kernel/security"
+                            },
+                            {
+                                "children": [
+                                    {
+                                        "fstype": "cgroup2",
+                                        "options": "rw,nosuid,nodev,noexec,relatime",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/unified"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,xattr,name=systemd",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/systemd"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,blkio",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/blkio"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,memory",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/memory"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,cpu,cpuacct",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/cpu,cpuacct"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,net_cls,net_prio",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/net_cls,net_prio"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,rdma",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/rdma"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,cpuset",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/cpuset"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,perf_event",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/perf_event"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,devices",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/devices"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,freezer",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/freezer"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,hugetlb",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/hugetlb"
+                                    },
+                                    {
+                                        "fstype": "cgroup",
+                                        "options": "rw,nosuid,nodev,noexec,relatime,pids",
+                                        "source": "cgroup",
+                                        "target": "/sys/fs/cgroup/pids"
+                                    }
+                                ],
+                                "fstype": "tmpfs",
+                                "options": "ro,nosuid,nodev,noexec,mode=755",
+                                "source": "tmpfs",
+                                "target": "/sys/fs/cgroup"
+                            },
+                            {
+                                "fstype": "pstore",
+                                "options": "rw,nosuid,nodev,noexec,relatime",
+                                "source": "pstore",
+                                "target": "/sys/fs/pstore"
+                            },
+                            {
+                                "fstype": "efivarfs",
+                                "options": "rw,nosuid,nodev,noexec,relatime",
+                                "source": "efivarfs",
+                                "target": "/sys/firmware/efi/efivars"
+                            },
+                            {
+                                "fstype": "debugfs",
+                                "options": "rw,relatime",
+                                "source": "debugfs",
+                                "target": "/sys/kernel/debug"
+                            },
+                            {
+                                "fstype": "configfs",
+                                "options": "rw,relatime",
+                                "source": "configfs",
+                                "target": "/sys/kernel/config"
+                            },
+                            {
+                                "fstype": "fusectl",
+                                "options": "rw,relatime",
+                                "source": "fusectl",
+                                "target": "/sys/fs/fuse/connections"
+                            }
+                        ],
+                        "fstype": "sysfs",
+                        "options": "rw,nosuid,nodev,noexec,relatime",
+                        "source": "sysfs",
+                        "target": "/sys"
+                    },
+                    {
+                        "children": [
+                            {
+                                "children": [
+                                    {
+                                        "fstype": "binfmt_misc",
+                                        "options": "rw,relatime",
+                                        "source": "binfmt_misc",
+                                        "target": "/proc/sys/fs/binfmt_misc"
+                                    }
+                                ],
+                                "fstype": "autofs",
+                                "options": "rw,relatime,fd=25,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=630",
+                                "source": "systemd-1",
+                                "target": "/proc/sys/fs/binfmt_misc"
+                            }
+                        ],
+                        "fstype": "proc",
+                        "options": "rw,nosuid,nodev,noexec,relatime",
+                        "source": "proc",
+                        "target": "/proc"
+                    },
+                    {
+                        "children": [
+                            {
+                                "fstype": "devpts",
+                                "options": "rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000",
+                                "source": "devpts",
+                                "target": "/dev/pts"
+                            },
+                            {
+                                "fstype": "tmpfs",
+                                "options": "rw,nosuid,nodev",
+                                "source": "tmpfs",
+                                "target": "/dev/shm"
+                            },
+                            {
+                                "fstype": "mqueue",
+                                "options": "rw,relatime",
+                                "source": "mqueue",
+                                "target": "/dev/mqueue"
+                            },
+                            {
+                                "fstype": "hugetlbfs",
+                                "options": "rw,relatime,pagesize=2M",
+                                "source": "hugetlbfs",
+                                "target": "/dev/hugepages"
+                            }
+                        ],
+                        "fstype": "devtmpfs",
+                        "options": "rw,nosuid,relatime,size=3989424k,nr_inodes=997356,mode=755",
+                        "source": "udev",
+                        "target": "/dev"
+                    },
+                    {
+                        "children": [
+                            {
+                                "fstype": "tmpfs",
+                                "options": "rw,nosuid,nodev,noexec,relatime,size=5120k",
+                                "source": "tmpfs",
+                                "target": "/run/lock"
+                            },
+                            {
+                                "children": [
+                                    {
+                                        "fstype": "fuse.gvfsd-fuse",
+                                        "options": "rw,nosuid,nodev,relatime,user_id=1000,group_id=1000",
+                                        "source": "gvfsd-fuse",
+                                        "target": "/run/user/1000/gvfs"
+                                    }
+                                ],
+                                "fstype": "tmpfs",
+                                "options": "rw,nosuid,nodev,relatime,size=804384k,mode=700,uid=1000,gid=1000",
+                                "source": "tmpfs",
+                                "target": "/run/user/1000"
+                            },
+                            {
+                                "fstype": "tmpfs",
+                                "options": "rw,nosuid,nodev,relatime,size=804384k,mode=700,uid=120,gid=125",
+                                "source": "tmpfs",
+                                "target": "/run/user/120"
+                            },
+                            {
+                                "children": [
+                                    {
+                                        "fstype": "nsfs",
+                                        "options": "rw",
+                                        "source": "nsfs[mnt:[4026532472]]",
+                                        "target": "/run/snapd/ns/lxd.mnt"
+                                    },
+                                    {
+                                        "fstype": "nsfs",
+                                        "options": "rw",
+                                        "source": "nsfs[mnt:[4026532471]]",
+                                        "target": "/run/snapd/ns/canonical-livepatch.mnt"
+                                    },
+                                    {
+                                        "fstype": "nsfs",
+                                        "options": "rw",
+                                        "source": "nsfs[mnt:[4026532479]]",
+                                        "target": "/run/snapd/ns/google-play-music-desktop-player.mnt"
+                                    },
+                                    {
+                                        "fstype": "nsfs",
+                                        "options": "rw",
+                                        "source": "nsfs[mnt:[4026533953]]",
+                                        "target": "/run/snapd/ns/gnome-system-monitor.mnt"
+                                    },
+                                    {
+                                        "fstype": "nsfs",
+                                        "options": "rw",
+                                        "source": "nsfs[mnt:[4026533842]]",
+                                        "target": "/run/snapd/ns/telegram-desktop.mnt"
+                                    }
+                                ],
+                                "fstype": "tmpfs",
+                                "options": "rw,nosuid,noexec,relatime,size=804388k,mode=755",
+                                "source": "tmpfs[/snapd/ns]",
+                                "target": "/run/snapd/ns"
+                            },
+                            {
+                                "children": [
+                                    {
+                                        "fstype": "sysfs",
+                                        "options": "rw,nosuid,nodev,noexec,relatime",
+                                        "source": "sysfs",
+                                        "target": "/run/schroot/mount/disco-amd64-032e208e-007d-4f89-ab96-8b981e7a0f43/sys"
+                                    },
+                                    {
+                                        "fstype": "devpts",
+                                        "options": "rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000",
+                                        "source": "devpts",
+                                        "target": "/run/schroot/mount/disco-amd64-032e208e-007d-4f89-ab96-8b981e7a0f43/dev/pts"
+                                    },
+                                    {
+                                        "fstype": "tmpfs",
+                                        "options": "rw,relatime",
+                                        "source": "tmpfs",
+                                        "target": "/run/schroot/mount/disco-amd64-032e208e-007d-4f89-ab96-8b981e7a0f43/dev/shm"
+                                    },
+                                    {
+                                        "fstype": "ext4",
+                                        "options": "rw,relatime,errors=remount-ro,data=ordered",
+                                        "source": "/dev/mapper/ubuntu--vg-root[/var/lib/sbuild/build]",
+                                        "target": "/run/schroot/mount/disco-amd64-032e208e-007d-4f89-ab96-8b981e7a0f43/build"
+                                    },
+                                    {
+                                        "fstype": "proc",
+                                        "options": "rw,nosuid,nodev,noexec,relatime",
+                                        "source": "proc",
+                                        "target": "/run/schroot/mount/disco-amd64-032e208e-007d-4f89-ab96-8b981e7a0f43/proc"
+                                    }
+                                ],
+                                "fstype": "overlay",
+                                "options": "rw,relatime,lowerdir=/var/lib/schroot/union/underlay/disco-amd64-032e208e-007d-4f89-ab96-8b981e7a0f43,upperdir=/var/lib/schroot/union/overlay/disco-amd64-032e208e-007d-4f89-ab96-8b981e7a0f43/upper,workdir=/var/lib/schroot/union/overlay/disco-amd64-032e208e-007d-4f89-ab96-8b981e7a0f43/work",
+                                "source": "disco-amd64",
+                                "target": "/run/schroot/mount/disco-amd64-032e208e-007d-4f89-ab96-8b981e7a0f43"
+                            },
+                            {
+                                "children": [
+                                    {
+                                        "fstype": "sysfs",
+                                        "options": "rw,nosuid,nodev,noexec,relatime",
+                                        "source": "sysfs",
+                                        "target": "/run/schroot/mount/bionic-amd64-faf8f510-def7-4d79-840d-bd96b6dab200/sys"
+                                    },
+                                    {
+                                        "fstype": "devpts",
+                                        "options": "rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000",
+                                        "source": "devpts",
+                                        "target": "/run/schroot/mount/bionic-amd64-faf8f510-def7-4d79-840d-bd96b6dab200/dev/pts"
+                                    },
+                                    {
+                                        "fstype": "tmpfs",
+                                        "options": "rw,relatime",
+                                        "source": "tmpfs",
+                                        "target": "/run/schroot/mount/bionic-amd64-faf8f510-def7-4d79-840d-bd96b6dab200/dev/shm"
+                                    },
+                                    {
+                                        "fstype": "ext4",
+                                        "options": "rw,relatime,errors=remount-ro,data=ordered",
+                                        "source": "/dev/mapper/ubuntu--vg-root[/var/lib/sbuild/build]",
+                                        "target": "/run/schroot/mount/bionic-amd64-faf8f510-def7-4d79-840d-bd96b6dab200/build"
+                                    },
+                                    {
+                                        "fstype": "proc",
+                                        "options": "rw,nosuid,nodev,noexec,relatime",
+                                        "source": "proc",
+                                        "target": "/run/schroot/mount/bionic-amd64-faf8f510-def7-4d79-840d-bd96b6dab200/proc"
+                                    }
+                                ],
+                                "fstype": "overlay",
+                                "options": "rw,relatime,lowerdir=/var/lib/schroot/union/underlay/bionic-amd64-faf8f510-def7-4d79-840d-bd96b6dab200,upperdir=/var/lib/schroot/union/overlay/bionic-amd64-faf8f510-def7-4d79-840d-bd96b6dab200/upper,workdir=/var/lib/schroot/union/overlay/bionic-amd64-faf8f510-def7-4d79-840d-bd96b6dab200/work",
+                                "source": "bionic-amd64",
+                                "target": "/run/schroot/mount/bionic-amd64-faf8f510-def7-4d79-840d-bd96b6dab200"
+                            },
+                            {
+                                "children": [
+                                    {
+                                        "fstype": "proc",
+                                        "options": "rw,nosuid,nodev,noexec,relatime",
+                                        "source": "proc",
+                                        "target": "/run/schroot/mount/bionic-amd64-aba8a896-8591-4ee9-ae29-509b9ea1dc02/proc"
+                                    },
+                                    {
+                                        "fstype": "sysfs",
+                                        "options": "rw,nosuid,nodev,noexec,relatime",
+                                        "source": "sysfs",
+                                        "target": "/run/schroot/mount/bionic-amd64-aba8a896-8591-4ee9-ae29-509b9ea1dc02/sys"
+                                    },
+                                    {
+                                        "fstype": "devpts",
+                                        "options": "rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000",
+                                        "source": "devpts",
+                                        "target": "/run/schroot/mount/bionic-amd64-aba8a896-8591-4ee9-ae29-509b9ea1dc02/dev/pts"
+                                    },
+                                    {
+                                        "fstype": "tmpfs",
+                                        "options": "rw,relatime",
+                                        "source": "tmpfs",
+                                        "target": "/run/schroot/mount/bionic-amd64-aba8a896-8591-4ee9-ae29-509b9ea1dc02/dev/shm"
+                                    },
+                                    {
+                                        "fstype": "ext4",
+                                        "options": "rw,relatime,errors=remount-ro,data=ordered",
+                                        "source": "/dev/mapper/ubuntu--vg-root[/var/lib/sbuild/build]",
+                                        "target": "/run/schroot/mount/bionic-amd64-aba8a896-8591-4ee9-ae29-509b9ea1dc02/build"
+                                    }
+                                ],
+                                "fstype": "overlay",
+                                "options": "rw,relatime,lowerdir=/var/lib/schroot/union/underlay/bionic-amd64-aba8a896-8591-4ee9-ae29-509b9ea1dc02,upperdir=/var/lib/schroot/union/overlay/bionic-amd64-aba8a896-8591-4ee9-ae29-509b9ea1dc02/upper,workdir=/var/lib/schroot/union/overlay/bionic-amd64-aba8a896-8591-4ee9-ae29-509b9ea1dc02/work",
+                                "source": "bionic-amd64",
+                                "target": "/run/schroot/mount/bionic-amd64-aba8a896-8591-4ee9-ae29-509b9ea1dc02"
+                            }
+                        ],
+                        "fstype": "tmpfs",
+                        "options": "rw,nosuid,noexec,relatime,size=804388k,mode=755",
+                        "source": "tmpfs",
+                        "target": "/run"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop1",
+                        "target": "/snap/git-ubuntu/391"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop2",
+                        "target": "/snap/multipass/572"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop3",
+                        "target": "/snap/core18/719"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop4",
+                        "target": "/snap/gnome-characters/206"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop5",
+                        "target": "/snap/gtk-common-themes/1122"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop6",
+                        "target": "/snap/gnome-3-26-1604/82"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop7",
+                        "target": "/snap/telegram-desktop/637"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop8",
+                        "target": "/snap/multipass/461"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop9",
+                        "target": "/snap/google-play-music-desktop-player/47"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop10",
+                        "target": "/snap/canonical-livepatch/54"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop11",
+                        "target": "/snap/lxd/10289"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop12",
+                        "target": "/snap/core18/731"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop13",
+                        "target": "/snap/ubuntu-image/104"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop14",
+                        "target": "/snap/gnome-3-26-1604/78"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop15",
+                        "target": "/snap/skype/63"
+                    },
+                    {
+                        "children": [
+                            {
+                                "fstype": "vfat",
+                                "options": "rw,relatime,fmask=0077,dmask=0077,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro",
+                                "source": "/dev/sda1",
+                                "target": "/boot/efi"
+                            }
+                        ],
+                        "fstype": "ext4",
+                        "options": "rw,relatime,data=ordered",
+                        "source": "/dev/sda2",
+                        "target": "/boot"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop17",
+                        "target": "/snap/gnome-characters/124"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop16",
+                        "target": "/snap/multipass/587"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop18",
+                        "target": "/snap/gnome-system-monitor/54"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop20",
+                        "target": "/snap/evince/60"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop19",
+                        "target": "/snap/core18/782"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop21",
+                        "target": "/snap/gnome-characters/139"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop22",
+                        "target": "/snap/skype/66"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop23",
+                        "target": "/snap/lxd/10343"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop24",
+                        "target": "/snap/gnome-system-monitor/70"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop25",
+                        "target": "/snap/gnome-logs/57"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop26",
+                        "target": "/snap/gnome-logs/43"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop27",
+                        "target": "/snap/evince/56"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop29",
+                        "target": "/snap/canonical-livepatch/58"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop31",
+                        "target": "/snap/gnome-calculator/352"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop30",
+                        "target": "/snap/skype/60"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop0",
+                        "target": "/snap/core/6531"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop32",
+                        "target": "/snap/gtk-common-themes/818"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop28",
+                        "target": "/snap/gnome-system-monitor/57"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop33",
+                        "target": "/snap/lxd/10234"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop34",
+                        "target": "/snap/subiquity/664"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop35",
+                        "target": "/snap/gnome-3-28-1804/23"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop36",
+                        "target": "/snap/gnome-calculator/238"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop37",
+                        "target": "/snap/go/3417"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop38",
+                        "target": "/snap/telegram-desktop/653"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop39",
+                        "target": "/snap/google-play-music-desktop-player/70"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop40",
+                        "target": "/snap/evince/57"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop41",
+                        "target": "/snap/ubuntu-image/135"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop43",
+                        "target": "/snap/gnome-logs/45"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop42",
+                        "target": "/snap/core/6673"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop44",
+                        "target": "/snap/gtk-common-themes/1198"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop45",
+                        "target": "/snap/go/3411"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop47",
+                        "target": "/snap/core/6571"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop48",
+                        "target": "/snap/go/3318"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop49",
+                        "target": "/snap/gnome-3-28-1804/15"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop50",
+                        "target": "/snap/gnome-3-28-1804/19"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop51",
+                        "target": "/snap/gnome-3-26-1604/74"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop52",
+                        "target": "/snap/gnome-calculator/260"
+                    },
+                    {
+                        "fstype": "ext4",
+                        "options": "rw,relatime,errors=remount-ro,data=ordered",
+                        "source": "/dev/mapper/ubuntu--vg-root[/var/lib/schroot/chroots/disco-amd64]",
+                        "target": "/var/lib/schroot/union/underlay/disco-amd64-032e208e-007d-4f89-ab96-8b981e7a0f43"
+                    },
+                    {
+                        "children": [
+                            {
+                                "fstype": "nsfs",
+                                "options": "rw",
+                                "source": "nsfs[mnt:[4026532472]]",
+                                "target": "/var/snap/lxd/common/ns/mntns"
+                            },
+                            {
+                                "fstype": "nsfs",
+                                "options": "rw",
+                                "source": "nsfs[mnt:[4026532490]]",
+                                "target": "/var/snap/lxd/common/ns/shmounts"
+                            }
+                        ],
+                        "fstype": "tmpfs",
+                        "options": "rw,relatime,size=1024k,mode=700",
+                        "source": "tmpfs",
+                        "target": "/var/snap/lxd/common/ns"
+                    },
+                    {
+                        "fstype": "ext4",
+                        "options": "rw,nosuid,nodev,relatime,stripe=8191,data=ordered",
+                        "source": "/dev/sdb1",
+                        "target": "/media/mwhudson/backup_ssd"
+                    },
+                    {
+                        "fstype": "ext4",
+                        "options": "rw,relatime,errors=remount-ro,data=ordered",
+                        "source": "/dev/mapper/ubuntu--vg-root[/var/lib/schroot/chroots/bionic-amd64]",
+                        "target": "/var/lib/schroot/union/underlay/bionic-amd64-faf8f510-def7-4d79-840d-bd96b6dab200"
+                    },
+                    {
+                        "fstype": "ext4",
+                        "options": "rw,relatime,errors=remount-ro,data=ordered",
+                        "source": "/dev/mapper/ubuntu--vg-root[/var/lib/schroot/chroots/bionic-amd64]",
+                        "target": "/var/lib/schroot/union/underlay/bionic-amd64-aba8a896-8591-4ee9-ae29-509b9ea1dc02"
+                    },
+                    {
+                        "fstype": "squashfs",
+                        "options": "ro,nodev,relatime",
+                        "source": "/dev/loop54",
+                        "target": "/snap/telegram-desktop/663"
+                    }
+                ],
+                "fstype": "ext4",
+                "options": "rw,relatime,errors=remount-ro,data=ordered",
+                "source": "/dev/mapper/ubuntu--vg-root",
+                "target": "/"
+            }
+        ],
+        "multipath": {},
+        "raid": {},
+        "zfs": {
+            "zpools": {}
+        }
+    }
+}

@@ -516,7 +516,7 @@ class Disk(_Device):
 
     @property
     def size(self):
-        return align_down(self._info.size)
+        return align_down(int(self._info.size))
 
     def desc(self):
         return _("local disk")
@@ -876,10 +876,11 @@ class FilesystemModel(object):
 
     def __init__(self):
         self._existing_config = []
+        self._blockdevs = {}
         self.reset()
 
     def reset(self):
-        self._actions = deserialize(self._existing_config)
+        self._actions = deserialize(self._existing_config, self._blockdevs)
 
     def render(self):
         # the curtin storage config has the constraint that an action
@@ -987,6 +988,7 @@ class FilesystemModel(object):
         import json
         with open('examples/existing-partitions.json') as fp:
             self._existing_config = json.load(fp)["storage"]["config"]
+        self._blockdevs = storage['blockdevs']
         self.reset()
 
     def disk_by_path(self, path):
@@ -1173,7 +1175,7 @@ class FilesystemModel(object):
         return True
 
 
-def deserialize(config):
+def deserialize(config, blockdevs={}):
     byid = {}
     objs = []
     for action in config:
@@ -1192,6 +1194,11 @@ def deserialize(config):
                 kw[n] = v
         obj = c(**kw)
         obj.preserve = True
+        if isinstance(obj, Disk):
+            from probert.storage import StorageInfo
+            obj._info = StorageInfo({obj.path: blockdevs[obj.path]})
+        if isinstance(obj, LVM_LogicalVolume):
+            obj.size = int(obj.size[:-1])
         byid[action['id']] = obj
         objs.append(obj)
     return objs
