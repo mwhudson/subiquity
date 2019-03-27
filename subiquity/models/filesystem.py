@@ -68,9 +68,16 @@ def _remove_backlinks(obj):
                 setattr(vv, backlink, None)
 
 
+_type_to_cls = {}
+
+
 def fsobj(c):
     c.__attrs_post_init__ = _set_backlinks
-    return attr.s(cmp=False)(c)
+    c = attr.s(cmp=False)(c)
+    for f in attr.fields(c):
+        if f.name == "type":
+            _type_to_cls[f.default] = c
+    return c
 
 
 @attr.s(cmp=False)
@@ -1178,3 +1185,46 @@ class FilesystemModel(object):
             if fs.fstype == "swap":
                 return False
         return True
+
+
+def deserialize(config):
+    byid = {}
+    bytype = collections.defaultdict(list)
+    for action in config:
+        c = _type_to_cls[action['type']]
+        kw = {}
+        for f in attr.fields(c):
+            n = f.name
+            if n not in action:
+                continue
+            v = action[n]
+            if f.metadata.get('ref', False):
+                kw[n] = byid[v]
+            elif f.metadata.get('reflist', False):
+                kw[n] = [byid[id] for id in v]
+            else:
+                kw[n] = v
+        obj = c(**kw)
+        for f in attr.fields(c):
+            backlink = f.metadata.get('backlink', None)
+            if backlink is None:
+                continue
+            target = getattr(obj, f.name)
+            if isinstance(getattr(target, backlink), set):
+                getattr(target, backlink).add(obj)
+            elif isinstance(getattr(target, backlink), list):
+                getattr(target, backlink).append(obj)
+            elif getattr(target, backlink) is None:
+                setattr(target, backlink, obj)
+            else:
+                xxx
+        byid[action['id']] = obj
+        bytype[action['type']].append(obj)
+    return bytype
+
+
+if __name__ == '__main__':
+    import json
+    config = json.load(open(sys.argv[1]))["storage"]["config"]
+    bytype = deserialize(config)
+    print(bytype)
