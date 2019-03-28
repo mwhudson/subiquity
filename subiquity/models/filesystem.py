@@ -565,11 +565,17 @@ class Partition(_Formattable):
 
     @property
     def label(self):
-        return _("partition {} of {}").format(self._number, self.device.label)
+        r = _("partition {} of {}").format(self._number, self.device.label)
+        if self.preserve:
+            r = "{} (pre-existing)".format(r)
+        return r
 
     @property
     def short_label(self):
-        return _("partition {}").format(self._number)
+        r = _("partition {}").format(self._number)
+        if self.preserve:
+            r = "{} (pre-existing)".format(r)
+        return r
 
     def available(self):
         if self.flag in ['bios_grub', 'prep']:
@@ -712,7 +718,10 @@ class LVM_VolGroup(_Device):
 
     @property
     def label(self):
-        return self.name
+        r = self.name
+        if self.preserve:
+            r = "{} (pre-existing)".format(r)
+        return r
 
     def desc(self):
         return "LVM volume group"
@@ -769,7 +778,10 @@ class LVM_LogicalVolume(_Formattable):
 
     @property
     def short_label(self):
-        return self.name
+        r = self.name
+        if self.preserve:
+            r = "{} (pre-existing)".format(r)
+        return r
 
     label = short_label
 
@@ -814,8 +826,11 @@ class Filesystem:
     def _available(self):
         # False if mounted or if fs does not require a mount, True otherwise.
         if self._mount is None:
-            fs_obj = FilesystemModel.fs_by_name[self.fstype]
-            return fs_obj.is_mounted
+            if self.fstype in FilesystemModel.fs_by_name:
+                fs_obj = FilesystemModel.fs_by_name[self.fstype]
+                return fs_obj.is_mounted
+            else:
+                return True
         else:
             return False
 
@@ -1179,6 +1194,8 @@ def deserialize(config, blockdevs={}):
     byid = {}
     objs = []
     for action in config:
+        if action['type'] == 'mount':
+            continue
         c = _type_to_cls[action['type']]
         kw = {}
         for f in attr.fields(c):
