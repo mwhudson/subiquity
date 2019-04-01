@@ -292,6 +292,12 @@ class DeviceList(WidgetWrap):
     _disk_PARTITION = _stretchy_shower(PartitionStretchy)
     _disk_FORMAT = _stretchy_shower(FormatEntireStretchy)
 
+    def _disk_REFORMAT(self, disk):
+        disk.preserve = False
+        disk.ptable = 'gpt'
+        disk._partitions = []
+        self.parent.refresh_model_inputs()
+
     def _disk_REMOVE(self, disk):
         cd = disk.constructed_device()
         if cd.type == "raid":

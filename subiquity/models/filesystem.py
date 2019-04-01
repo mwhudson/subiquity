@@ -261,6 +261,7 @@ class DeviceAction(enum.Enum):
     PARTITION = _("Add Partition")
     CREATE_LV = _("Create Logical Volume")
     FORMAT = _("Format")
+    REFORMAT = _("Reformat")
     REMOVE = _("Remove from RAID/LVM")
     DELETE = _("Delete")
     MAKE_BOOT = _("Make Boot Device")
@@ -530,21 +531,26 @@ class Disk(_Device):
     supported_actions = [
         DeviceAction.INFO,
         DeviceAction.PARTITION,
+        DeviceAction.REFORMAT,
         DeviceAction.FORMAT,
         DeviceAction.REMOVE,
         ]
     if platform.machine() != 's390x':
         supported_actions.append(DeviceAction.MAKE_BOOT)
     _can_INFO = True
-    _can_PARTITION = property(lambda self: self.free_for_partitions > 0)
+    _can_PARTITION = property(
+        lambda self: not self.preserve and
+        self.free_for_partitions > 0)
     _can_FORMAT = property(
-        lambda self: len(self._partitions) == 0 and
+        lambda self: not self.preserve and
+        len(self._partitions) == 0 and
         self._constructed_device is None)
     _can_REMOVE = property(_generic_can_REMOVE)
     _can_MAKE_BOOT = property(
         lambda self:
         not self.grub_device and self._fs is None
         and self._constructed_device is None)
+    _can_REFORMAT = property(lambda self: self.preserve)
 
     ok_for_raid = ok_for_lvm_vg = _can_FORMAT
 
