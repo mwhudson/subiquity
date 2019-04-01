@@ -390,11 +390,11 @@ class DeviceList(WidgetWrap):
             if fs is not None:
                 if fs.volume.preserve:
                     if fs.preserve:
-                        desc = _("already formatted as {fstype}")
+                        desc = _("formatted as {fstype}")
                     else:
                         desc = _("to be reformatted as {fstype}")
                 else:
-                    desc = _("formatted as {fstype}")
+                    desc = _("to be formatted as {fstype}")
                 desc = desc.format(fstype=fs.fstype)
                 m = fs.mount()
                 if m:

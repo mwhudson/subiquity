@@ -458,7 +458,7 @@ class FilesystemController(BaseController):
         boot_partition = None
         for disk in self.model.all_disks():
             for part in disk.partitions():
-                if part.flag in ("bios_grub", "boot", "prep"):
+                if not part.preserve and part.flag in ("bios_grub", "boot", "prep"):
                     boot_partition = part
         if boot_partition is not None:
             boot_disk = boot_partition.device

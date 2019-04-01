@@ -39,6 +39,7 @@ from subiquity.models.filesystem import (
     align_up,
     Disk,
     FilesystemModel,
+    FS,
     HUMAN_UNITS,
     dehumanize_size,
     humanize_size,
@@ -55,7 +56,11 @@ class FSTypeField(FormField):
     takes_default_style = False
 
     def _make_widget(self, form):
-        return Selector(opts=FilesystemModel.supported_filesystems)
+        opts = list(FilesystemModel.supported_filesystems)
+        if form.existing_format is not None:
+            label = _('leave formatted as {}').format(form.existing_format)
+            opts[-1] = (label, True, FS(None, True))
+        return Selector(opts=opts)
 
 
 class SizeWidget(StringEditor):
@@ -120,6 +125,7 @@ class PartitionForm(Form):
                  lvm_names):
         self.mountpoints = mountpoints
         self.ok_for_slash_boot = ok_for_slash_boot
+        self.existing_format = None
         self.max_size = max_size
         if max_size is not None:
             self.size_str = humanize_size(max_size)
@@ -244,7 +250,9 @@ class PartitionStretchy(Stretchy):
             max_size += self.partition.size
             fs = self.partition.fs()
             if fs is not None:
-                if partition.flag != "boot":
+                if 0 and fs.preserve:
+                    initial['fstype'] = FS(None, True)
+                elif partition.flag != "boot":
                     initial['fstype'] = self.model.fs_by_name[fs.fstype]
                 mount = fs.mount()
                 if mount is not None:
