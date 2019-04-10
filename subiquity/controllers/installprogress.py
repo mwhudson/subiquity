@@ -344,7 +344,7 @@ class InstallProgressController(BaseController):
                     'mount', '--bind', temp, self.tpath('etc/resolv.conf'),
                 ],
                 [
-                    sys.executable, "-m", "curtin", "in-target", "-t", "-a",
+                    sys.executable, "-m", "curtin", "in-target", "-a", "-t",
                     "/target", "--",
                     "/usr/lib/apt/apt.systemd.daily", "update",
                 ],
