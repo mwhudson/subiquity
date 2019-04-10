@@ -106,7 +106,7 @@ class InstallCompleteTask(BackgroundTask):
 
     def start(self):
         self.controller.loop.set_alarm_in(
-            0.0, lambda loop, ud: self.controller.postinstall_complete)
+            0.0, lambda loop, ud: self.controller.postinstall_complete())
 
     def _bg_run(self):
         return True
@@ -334,19 +334,10 @@ class InstallProgressController(BaseController):
         if self.opts.dry_run:
             cmds = [["sleep", str(10/self.scale_factor)]]
         else:
-            fd, temp = tempfile.mkstemp()
-            os.close(fd)
             cmds = [
                 [
-                    # As restarting before this finishes is fine, we need to
-                    # protect the target's etc/resolv.conf from the changes
-                    # curtin in-target will make to it.
-                    'mount', '--bind', temp, self.tpath('etc/resolv.conf'),
-                ],
-                [
-                    sys.executable, "-m", "curtin", "in-target", "-a", "-t",
-                    "/target", "--",
-                    "/usr/lib/apt/apt.systemd.daily", "update",
+                    sys.executable, "-m", "curtin", "in-target",
+                    "-t", "/target", "--", "unattended-upgrades",
                 ],
             ]
         for cmd in cmds:
@@ -431,6 +422,11 @@ class InstallProgressController(BaseController):
             # switch to shutdown if chreipl fails
             if platform.machine() == 's390x':
                 utils.run_command(["chreipl", "/target/boot"])
+            utils.run_command([
+                'chroot', '/target',
+                '/usr/share/unattended-upgrades/unattended-upgrade-shutdown',
+                '--stop-only',
+                ])
             # Should probably run curtin -c $CONFIG unmount -t TARGET first.
             utils.run_command(["/sbin/reboot"])
 
