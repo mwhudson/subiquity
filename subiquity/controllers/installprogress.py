@@ -105,7 +105,8 @@ class InstallCompleteTask(BackgroundTask):
         return "InstallCompleteTask()"
 
     def start(self):
-        self.controller.postinstall_complete()
+        self.controller.loop.set_alarm_in(
+            0.0, lambda loop, ud: self.controller.postinstall_complete)
 
     def _bg_run(self):
         return True
