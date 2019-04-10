@@ -162,10 +162,12 @@ class InstallProgressController(BaseController):
     def snap_config_done(self):
         self._step_done('snap')
 
-    def curtin_error(self):
+    def curtin_error(self, log_text=None):
         log.debug('curtin_error')
         self.install_state = InstallState.ERROR
         self.progress_view.spinner.stop()
+        if log_text:
+            self.progress_view.add_log_line(log_text)
         self.progress_view.set_status(('info_error',
                                        _("An error has occurred")))
         self.progress_view.show_complete(True)
@@ -338,7 +340,7 @@ class InstallProgressController(BaseController):
                     # As restarting before this finishes is fine, we need to
                     # protect the target's etc/resolv.conf from the changes
                     # curtin in-target will make to it.
-                    'mount', '--bind', temp, os.tpath('etc/resolv.conf'),
+                    'mount', '--bind', temp, self.tpath('etc/resolv.conf'),
                 ],
                 [
                     sys.executable, "-m", "curtin", "in-target", "-t", "-a",
