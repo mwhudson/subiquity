@@ -19,6 +19,7 @@ import os
 import subprocess
 import sys
 import platform
+import tempfile
 import time
 import traceback
 
@@ -94,8 +95,25 @@ class InstallTask(BackgroundTask):
         self.controller._install_event_finish()
         observer.task_succeeded()
 
-    def cancel(self):
-        pass
+
+class InstallCompleteTask(BackgroundTask):
+
+    def __init__(self, controller):
+        self.controller = controller
+
+    def __repr__(self):
+        return "InstallCompleteTask()"
+
+    def start(self):
+        self.controller.postinstall_complete()
+
+    def _bg_run(self):
+        return True
+
+    def end(self, observer, fut):
+        # Will raise if command failed:
+        fut.result()
+        observer.task_succeeded()
 
 
 class InstallProgressController(BaseController):
@@ -309,6 +327,28 @@ class InstallProgressController(BaseController):
         for cmd in cmds:
             self._bg_run_command_logged(cmd)
 
+    def _bg_download_security_updates(self):
+        if self.opts.dry_run:
+            cmds = [["sleep", str(10/self.scale_factor)]]
+        else:
+            fd, temp = tempfile.mkstemp()
+            os.close(fd)
+            cmds = [
+                [
+                    # As restarting before this finishes is fine, we need to
+                    # protect the target's etc/resolv.conf from the changes
+                    # curtin in-target will make to it.
+                    'mount', '--bind', temp, os.tpath('etc/resolv.conf'),
+                ],
+                [
+                    sys.executable, "-m", "curtin", "in-target", "-t", "-a",
+                    "/target", "--",
+                    "/usr/lib/apt/apt.systemd.daily", "update",
+                ],
+            ]
+        for cmd in cmds:
+            self._bg_run_command_logged(cmd)
+
     def start_postinstall_configuration(self):
         self.copy_logs_to_target()
 
@@ -328,9 +368,7 @@ class InstallProgressController(BaseController):
                     self.controller.curtin_error()
 
             def tasks_finished(self):
-                self.controller.loop.set_alarm_in(
-                    0.0,
-                    lambda loop, ud: self.controller.postinstall_complete())
+                pass
         tasks = [
             ('drain', WaitForCurtinEventsTask(self)),
             ('cloud-init', InstallTask(
@@ -347,7 +385,14 @@ class InstallProgressController(BaseController):
             ('cleanup', InstallTask(
                 self, "restoring apt configuration",
                 self._bg_cleanup_apt)),
+            ('mark-complete', InstallCompleteTask(self)),
             ])
+        if self.base_model.network.has_network:
+            tasks.extend([
+                ('download', InstallTask(
+                    self, "downloading security updates",
+                    self._bg_download_security_updates)),
+                    ])
         ts = TaskSequence(self.run_in_bg, tasks, w(self))
         ts.run()
 
