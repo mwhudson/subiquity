@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
+import json
 import logging
 import os
 import subprocess
@@ -98,6 +99,143 @@ class InstallTask(BackgroundTask):
         pass
 
 
+raw_lxc_config = '''\
+lxc.hook.version = 1
+lxc.hook.pre-start = 'sh -c "mkdir -p $LXC_ROOTFS_PATH && mount --bind \
+/target $LXC_ROOTFS_PATH"'
+lxc.hook.post-stop = 'sh -c "umount $LXC_ROOTFS_PATH"'
+'''
+
+
+class ContainerManager(object):
+
+    def __init__(self):
+        self.container_name = 'target'
+        self.nic_name = 'lxd-nic'
+
+    def container_config(self):
+        return json.dumps({
+            'source': {
+                "type": "none",
+                },
+            'config': {
+                'security.privileged': '1',
+                'raw.lxc': raw_lxc_config,
+                },
+            'name': self.container_name,
+            })
+
+    def preseed(self):
+        return yaml.dump({
+            'networks': [{
+                'name': 'lxdbr0',
+                'type': 'bridge',
+                'config': {
+                    'ipv4.address': 'auto',
+                    'ipv6.address': 'auto',
+                    },
+                }],
+            'storage_pools': [{
+                'name': 'default',
+                'driver': 'dir',
+                }],
+            'profiles': [{
+                'name': 'default',
+                'devices': {
+                    'root': {
+                        'type': 'disk',
+                        'pool': 'default',
+                        'path': '/',
+                        },
+                    self.nic_name: {
+                        'type': 'nic',
+                        'nictype': 'bridged',
+                        'parent': 'lxdbr0',
+                        'name': self.nic_name,
+                        },
+                    },
+                }],
+            })
+
+    def netplan_for_container(self):
+        return yaml.dump({
+            'network': {
+                'version': 2,
+                'ethernets': {
+                    self.nic_name: {
+                        'dhcp4': True,
+                        },
+                    },
+                },
+            })
+
+    def initialize_lxd(self):
+        cp = utils.run_command(
+            ["lxc", "query", "/1.0/storage-pools"], check=True)
+        pools = json.loads(cp.stdout)
+        if len(pools) == 0:
+            utils.run_command(
+                ["lxd", "init", "--preseed"],
+                input=self.preseed(),
+                check=True)
+
+    def create_container(self):
+        cp = utils.run_command(["lxc", "query", "/1.0/containers"], check=True)
+        containers = json.loads(cp.stdout)
+        if "/1.0/containers/" + self.container_name not in containers:
+            utils.run_command(
+                ["lxc", "query", "--wait", "--request", "POST", "--data",
+                 self.container_config(), "/1.0/containers"],
+                check=True)
+
+    def start_container(self):
+        utils.run_command(["lxc", "start", self.container_name], check=True)
+
+    def run(self, cmd):
+        p = utils.run_command(
+            ["lxc", "exec", self.container_name, "--"] + cmd,
+            stderr=subprocess.STDOUT,
+            check=True)
+        return p.stdout
+
+    def wait_for_cloudinit(self):
+        return self.run(["cloud-init", "status", "--wait"]),
+
+    def enable_networking(self):
+        self.run(["mkdir",  "-p", "/run/netplan"])
+        utils.run_command(
+            ["lxc", "file", "push", "-",
+             self.container_name + "/run/netplan/tmp.yaml"],
+            input=self.netplan_for_container(),
+            check=True)
+        self.run(["netplan", "apply"])
+        while 'default' not in self.run(["ip", "route"]):
+            time.sleep(0.1)
+
+
+class PretendContainerManager:
+
+    def __init__(self):
+        self.scale_factor = float(
+            os.environ.get('SUBIQUITY_REPLAY_TIMESCALE', "4"))
+
+    def initialize_lxd(self):
+        log.debug("initialize_lxd")
+        time.sleep(4/self.scale_factor)
+
+    def create_container(self):
+        log.debug("create_container")
+        time.sleep(1/self.scale_factor)
+
+    def start_container(self):
+        log.debug("start_container")
+        time.sleep(2/self.scale_factor)
+
+    def wait_for_cloudinit(self):
+        log.debug("wait_for_cloudinit")
+        time.sleep(8/self.scale_factor)
+
+
 class InstallProgressController(BaseController):
     signals = [
         ('installprogress:filesystem-config-done', 'filesystem_config_done'),
@@ -123,6 +261,21 @@ class InstallProgressController(BaseController):
         self._event_indent = ""
         self._event_syslog_identifier = 'curtin_event.%s' % (os.getpid(),)
         self._log_syslog_identifier = 'curtin_log.%s' % (os.getpid(),)
+        if self.opts.dry_run:
+            self.cm = PretendContainerManager()
+        else:
+            self.cm = ContainerManager()
+        self.run_in_bg(self._bg_setup_lxd, self.lxd_setup_done)
+
+    def _bg_setup_lxd(self):
+        self.cm.initialize_lxd()
+        self.cm.create_container()
+
+    def lxd_setup_done(self, fut):
+        try:
+            fut.result()
+        except Exception:
+            self.curtin_error(traceback.format_exc())
 
     def tpath(self, *path):
         return os.path.join(self.base_model.target, *path)
@@ -144,10 +297,15 @@ class InstallProgressController(BaseController):
     def snap_config_done(self):
         self._step_done('snap')
 
-    def curtin_error(self):
+    def curtin_error(self, log_text=None):
         log.debug('curtin_error')
         self.install_state = InstallState.ERROR
-        self.progress_view.spinner.stop()
+        if self.progress_view is None:
+            self.progress_view = ProgressView(self)
+        else:
+            self.progress_view.spinner.stop()
+        if log_text is not None:
+            self.progress_view.add_log_line(log_text)
         self.progress_view.set_status(('info_error',
                                        _("An error has occurred")))
         self.progress_view.show_complete(True)
@@ -347,6 +505,12 @@ class InstallProgressController(BaseController):
             ('cleanup', InstallTask(
                 self, "restoring apt configuration",
                 self._bg_cleanup_apt)),
+            ('start', InstallTask(
+                self, "starting container",
+                self.cm.start_container)),
+            ('wait', InstallTask(
+                self, "applying configuration",
+                self.cm.wait_for_cloudinit)),
             ])
         ts = TaskSequence(self.run_in_bg, tasks, w(self))
         ts.run()
