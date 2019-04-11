@@ -19,7 +19,6 @@ import os
 import subprocess
 import sys
 import platform
-import tempfile
 import time
 import traceback
 
@@ -31,6 +30,7 @@ from systemd import journal
 from subiquitycore import utils
 from subiquitycore.controller import BaseController
 from subiquitycore.tasksequence import (
+    BackgroundProcess,
     BackgroundTask,
     TaskSequence,
     TaskWatcher,
@@ -73,26 +73,21 @@ class WaitForCurtinEventsTask(BackgroundTask):
 
 class InstallTask(BackgroundTask):
 
-    def __init__(self, controller, step_name, func, *args, **kw):
-        self.controller = controller
-        self.step_name = step_name
+    def __init__(self, func):
         self.func = func
-        self.args = args
-        self.kw = kw
 
     def __repr__(self):
-        return "InstallTask(%r, *%r, **%r)" % (self.func, self.args, self.kw)
+        return "InstallTask(%r)" % (self.func,)
 
     def start(self):
-        self.controller._install_event_start(self.step_name)
+        pass
 
     def _bg_run(self):
-        self.func(*self.args, **self.kw)
+        self.func()
 
     def end(self, observer, fut):
         # Will raise if command failed:
         fut.result()
-        self.controller._install_event_finish()
         observer.task_succeeded()
 
 
@@ -105,6 +100,7 @@ class InstallCompleteTask(BackgroundTask):
         return "InstallCompleteTask()"
 
     def start(self):
+        self.controller._install_event_finish()
         self.controller.loop.set_alarm_in(
             0.0, lambda loop, ud: self.controller.postinstall_complete())
 
@@ -142,6 +138,8 @@ class InstallProgressController(BaseController):
         self._event_indent = ""
         self._event_syslog_identifier = 'curtin_event.%s' % (os.getpid(),)
         self._log_syslog_identifier = 'curtin_log.%s' % (os.getpid(),)
+        self.ts = None
+        self._reboot = False
 
     def tpath(self, *path):
         return os.path.join(self.base_model.target, *path)
@@ -300,18 +298,15 @@ class InstallProgressController(BaseController):
     def cancel(self):
         pass
 
-    def _bg_install_openssh_server(self):
+    def install_openssh_server_cmd(self):
         if self.opts.dry_run:
-            cmd = [
-                "sleep", str(2/self.scale_factor),
-                ]
+            return ["sleep", str(2/self.scale_factor)]
         else:
-            cmd = [
+            return [
                 sys.executable, "-m", "curtin", "system-install", "-t",
                 "/target",
                 "--", "openssh-server",
                 ]
-        self._bg_run_command_logged(cmd)
 
     def _bg_cleanup_apt(self):
         if self.opts.dry_run:
@@ -330,18 +325,14 @@ class InstallProgressController(BaseController):
         for cmd in cmds:
             self._bg_run_command_logged(cmd)
 
-    def _bg_download_security_updates(self):
+    def apply_security_updates_cmd(self):
         if self.opts.dry_run:
-            cmds = [["sleep", str(10/self.scale_factor)]]
+            return ["sleep", str(10/self.scale_factor)]
         else:
-            cmds = [
-                [
-                    sys.executable, "-m", "curtin", "in-target",
-                    "-t", "/target", "--", "unattended-upgrades",
-                ],
+            return [
+                sys.executable, "-m", "curtin", "in-target", "-t", "/target",
+                "--", "unattended-upgrades",
             ]
-        for cmd in cmds:
-            self._bg_run_command_logged(cmd)
 
     def start_postinstall_configuration(self):
         self.copy_logs_to_target()
@@ -351,10 +342,18 @@ class InstallProgressController(BaseController):
             def __init__(self, controller):
                 self.controller = controller
 
+            def task_started(self, stage):
+                if stage:
+                    self.controller._install_event_start(stage)
+
             def task_complete(self, stage):
-                pass
+                if stage:
+                    self.controller._install_event_finish()
 
             def task_error(self, stage, info):
+                if self.controller._reboot:
+                    self.controller.ts = None
+                    self.controller.reboot()
                 if isinstance(info, tuple):
                     tb = traceback.format_exception(*info)
                     self.controller.curtin_error("".join(tb))
@@ -362,36 +361,30 @@ class InstallProgressController(BaseController):
                     self.controller.curtin_error()
 
             def tasks_finished(self):
-                pass
+                self.controller.ts = None
+                if self.controller._reboot:
+                    self.controller.reboot()
         tasks = [
-            ('drain', WaitForCurtinEventsTask(self)),
-            ('cloud-init', InstallTask(
-                self, "configuring cloud-init",
-                self.base_model.configure_cloud_init)),
+            ("", WaitForCurtinEventsTask(self)),
+            ("configuring cloud-init", InstallTask(self.base_model.configure_cloud_init)),
         ]
         if self.base_model.ssh.install_server:
             tasks.extend([
-                ('install-ssh', InstallTask(
-                    self, "installing OpenSSH server",
-                    self._bg_install_openssh_server)),
+                ("installing OpenSSH server", BackgroundProcess(self.install_openssh_server_cmd())),
                 ])
         tasks.extend([
-            ('cleanup', InstallTask(
-                self, "restoring apt configuration",
-                self._bg_cleanup_apt)),
-            ('mark-complete', InstallCompleteTask(self)),
+            ("restoring apt configuration", InstallTask(self._bg_cleanup_apt)),
+            ('', InstallCompleteTask(self)),
             ])
+        self.update_task = BackgroundProcess(self.apply_security_updates_cmd())
         if self.base_model.network.has_network:
             tasks.extend([
-                ('download', InstallTask(
-                    self, "downloading security updates",
-                    self._bg_download_security_updates)),
-                    ])
-        ts = TaskSequence(self.run_in_bg, tasks, w(self))
-        ts.run()
+                ("downloading and installing security updates", self.update_task),
+                ])
+        self.ts = TaskSequence(self.run_in_bg, tasks, w(self))
+        self.ts.run()
 
     def postinstall_complete(self):
-        self._install_event_finish()
         self.ui.set_header(_("Installation complete!"))
         self.progress_view.set_status(_("Finished install!"))
         self.progress_view.show_complete()
@@ -414,21 +407,25 @@ class InstallProgressController(BaseController):
             log.exception("saving journal failed")
 
     def reboot(self):
-        if self.opts.dry_run:
-            log.debug('dry-run enabled, skipping reboot, quiting instead')
-            self.signal.emit_signal('quit')
+        if self.ts is not None:
+            self._reboot = True
+            self._install_event_finish()
+            self._install_event_start("canceling update")
+            delay = 0.0
+            if self.opts.dry_run:
+                delay = 1.0
+            self.loop.set_alarm_in(delay, lambda loop, ud: self.update_task.cancel())
         else:
-            # TODO Possibly run this earlier, to show a warning; or
-            # switch to shutdown if chreipl fails
-            if platform.machine() == 's390x':
-                utils.run_command(["chreipl", "/target/boot"])
-            utils.run_command([
-                'chroot', '/target',
-                '/usr/share/unattended-upgrades/unattended-upgrade-shutdown',
-                '--stop-only',
-                ])
-            # Should probably run curtin -c $CONFIG unmount -t TARGET first.
-            utils.run_command(["/sbin/reboot"])
+            if self.opts.dry_run:
+                log.debug('dry-run enabled, skipping reboot, quiting instead')
+                self.signal.emit_signal('quit')
+            else:
+                # TODO Possibly run this earlier, to show a warning; or
+                # switch to shutdown if chreipl fails
+                if platform.machine() == 's390x':
+                    utils.run_command(["chreipl", "/target/boot"])
+                # Should probably run curtin -c $CONFIG unmount -t TARGET first.
+                utils.run_command(["/sbin/reboot"])
 
     def quit(self):
         if not self.opts.dry_run:

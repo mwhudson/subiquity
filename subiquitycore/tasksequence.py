@@ -172,6 +172,9 @@ class BackgroundProcess(CancelableTask):
 
 
 class TaskWatcher(ABC):
+    def task_started(self, stage):
+        """A task started."""
+
     @abstractmethod
     def task_complete(self, stage):
         """A task completed sucessfully."""
@@ -213,6 +216,7 @@ class TaskSequence:
         self.tasks = self.tasks[1:]
         log.debug('running %s for stage %s', self.curtask, self.stage)
         self.curtask.start()
+        self.watcher.task_started(self.stage)
         self.run_in_bg(self.curtask._bg_run, self._call_end)
 
     def _call_end(self, fut):
