@@ -1009,7 +1009,7 @@ class FilesystemModel(object):
         import json
         with open('examples/existing-partitions.json') as fp:
             self._existing_config = json.load(fp)["storage"]["config"]
-        self._blockdevs = storage['blockdevs']
+        self._blockdevs = storage['blockdev']
         self.reset()
 
     def disk_by_path(self, path):
