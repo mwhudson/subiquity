@@ -648,7 +648,10 @@ class Raid(_Device):
 
     @property
     def label(self):
-        return self.name
+        r = self.name
+        if self.preserve:
+            r = "{} (pre-existing)".format(r)
+        return r
 
     def desc(self):
         return _("software RAID {}").format(self.raidlevel)
