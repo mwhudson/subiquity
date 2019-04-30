@@ -992,7 +992,7 @@ class FilesystemModel(object):
         with open('/proc/mounts', encoding=sys.getfilesystemencoding()) as pm:
             for line in pm:
                 if line.startswith('/dev/'):
-                    mounted_devs.append(line.split()[0][5:])
+                    mounted_devs.append(line.split()[0][5:r])
         mounted_disks = set()
         for dev in mounted_devs:
             if os.path.exists('/sys/block/{}'.format(dev)):
@@ -1006,9 +1006,9 @@ class FilesystemModel(object):
     def load_probe_data(self, storage):
         # This should run storage though curtin's
         # extract_storage_config function when that lands.
-        import yaml
-        with open('examples/curtin-storage.yaml') as fp:
-            self._existing_config = yaml.load(fp)["config"]
+        import json
+        with open('examples/curtin-storage.json') as fp:
+            self._existing_config = json.load(fp)["storage"]["config"]
         self._blockdevs = storage['blockdev']
         self.reset()
 
