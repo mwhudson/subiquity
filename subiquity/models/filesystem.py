@@ -1006,9 +1006,9 @@ class FilesystemModel(object):
     def load_probe_data(self, storage):
         # This should run storage though curtin's
         # extract_storage_config function when that lands.
-        import json
-        with open('examples/existing-partitions.json') as fp:
-            self._existing_config = json.load(fp)["storage"]["config"]
+        import yaml
+        with open('examples/curtin-storage.yaml') as fp:
+            self._existing_config = yaml.load(fp)["config"]
         self._blockdevs = storage['blockdev']
         self.reset()
 
@@ -1228,7 +1228,9 @@ def deserialize(config, blockdevs={}):
 
 
 if __name__ == '__main__':
-    import json
-    config = json.load(open(sys.argv[1]))["storage"]["config"]
-    bytype = deserialize(config)
-    print(bytype)
+    import yaml
+    from probert.storage import blockdev_probe
+    blockdevs = blockdev_probe()
+    config = yaml.load(open(sys.argv[1]))["config"]
+    objs = deserialize(config, blockdevs)
+    print(objs)
