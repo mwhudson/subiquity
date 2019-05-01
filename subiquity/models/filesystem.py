@@ -17,7 +17,7 @@ from abc import ABC, abstractmethod
 import attr
 import collections
 import enum
-import glob
+import itertools
 import logging
 import math
 import os
@@ -66,6 +66,30 @@ def _remove_backlinks(obj):
                 b.remove(obj)
             else:
                 setattr(vv, backlink, None)
+
+
+def dependencies(obj):
+    for f in attr.fields(type(obj)):
+        v = getattr(obj, f.name)
+        if not v:
+            continue
+        elif f.metadata.get('ref', False):
+            yield v
+        elif f.metadata.get('reflist', False):
+            yield from v
+
+
+def reverse_dependencies(obj):
+    for f in attr.fields(type(obj)):
+        if not f.metadata.get('backref', False):
+            continue
+        v = getattr(obj, f.name)
+        if not v:
+            continue
+        if not isinstance(v, (set, list)):
+            yield v
+        else:
+            yield from v
 
 
 _type_to_cls = {}
@@ -224,6 +248,11 @@ def reflist(*, backlink=None):
     return attr.ib(default=attr.Factory(set), metadata=metadata)
 
 
+def backlink(*, default=None):
+    metadata = {'backlink': True}
+    return attr.ib(default=default, metadata=metadata, repr=False)
+
+
 def const(value):
     return attr.ib(default=value)
 
@@ -324,9 +353,9 @@ class _Formattable(ABC):
     # e.g. a disk or a RAID or a partition.
 
     # Filesystem
-    _fs = attr.ib(default=None, repr=False)
+    _fs = backlink()
     # Raid or LVM_VolGroup for now, but one day ZPool, BCache...
-    _constructed_device = attr.ib(default=None, repr=False)
+    _constructed_device = backlink()
 
     def _is_entirely_used(self):
         return self._fs is not None or self._constructed_device is not None
@@ -378,7 +407,7 @@ class _Device(_Formattable, ABC):
         pass
 
     # [Partition]
-    _partitions = attr.ib(default=attr.Factory(list), repr=False)
+    _partitions = backlink(default=attr.Factory(list))
 
     def partitions(self):
         return self._partitions
@@ -827,7 +856,7 @@ class Filesystem:
     uuid = attr.ib(default=None)
     preserve = attr.ib(default=False)
 
-    _mount = attr.ib(default=None, repr=False)  # Mount
+    _mount = backlink()
 
     def mount(self):
         return self._mount
@@ -987,24 +1016,6 @@ class FilesystemModel(object):
             work = next_work
 
         return r
-
-    def _get_system_mounted_disks(self):
-        # This assumes a fairly vanilla setup. It won't list as
-        # mounted a disk that is only mounted via lvm, for example.
-        mounted_devs = []
-        with open('/proc/mounts', encoding=sys.getfilesystemencoding()) as pm:
-            for line in pm:
-                if line.startswith('/dev/'):
-                    mounted_devs.append(line.split()[0][5:r])
-        mounted_disks = set()
-        for dev in mounted_devs:
-            if os.path.exists('/sys/block/{}'.format(dev)):
-                mounted_disks.add('/dev/' + dev)
-            else:
-                paths = glob.glob('/sys/block/*/{}/partition'.format(dev))
-                if len(paths) == 1:
-                    mounted_disks.add('/dev/' + paths[0].split('/')[3])
-        return mounted_disks
 
     def load_probe_data(self, storage):
         # This should run storage though curtin's
@@ -1199,26 +1210,13 @@ class FilesystemModel(object):
         return True
 
 
-def walk_up(obj):
-    yield obj
-    for f in attr.fields(type(obj)):
-        if f.metadata.get('ref', False):
-            o = getattr(obj, f.name)
-            if o is not None:
-                yield from walk_up(o)
-        elif f.metadata.get('reflist', False):
-            for o in getattr(obj, f.name):
-                yield from walk_up(o)
-
-
 def deserialize(config, blockdevs={}):
     byid = {}
     objs = []
-    mounted = set()
+    mounted_ids = set()
     for action in config:
         if action['type'] == 'mount':
-            for o in walk_up(byid[action['device']]):
-                mounted.add(o)
+            mounted_ids.add(action['device'])
             continue
         c = _type_to_cls[action['type']]
         kw = {}
@@ -1242,6 +1240,20 @@ def deserialize(config, blockdevs={}):
             obj.size = int(obj.size[:-1])
         byid[action['id']] = obj
         objs.append(obj)
+    next_mounted_ids = set()
+    mounted = set()
+    while True:
+        for id in mounted_ids:
+            o = byid[id]
+            mounted.add(o)
+            for dep in itertools.chain(
+                    dependencies(o), reverse_dependencies(o)):
+                if dep not in mounted and dep.id in byid:
+                    next_mounted_ids.add(dep.id)
+        if next_mounted_ids:
+            mounted_ids, next_mounted_ids = next_mounted_ids, set()
+        else:
+            break
     return [o for o in objs if o not in mounted]
 
 
