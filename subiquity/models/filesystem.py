@@ -84,6 +84,7 @@ def reverse_dependencies(obj):
         if not f.metadata.get('backref', False):
             continue
         v = getattr(obj, f.name)
+        log.debug("%s %s %s", obj.id, f, v)
         if not v:
             continue
         if not isinstance(v, (set, list)):
@@ -248,8 +249,8 @@ def reflist(*, backlink=None):
     return attr.ib(default=attr.Factory(set), metadata=metadata)
 
 
-def backlink(*, default=None):
-    metadata = {'backlink': True}
+def backref(*, default=None):
+    metadata = {'backref': True}
     return attr.ib(default=default, metadata=metadata, repr=False)
 
 
@@ -353,9 +354,9 @@ class _Formattable(ABC):
     # e.g. a disk or a RAID or a partition.
 
     # Filesystem
-    _fs = backlink()
+    _fs = backref()
     # Raid or LVM_VolGroup for now, but one day ZPool, BCache...
-    _constructed_device = backlink()
+    _constructed_device = backref()
 
     def _is_entirely_used(self):
         return self._fs is not None or self._constructed_device is not None
@@ -407,7 +408,7 @@ class _Device(_Formattable, ABC):
         pass
 
     # [Partition]
-    _partitions = backlink(default=attr.Factory(list))
+    _partitions = backref(default=attr.Factory(list))
 
     def partitions(self):
         return self._partitions
@@ -856,8 +857,12 @@ class Filesystem:
     uuid = attr.ib(default=None)
     preserve = attr.ib(default=False)
 
-    _mount = backlink()
+    _mount = backref()
 
+    @property
+    def short_label(self):
+        return "formatted as %s" % (self.fstype,)
+    
     def mount(self):
         return self._mount
 

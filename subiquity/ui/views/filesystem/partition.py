@@ -132,8 +132,6 @@ class PartitionForm(Form):
             self.size.caption = _("Size (max {}):").format(self.size_str)
         self.lvm_names = lvm_names
         super().__init__(initial)
-        if max_size is None:
-            self.remove_field('size')
         connect_signal(self.fstype.widget, 'select', self.select_fstype)
         self.select_fstype(None, self.fstype.widget.value)
 
@@ -276,6 +274,9 @@ class PartitionStretchy(Stretchy):
 
         self.form = PartitionForm(
             mountpoints, max_size, initial, isinstance(disk, Disk), lvm_names)
+
+        if disk.preserve:
+            self.form.size.enabled = False
 
         if not isinstance(disk, LVM_VolGroup):
             self.form.remove_field('name')

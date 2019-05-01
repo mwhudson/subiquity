@@ -42,6 +42,7 @@ from subiquity.models.filesystem import (
     DeviceAction,
     dehumanize_size,
     humanize_size,
+    reverse_dependencies,
     )
 
 log = logging.getLogger("subiquity.ui.views.filesystem.guided")
@@ -99,6 +100,14 @@ A LVM volume group is created containing the large partition. A \
 It can easily be enlarged with standard LVM command line tools."""),
 }
 
+def append_rdep_rows(rows, obj, indent=""):
+    for o in reverse_dependencies(obj):
+        if o.type == 'disk':
+            1/0
+        l = getattr(o, 'short_label', o.label)
+        rows.append(TableRow([(1, Text("")), (2, Text(indent + l))]))
+        append_rdep_rows(rows, o, indent+"  ")
+
 
 class GuidedDiskSelectionView(BaseView):
 
@@ -113,7 +122,7 @@ class GuidedDiskSelectionView(BaseView):
         rows = []
         for disk in self.model.all_disks():
             if disk.size >= dehumanize_size("6G"):
-                disk_btn = ClickableIcon(disk.label)
+                disk_btn = ClickableIcon(disk.label, 0)
                 connect_signal(
                     disk_btn, 'click', self.choose_disk, disk.path)
                 attr = Color.done_button
@@ -127,6 +136,7 @@ class GuidedDiskSelectionView(BaseView):
                 Text('\N{BLACK RIGHT-POINTING SMALL TRIANGLE}'),
                 Text(']'),
                 ])))
+            append_rdep_rows(rows, disk)
         super().__init__(screen(
             TableListBox(rows, spacing=1, colspecs={
                 1: ColSpec(can_shrink=True, min_width=20, rpad=2),

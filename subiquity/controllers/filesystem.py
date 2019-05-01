@@ -381,9 +381,10 @@ class FilesystemController(BaseController):
         log.debug('disk.freespace: {}'.format(disk.free_for_partitions))
 
         if partition is not None:
-            partition.size = align_up(spec['size'])
-            if disk.free_for_partitions < 0:
-                raise Exception("partition size too large")
+            if 'size' in spec:
+                partition.size = align_up(spec['size'])
+                if disk.free_for_partitions < 0:
+                    raise Exception("partition size too large")
             self.delete_filesystem(partition.fs())
             self.create_filesystem(partition, spec)
             return
