@@ -17,13 +17,11 @@ from abc import ABC, abstractmethod
 import attr
 import collections
 import enum
-import glob
 import logging
 import math
 import os
 import pathlib
 import platform
-import sys
 
 log = logging.getLogger('subiquity.models.filesystem')
 
@@ -68,9 +66,16 @@ def _remove_backlinks(obj):
                 setattr(vv, backlink, None)
 
 
+_type_to_cls = {}
+
+
 def fsobj(c):
     c.__attrs_post_init__ = _set_backlinks
-    return attr.s(cmp=False)(c)
+    c = attr.s(cmp=False)(c)
+    for f in attr.fields(c):
+        if f.name == "type":
+            _type_to_cls[f.default] = c
+    return c
 
 
 def dependencies(obj):
@@ -912,11 +917,12 @@ class FilesystemModel(object):
     fs_by_name['fat32'] = FS('fat32', True)
 
     def __init__(self):
-        self._disk_info = []
+        self._existing_config = []
+        self._blockdevs = {}
         self.reset()
 
     def reset(self):
-        self._actions = [Disk.from_info(info) for info in self._disk_info]
+        self._actions = deserialize(self._existing_config, self._blockdevs)
 
     def render(self):
         # The curtin storage config has the constraint that an action must be
@@ -972,45 +978,14 @@ class FilesystemModel(object):
 
         return r
 
-    def _get_system_mounted_disks(self):
-        # This assumes a fairly vanilla setup. It won't list as
-        # mounted a disk that is only mounted via lvm, for example.
-        mounted_devs = []
-        with open('/proc/mounts', encoding=sys.getfilesystemencoding()) as pm:
-            for line in pm:
-                if line.startswith('/dev/'):
-                    mounted_devs.append(line.split()[0][5:])
-        mounted_disks = set()
-        for dev in mounted_devs:
-            if os.path.exists('/sys/block/{}'.format(dev)):
-                mounted_disks.add('/dev/' + dev)
-            else:
-                paths = glob.glob('/sys/block/*/{}/partition'.format(dev))
-                if len(paths) == 1:
-                    mounted_disks.add('/dev/' + paths[0].split('/')[3])
-        return mounted_disks
-
     def load_probe_data(self, storage):
-        currently_mounted = self._get_system_mounted_disks()
-        for path, info in storage.items():
-            log.debug("fs probe %s", path)
-            if path in currently_mounted:
-                continue
-            if info.type == 'disk':
-                if info.is_virtual:
-                    continue
-                if info.raw["MAJOR"] in ("2", "11"):  # serial and cd devices
-                    continue
-                if info.raw['attrs'].get('ro') == "1":
-                    continue
-                if "ID_CDROM" in info.raw:
-                    continue
-                # log.debug('disk={}\n{}'.format(
-                #    path, json.dumps(data, indent=4, sort_keys=True)))
-                if info.size < self.lower_size_limit:
-                    continue
-                self._disk_info.append(info)
-                self._actions.append(Disk.from_info(info))
+        # This should run storage though curtin's
+        # extract_storage_config function when that lands.
+        import json
+        with open('examples/curtin-storage.json') as fp:
+            self._existing_config = json.load(fp)["storage"]["config"]
+        self._blockdevs = storage['blockdev']
+        self.reset()
 
     def disk_by_path(self, path):
         for a in self._actions:
@@ -1202,3 +1177,34 @@ class FilesystemModel(object):
             if fs.fstype == "swap":
                 return False
         return True
+
+
+def deserialize(config, blockdevs={}):
+    byid = {}
+    objs = []
+    for action in config:
+        if action['type'] == 'mount':
+            continue
+        c = _type_to_cls[action['type']]
+        kw = {}
+        for f in attr.fields(c):
+            n = f.name
+            if n not in action:
+                continue
+            v = action[n]
+            if f.metadata.get('ref', False):
+                kw[n] = byid[v]
+            elif f.metadata.get('reflist', False):
+                kw[n] = [byid[id] for id in v]
+            else:
+                kw[n] = v
+        obj = c(**kw)
+        obj.preserve = True
+        if isinstance(obj, Disk):
+            from probert.storage import StorageInfo
+            obj._info = StorageInfo({obj.path: blockdevs[obj.path]})
+        if isinstance(obj, LVM_LogicalVolume):
+            obj.size = int(obj.size[:-1])
+        byid[action['id']] = obj
+        objs.append(obj)
+    return objs
