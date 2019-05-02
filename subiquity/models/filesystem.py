@@ -856,8 +856,10 @@ class Filesystem:
     def _available(self):
         # False if mounted or if fs does not require a mount, True otherwise.
         if self._mount is None:
-            fs_obj = FilesystemModel.fs_by_name[self.fstype]
-            return fs_obj.is_mounted
+            if self.fstype in FilesystemModel.fs_by_name:
+                return FilesystemModel.fs_by_name[self.fstype].is_mounted
+            else:
+                return True
         else:
             return False
 
