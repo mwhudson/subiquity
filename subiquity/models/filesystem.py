@@ -1181,11 +1181,20 @@ class FilesystemModel(object):
         return True
 
 
+def walk_up(obj):
+    yield obj
+    for o in dependencies(obj):
+        yield from walk_up(o)
+
+
 def deserialize(config, blockdevs={}):
     byid = {}
     objs = []
+    mounted = set()
     for action in config:
         if action['type'] == 'mount':
+            for o in walk_up(byid[action['device']]):
+                mounted.add(o)
             continue
         c = _type_to_cls[action['type']]
         kw = {}
@@ -1209,4 +1218,4 @@ def deserialize(config, blockdevs={}):
             obj.size = int(obj.size[:-1])
         byid[action['id']] = obj
         objs.append(obj)
-    return objs
+    return [o for o in objs if o not in mounted]
