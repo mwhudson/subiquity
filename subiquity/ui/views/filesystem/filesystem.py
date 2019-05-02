@@ -404,8 +404,8 @@ class DeviceList(WidgetWrap):
         for device in devices:
             menu = self._action_menu_for_device(device)
             label = device.label
-            if getattr(device, "_passphrase", None) is not None:
-                label += _(" (encrypted)")
+            if device.annotations:
+                label = "{} ({})".format(label, ", ".join(device.annotations))
             cells = [
                 Text("["),
                 Text(label),
@@ -432,9 +432,13 @@ class DeviceList(WidgetWrap):
                     part_size = "{:>9} ({}%)".format(
                         humanize_size(part.size),
                         int(100 * part.size / device.size))
+                    part_label = part.short_label
+                    if part.annotations:
+                        part_label = "{} ({})".format(
+                            part_label, ", ".join(part.annotations))
                     cells = [
                         Text("["),
-                        Text("  " + part.short_label),
+                        Text("  " + part_label),
                         (2, Text(part_size)),
                         menu,
                         Text("]"),
@@ -442,12 +446,10 @@ class DeviceList(WidgetWrap):
                     row = make_action_menu_row(cells, menu, cursor_x=4)
                     rows.append(row)
                     if part.flag in ["bios_grub", "prep"]:
-                        label = part.flag
-                    else:
-                        label = _usage_label(part)
+                        continue
                     rows.append(TableRow([
                         Text(""),
-                        (3, Text("    " + label)),
+                        (3, Text("    " + _usage_label(part))),
                         Text(""),
                         Text(""),
                     ]))
