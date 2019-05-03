@@ -90,12 +90,6 @@ def dependencies(obj):
 
 
 @attr.s(cmp=False)
-class FS:
-    label = attr.ib()
-    is_mounted = attr.ib()
-
-
-@attr.s(cmp=False)
 class RaidLevel:
     name = attr.ib()
     value = attr.ib()
@@ -866,10 +860,7 @@ class Filesystem:
     def _available(self):
         # False if mounted or if fs does not require a mount, True otherwise.
         if self._mount is None:
-            if self.fstype in FilesystemModel.fs_by_name:
-                return FilesystemModel.fs_by_name[self.fstype].is_mounted
-            else:
-                return True
+            return FilesystemModel.is_mounted_filesystem(self.fstype)
         else:
             return False
 
@@ -907,26 +898,12 @@ class FilesystemModel(object):
 
     lower_size_limit = 128 * (1 << 20)
 
-    supported_filesystems = [
-        ('ext4', True, FS('ext4', True)),
-        ('xfs', True, FS('xfs', True)),
-        ('btrfs', True, FS('btrfs', True)),
-        ('---', False),
-        ('swap', True, FS('swap', False)),
-        ('---', False),
-        ('leave unformatted', True, FS(None, False)),
-    ]
-
-    fs_by_name = {}
-    longest_fs_name = 0
-    for t in supported_filesystems:
-        if len(t) > 2:
-            fs = t[2]
-            if fs.label is not None:
-                if len(fs.label) > longest_fs_name:
-                    longest_fs_name = len(fs.label)
-            fs_by_name[fs.label] = fs
-    fs_by_name['fat32'] = FS('fat32', True)
+    @classmethod
+    def is_mounted_filesystem(self, fstype):
+        if fstype in [None, 'swap']:
+            return False
+        else:
+            return True
 
     def __init__(self):
         self._existing_config = []
