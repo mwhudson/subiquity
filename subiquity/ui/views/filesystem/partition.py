@@ -57,14 +57,23 @@ class FSTypeField(FormField):
         # This will need to do something different for editing an
         # existing partition that is already formatted.
         options = [
-            ('ext4',              True),
-            ('xfs',               True),
-            ('btrfs',             True),
-            ('---',               False),
-            ('swap',              True),
-            ('---',               False),
-            ('leave unformatted', True, None),
+            ('ext4',  True),
+            ('xfs',   True),
+            ('btrfs', True),
+            ('---',   False),
+            ('swap',  True),
         ]
+        if form.existing_fs_type is None:
+            options = options + [
+                ('---',                  False),
+                (_('leave unformatted'), True, None),
+                ]
+        else:
+            label = _('leave formatted as {}').format(form.existing_fs_type)
+            options = [
+                (label, True, None),
+                ('---', False),
+                ] + options
         sel = Selector(opts=options)
         sel.value = None
         return sel
@@ -128,8 +137,9 @@ LVNameField = simple_field(LVNameEditor)
 
 class PartitionForm(Form):
 
-    def __init__(self, model, max_size, initial, lvm_names):
+    def __init__(self, model, max_size, initial, lvm_names, existing_fs_type):
         self.model = model
+        self.existing_fs_type = existing_fs_type
         initial_path = initial.get('mount')
         self.mountpoints = {
             m.path: m.device.volume for m in self.model.all_mounts()
@@ -146,6 +156,8 @@ class PartitionForm(Form):
         self.select_fstype(None, self.fstype.widget.value)
 
     def select_fstype(self, sender, fstype):
+        if fstype is None:
+            fstype = self.existing_fs_type
         self.mount.enabled = self.model.is_mounted_filesystem(fstype)
 
     name = LVNameField(_("Name: "))
@@ -243,6 +255,7 @@ class PartitionStretchy(Stretchy):
             lvm_names = {p.name for p in disk.partitions()}
         else:
             lvm_names = None
+        existing_fs_type = None
         if self.partition:
             if self.partition.flag in ["bios_grub", "prep"]:
                 label = None
@@ -251,9 +264,14 @@ class PartitionStretchy(Stretchy):
                 label = _("Save")
             initial['size'] = humanize_size(self.partition.size)
             max_size += self.partition.size
+            existing_fs = self.partition.original_fs()
+            if existing_fs is not None:
+                existing_fs_type = existing_fs.fstype
             fs = self.partition.fs()
             if fs is not None:
-                if partition.flag != "boot":
+                if fs.preserve:
+                    initial['fstype'] = None
+                elif partition.flag != "boot":
                     initial['fstype'] = fs.fstype
                 if self.model.is_mounted_filesystem(fs.fstype):
                     mount = fs.mount()
@@ -275,7 +293,8 @@ class PartitionStretchy(Stretchy):
                     x += 1
                 initial['name'] = name
 
-        self.form = PartitionForm(self.model, max_size, initial, lvm_names)
+        self.form = PartitionForm(
+            self.model, max_size, initial, lvm_names, existing_fs_type)
 
         if not isinstance(disk, LVM_VolGroup):
             self.form.remove_field('name')
@@ -372,7 +391,15 @@ class FormatEntireStretchy(Stretchy):
 
         initial = {}
         fs = device.fs()
+        existing_fs_type = None
+        existing_fs = device.original_fs()
+        if existing_fs is not None:
+            existing_fs_type = existing_fs.fstype
         if fs is not None:
+            if fs.preserve:
+                initial['fstype'] = None
+            else:
+                initial['fstype'] = fs.fstype
             initial['fstype'] = fs.fstype
             if self.model.is_mounted_filesystem(fs.fstype):
                 mount = fs.mount()
@@ -380,7 +407,8 @@ class FormatEntireStretchy(Stretchy):
                     initial['mount'] = mount.path
         elif not isinstance(device, Disk):
             initial['fstype'] = 'ext4'
-        self.form = PartitionForm(self.model, 0, initial, None)
+        self.form = PartitionForm(
+            self.model, 0, initial, None, existing_fs_type)
         self.form.remove_field('size')
         self.form.remove_field('name')
 

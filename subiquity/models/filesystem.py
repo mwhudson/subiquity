@@ -388,6 +388,7 @@ class _Formattable(ABC):
 
     # Filesystem
     _fs = attributes.backlink()
+    _original_fs = attributes.backlink()
     # Raid or LVM_VolGroup for now, but one day ZPool, BCache...
     _constructed_device = attributes.backlink()
 
@@ -418,6 +419,9 @@ class _Formattable(ABC):
 
     def fs(self):
         return self._fs
+
+    def original_fs(self):
+        return self._original_fs
 
     def constructed_device(self, skip_dm_crypt=True):
         cd = self._constructed_device
@@ -1032,6 +1036,8 @@ class FilesystemModel(object):
                 kw['info'] = StorageInfo({path: blockdevs[path]})
             kw['preserve'] = True
             obj = byid[action['id']] = c(m=self, **kw)
+            if action['type'] == "format":
+                obj.volume._original_fs = obj
             objs.append(obj)
         return [o for o in objs if o not in mounted]
 
@@ -1239,6 +1245,10 @@ class FilesystemModel(object):
         fs = Filesystem(m=self, volume=volume, fstype=fstype)
         self._actions.append(fs)
         return fs
+
+    def readd_filesystem(self, fs):
+        _set_backlinks(fs)
+        self._actions.append(fs)
 
     def remove_filesystem(self, fs):
         if fs._mount:
