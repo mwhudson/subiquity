@@ -647,6 +647,8 @@ class Partition(_Formattable):
         if self.flag in ('boot', 'bios_grub', 'prep'):
             return False
         if self._fs is not None:
+            if self._fs.preserve:
+                return self._fs._mount is None
             return False
         if self._constructed_device is not None:
             return False
