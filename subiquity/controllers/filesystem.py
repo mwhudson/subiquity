@@ -18,8 +18,6 @@ import logging
 import os
 import platform
 
-from probert.storage import StorageInfo
-
 from subiquitycore.controller import BaseController
 
 from subiquity.models.filesystem import (
@@ -262,8 +260,12 @@ class FilesystemController(BaseController):
 
     def create_filesystem(self, volume, spec):
         if spec['fstype'] is None:
-            return
-        fs = self.model.add_filesystem(volume, spec['fstype'])
+            fs = volume.original_fs()
+            if fs is None:
+                return
+            self.model.readd_filesystem(fs)
+        else:
+            fs = self.model.add_filesystem(volume, spec['fstype'])
         if isinstance(volume, Partition):
             if spec['fstype'] == "swap":
                 volume.flag = "swap"

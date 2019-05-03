@@ -342,6 +342,7 @@ class _Formattable(ABC):
 
     # Filesystem
     _fs = attr.ib(default=None, repr=False)
+    _original_fs = attr.ib(default=None, repr=False)
     # Raid or LVM_VolGroup for now, but one day ZPool, BCache...
     _constructed_device = attr.ib(default=None, repr=False)
 
@@ -350,6 +351,9 @@ class _Formattable(ABC):
 
     def fs(self):
         return self._fs
+
+    def original_fs(self):
+        return self._original_fs
 
     def constructed_device(self, skip_dm_crypt=True):
         cd = self._constructed_device
@@ -1100,6 +1104,10 @@ class FilesystemModel(object):
         self._actions.append(fs)
         return fs
 
+    def readd_filesystem(self, fs):
+        _set_backlinks(fs)
+        self._actions.append(fs)
+
     def remove_filesystem(self, fs):
         if fs._mount:
             raise Exception("can only remove unmounted filesystem")
@@ -1201,6 +1209,8 @@ def deserialize(config, blockdevs={}):
         if isinstance(obj, Disk):
             from probert.storage import StorageInfo
             obj._info = StorageInfo({obj.path: blockdevs[obj.path]})
+        if isinstance(obj, Filesystem):
+            obj.volume._original_fs = obj
         if isinstance(obj, LVM_LogicalVolume):
             obj.size = int(obj.size[:-1])
         byid[action['id']] = obj
