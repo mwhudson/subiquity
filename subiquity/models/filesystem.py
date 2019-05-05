@@ -338,6 +338,12 @@ def _generic_can_REMOVE(obj):
     cd = obj.constructed_device()
     if cd is None:
         return False
+    if cd.preserve:
+        return _("Cannot remove selflabel from pre-exsting {cdtype} "
+                 "{cdlabel}").format(
+                    selflabel=obj.label,
+                    cdtype=cd.desc(),
+                    cdlabel=cd.label)
     if isinstance(cd, Raid):
         if obj in cd.spare_devices:
             return True
@@ -527,6 +533,13 @@ class _Device(_Formattable, ABC):
                 return True
         return False
 
+    def _has_preexisting_partition(self):
+        for p in self._partitions:
+            if p.preserve:
+                return True
+        else:
+            return False
+
     @property
     def _can_DELETE(self):
         mounted_partitions = 0
@@ -654,7 +667,6 @@ class Disk(_Device):
         return actions
 
     _can_INFO = True
-    _can_PARTITION = property(lambda self: self.free_for_partitions > 0)
 
     @property
     def _can_REFORMAT(self):
@@ -667,6 +679,9 @@ class Disk(_Device):
                 return False
         return True
 
+    _can_PARTITION = property(
+        lambda self: not self._has_preexisting_partition() and
+        self.free_for_partitions > 0)
     _can_FORMAT = property(
         lambda self: len(self._partitions) == 0 and
         self._constructed_device is None)
