@@ -385,14 +385,20 @@ class DeviceList(WidgetWrap):
                     component_name=cd.component_name, name=cd.name)
             fs = obj.fs()
             if fs is not None:
+                if fs.preserve:
+                    format_desc = _("already formatted as {fstype}")
+                elif obj.original_fs():
+                    format_desc = _("to be reformatted as {fstype}")
+                else:
+                    format_desc = _("to be formatted as {fstype}")
+                format_desc = format_desc.format(fstype=fs.fstype)
                 m = fs.mount()
                 if m:
-                    return _(
-                        "formatted as {fstype}, mounted at {path}").format(
-                            fstype=fs.fstype, path=m.path)
+                    mount_desc = _("mounted at {path}").format(path=m.path)
                 else:
-                    return _("formatted as {fstype}, not mounted").format(
-                        fstype=fs.fstype)
+                    mount_desc = _("not mounted")
+                return _("{format}, {mount}").format(
+                    format=format_desc, mount=mount_desc)
             else:
                 return _("unused")
 
