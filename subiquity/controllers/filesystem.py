@@ -383,6 +383,8 @@ class FilesystemController(BaseController):
             self.create_filesystem(partition, spec)
             return
 
+        disk.preserve = False
+
         needs_boot = self.model.needs_bootloader_partition()
         log.debug('model needs a bootloader partition? {}'.format(needs_boot))
         can_be_boot = DeviceAction.MAKE_BOOT in disk.supported_actions
@@ -419,6 +421,7 @@ class FilesystemController(BaseController):
 
     def add_format_handler(self, volume, spec):
         log.debug('add_format_handler %s %s', volume, spec)
+        volume.preserve = False
         self.delete_filesystem(volume.fs())
         self.create_filesystem(volume, spec)
 
@@ -458,6 +461,13 @@ class FilesystemController(BaseController):
             self.create_volgroup(spec)
 
     def make_boot_disk(self, new_boot_disk):
+        if new_boot_disk.preserve:
+            # XXX not sure this is
+            if not self.is_prep():
+                new_boot_disk.grub_device = True
+            else:
+                new_boot_disk._potential_boot_partition().wipe = 'zero'
+            return
         boot_partition = None
         for disk in self.model.all_disks():
             for part in disk.partitions():

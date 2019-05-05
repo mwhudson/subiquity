@@ -285,6 +285,12 @@ def _generic_can_REMOVE(obj):
     cd = obj.constructed_device()
     if cd is None:
         return False
+    if cd.preserve:
+        return _("Cannot remove selflabel from pre-exsting {cdtype} "
+                 "{cdlabel}").format(
+                    selflabel=obj.label,
+                    cdtype=cd.desc(),
+                    cdlabel=cd.label)
     if isinstance(cd, Raid):
         if obj in cd.spare_devices:
             return True
@@ -452,6 +458,13 @@ class _Device(_Formattable, ABC):
                 return True
         return False
 
+    def _has_preexisting_partition(self):
+        for p in self._partitions:
+            if p.preserve:
+                return True
+        else:
+            return False
+
     @property
     def _can_DELETE(self):
         mounted_partitions = 0
@@ -559,6 +572,23 @@ class Disk(_Device):
             return self.serial
         return self.path
 
+    def _potential_boot_partition(self):
+        # XXX This is violates all kinds of abstractions, needs a bit of thinking
+        # s390x has no such thing
+        if platform.machine() == 's390x':
+            return None
+        if platform.machine().startswith("ppc64"):
+            flag = "prep"
+        elif os.path.exists('/sys/firmware/efi'):
+            # Need to check partition isn't extended in this case too.
+            flag = "boot"
+        else:
+            flag == "bios_grub"
+        for p in self._partitions:
+            if p.flag == flag:
+                return p
+        return None
+
     supported_actions = [
         DeviceAction.INFO,
         DeviceAction.PARTITION,
@@ -568,15 +598,25 @@ class Disk(_Device):
     if platform.machine() != 's390x':
         supported_actions.append(DeviceAction.MAKE_BOOT)
     _can_INFO = True
-    _can_PARTITION = property(lambda self: self.free_for_partitions > 0)
+    _can_PARTITION = property(
+        lambda self: not self._has_preexisting_partition() and
+        self.free_for_partitions > 0)
     _can_FORMAT = property(
         lambda self: len(self._partitions) == 0 and
         self._constructed_device is None)
     _can_REMOVE = property(_generic_can_REMOVE)
-    _can_MAKE_BOOT = property(
-        lambda self:
-        not self.grub_device and self._fs is None
-        and self._constructed_device is None)
+
+    @property
+    def _can_MAKE_BOOT(self):
+        if self.preserve:
+            return self._potential_boot_partition() is not None
+        else:
+            if self.grub_device:
+                return False
+            elif self._fs is not None:
+                return False
+            elif self._constructed_device is not None:
+                return False
 
     ok_for_raid = ok_for_lvm_vg = _can_FORMAT
 
@@ -1133,6 +1173,7 @@ class FilesystemModel(object):
         if platform.machine() == 's390x':
             return False
         for p in self.all_partitions():
+            # need to check p.flag == boot partition is mounted..
             if p.flag in ('bios_grub', 'boot', 'prep'):
                 return False
         return True
