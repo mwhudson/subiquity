@@ -378,29 +378,39 @@ class DeviceList(WidgetWrap):
         log.debug('FileSystemView: building device list')
         rows = []
 
-        def _usage_label(obj):
+        def _add_usage_rows(indent, rows, obj):
+
+            def add_row(indent, text):
+                rows.append(TableRow([
+                    Text(""),
+                    (3, Text(" "*indent + text)),
+                    Text(""),
+                    Text(""),
+                ]))
+
             cd = obj.constructed_device()
-            if cd is not None:
-                return _("{component_name} of {name}").format(
-                    component_name=cd.component_name, name=cd.name)
             fs = obj.fs()
-            if fs is not None:
+            if cd is not None:
+                add_row(
+                    indent,
+                    _("{component_name} of {name}").format(
+                        component_name=cd.component_name, name=cd.name))
+            elif fs is not None:
                 if fs.preserve:
                     format_desc = _("already formatted as {fstype}")
                 elif obj.original_fs():
                     format_desc = _("to be reformatted as {fstype}")
                 else:
                     format_desc = _("to be formatted as {fstype}")
-                format_desc = format_desc.format(fstype=fs.fstype)
+                add_row(indent, format_desc.format(fstype=fs.fstype))
                 m = fs.mount()
-                if m:
+                if m is not None:
                     mount_desc = _("mounted at {path}").format(path=m.path)
                 else:
                     mount_desc = _("not mounted")
-                return _("{format}, {mount}").format(
-                    format=format_desc, mount=mount_desc)
+                add_row(indent+2, mount_desc)
             else:
-                return _("unused")
+                add_row(indent, "unused")
 
         rows.append(TableRow([Color.info_minor(heading) for heading in [
             Text(" "),
@@ -427,12 +437,7 @@ class DeviceList(WidgetWrap):
             rows.append(row)
 
             if not device.partitions():
-                rows.append(TableRow([
-                    Text(""),
-                    (3, Text("  " + _usage_label(device))),
-                    Text(""),
-                    Text(""),
-                ]))
+                _add_usage_rows(2, rows, device)
             else:
                 for part in device.partitions():
                     if part.available() != self.show_available:
@@ -456,12 +461,7 @@ class DeviceList(WidgetWrap):
                     rows.append(row)
                     if part.flag in ["bios_grub", "prep"]:
                         continue
-                    rows.append(TableRow([
-                        Text(""),
-                        (3, Text("    " + _usage_label(part))),
-                        Text(""),
-                        Text(""),
-                    ]))
+                    _add_usage_rows(4, rows, part)
                 if (self.show_available
                         and device.used > 0
                         and device.free_for_partitions > 0):
