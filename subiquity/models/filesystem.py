@@ -765,10 +765,14 @@ class Partition(_Formattable):
         ]
 
     _can_EDIT = property(_generic_can_EDIT)
+
     _can_REMOVE = property(_generic_can_REMOVE)
 
     @property
     def _can_DELETE(self):
+        if self.device._has_preexisting_partition():
+            return _("Cannot delete a single partition from a device that "
+                     "already has partitions.")
         if self.flag in ('boot', 'bios_grub', 'prep'):
             return _("Cannot delete required bootloader partition")
         return _generic_can_DELETE(self)
@@ -824,7 +828,9 @@ class Raid(_Device):
 
     @property
     def _can_EDIT(self):
-        if len(self._partitions) > 0:
+        if self.preserve:
+            return _("Cannot edit pre-existing RAIDs.")
+        elif len(self._partitions) > 0:
             return _(
                 "Cannot edit {selflabel} because it has partitions.").format(
                     selflabel=self.label)
@@ -945,7 +951,13 @@ class LVM_LogicalVolume(_Formattable):
         ]
 
     _can_EDIT = True
-    _can_DELETE = True
+
+    @property
+    def _can_DELETE(self):
+        if self.volgroup._has_preexisting_partition():
+            return _("Cannot delete a single partition from a volume group "
+                     "that already has logical volumes.")
+        return True
 
     ok_for_raid = False
     ok_for_lvm_vg = False

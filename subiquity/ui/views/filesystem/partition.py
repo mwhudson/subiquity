@@ -316,6 +316,9 @@ class PartitionStretchy(Stretchy):
                 self.form.mount.enabled = False
                 self.form.fstype.enabled = False
                 self.form.size.enabled = False
+            if partition.preserve:
+                self.form.name.enabled = False
+                self.form.size.enabled = False
 
         connect_signal(self.form, 'submit', self.done)
         connect_signal(self.form, 'cancel', self.cancel)
