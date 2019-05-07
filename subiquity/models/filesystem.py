@@ -71,6 +71,7 @@ _type_to_cls = {}
 
 def fsobj(c):
     c.__attrs_post_init__ = _set_backlinks
+    c._m = attr.ib(default=None)
     c = attr.s(cmp=False)(c)
     for f in attr.fields(c):
         if f.name == "type":
@@ -512,8 +513,8 @@ class Disk(_Device):
     _info = attr.ib(default=None)
 
     @classmethod
-    def from_info(self, info):
-        d = Disk(info=info)
+    def from_info(self, model, info):
+        d = Disk(m=model, info=info)
         d.serial = info.serial
         d.path = info.name
         d.model = info.model
@@ -611,7 +612,7 @@ class Disk(_Device):
         if self.preserve:
             return self._potential_boot_partition() is not None
         else:
-            if self.grub_device:
+            if self._m.grub_install_device is self:
                 return False
             elif self._fs is not None:
                 return False
@@ -952,6 +953,13 @@ def align_down(size, block_size=1 << 20):
     return size & ~(block_size - 1)
 
 
+class Bootloader(enum.Enum):
+    NONE = "NONE"  # a system where the bootloader is external, e.g. s390x
+    BIOS = "BIOS"  # BIOS, where the bootloader dd-ed to the start of a device
+    UEFI = "UEFI"  # UEFI, ESPs and /boot/efi and all that (amd64 and arm64)
+    PREP = "PREP"  # ppc64el, which puts grub on a PReP partition
+
+
 class FilesystemModel(object):
 
     lower_size_limit = 128 * (1 << 20)
@@ -963,22 +971,40 @@ class FilesystemModel(object):
         else:
             return True
 
+    def _probe_bootloader(self):
+        # This will at some point change to return a list so that we can
+        # configure BIOS _and_ UEFI on amd64 systems.
+        if os.path.exists('/sys/firmware/efi'):
+            return Bootloader.UEFI
+        elif platform.machine().startswith("ppc64"):
+            return Bootloader.PREP
+        elif platform.machine() == "s390x":
+            return Bootloader.NONE
+        else:
+            return Bootloader.BIOS
+
     def __init__(self):
+        self.bootloader = self._probe_bootloader()
         self._existing_config = []
         self._blockdevs = {}
         self.reset()
 
     def reset(self):
         self._actions = deserialize(self._existing_config, self._blockdevs)
+        self.grub_install_device = None
 
-    def render(self):
-        # The curtin storage config has the constraint that an action must be
-        # preceded by all the things that it depends on.  We handle this by
-        # repeatedly iterating over all actions and checking if we can emit
-        # each action by checking if all of the actions it depends on have been
-        # emitted.  Eventually this will either emit all actions or stop making
-        # progress -- which means there is a cycle in the definitions,
-        # something the UI should have prevented <wink>.
+    def _render_actions(self):
+        # the curtin storage config has the constraint that an action
+        # must be preceded by all the things that it depends on. Disks
+        # are easy because they don't depend on anything, but a raid
+        # can both be built of partitions and be partitioned itself so
+        # in some cases raid and partition actions have to be
+        # intermingled. We tackle this by tracking the ids that have
+        # been emitted and iterating over the raid and partition
+        # objects and emitting the ones that can be emitted repeatedly
+        # until there are none left (or we make no progress, which
+        # means there is a cycle in the definitions, something the UI
+        # should have prevented <wink>)
         r = []
         emitted_ids = set()
 
@@ -1024,6 +1050,44 @@ class FilesystemModel(object):
             work = next_work
 
         return r
+
+    def render(self):
+        config = {
+            'storage': {
+                'version': 1,
+                'config': self._render_actions(),
+                },
+            }
+        if not self._should_add_swapfile():
+            config['swap'] = {'size': 0}
+        if self.grub_install_device:
+            dev = self.grub_install_device
+            if dev.type == "partition":
+                devpath = "{}{}".format(dev.device.path, dev._number)
+            else:
+                devpath = dev.path
+            config['grub'] = {
+                'install_devices': [devpath],
+                }
+        return config
+
+    def _get_system_mounted_disks(self):
+        # This assumes a fairly vanilla setup. It won't list as
+        # mounted a disk that is only mounted via lvm, for example.
+        mounted_devs = []
+        with open('/proc/mounts', encoding=sys.getfilesystemencoding()) as pm:
+            for line in pm:
+                if line.startswith('/dev/'):
+                    mounted_devs.append(line.split()[0][5:])
+        mounted_disks = set()
+        for dev in mounted_devs:
+            if os.path.exists('/sys/block/{}'.format(dev)):
+                mounted_disks.add('/dev/' + dev)
+            else:
+                paths = glob.glob('/sys/block/*/{}/partition'.format(dev))
+                if len(paths) == 1:
+                    mounted_disks.add('/dev/' + paths[0].split('/')[3])
+        return mounted_disks
 
     def load_probe_data(self, storage):
         # This should run storage though curtin's
@@ -1082,7 +1146,8 @@ class FilesystemModel(object):
         log.debug("add_partition: rounded size from %s to %s", size, real_size)
         if disk._fs is not None:
             raise Exception("%s is already formatted" % (disk.label,))
-        p = Partition(device=disk, size=real_size, flag=flag, wipe=wipe)
+        p = Partition(
+            m=self, device=disk, size=real_size, flag=flag, wipe=wipe)
         if flag in ("boot", "bios_grub", "prep"):
             disk._partitions.insert(0, disk._partitions.pop())
         disk.ptable = 'gpt'
@@ -1099,6 +1164,7 @@ class FilesystemModel(object):
 
     def add_raid(self, name, raidlevel, devices, spare_devices):
         r = Raid(
+            m=self,
             name=name,
             raidlevel=raidlevel,
             devices=devices,
@@ -1113,7 +1179,7 @@ class FilesystemModel(object):
         self._actions.remove(raid)
 
     def add_volgroup(self, name, devices):
-        vg = LVM_VolGroup(name=name, devices=devices)
+        vg = LVM_VolGroup(m=self, name=name, devices=devices)
         self._actions.append(vg)
         return vg
 
@@ -1124,7 +1190,7 @@ class FilesystemModel(object):
         self._actions.remove(vg)
 
     def add_logical_volume(self, vg, name, size):
-        lv = LVM_LogicalVolume(volgroup=vg, name=name, size=size)
+        lv = LVM_LogicalVolume(m=self, volgroup=vg, name=name, size=size)
         self._actions.append(lv)
         return lv
 
@@ -1154,7 +1220,7 @@ class FilesystemModel(object):
                     raise Exception("{} is not available".format(volume))
         if volume._fs is not None:
             raise Exception("%s is already formatted")
-        fs = Filesystem(volume=volume, fstype=fstype)
+        fs = Filesystem(m=self, volume=volume, fstype=fstype)
         self._actions.append(fs)
         return fs
 
@@ -1171,7 +1237,7 @@ class FilesystemModel(object):
     def add_mount(self, fs, path):
         if fs._mount is not None:
             raise Exception("%s is already mounted")
-        m = Mount(device=fs, path=path)
+        m = Mount(m=self, device=fs, path=path)
         self._actions.append(m)
         return m
 
@@ -1182,39 +1248,29 @@ class FilesystemModel(object):
     def needs_bootloader_partition(self):
         '''true if no disk have a boot partition, and one is needed'''
         # s390x has no such thing
-        if platform.machine() == 's390x':
+        if self.bootloader == Bootloader.NONE:
             return False
-        for p in self.all_partitions():
-            if p.device.type != "disk":
-                continue
-            # For bios_grub and prep partitions, curtin will (I think!) install
-            # grub on any device that is included in the config. For sanity's
-            # sake, we represent that here as any device that has a partition
-            # that is mounted or
-            if p.flag == "bios_grub" or p.flag == "prep":
-                pass
-            if p.flag in ('bios_grub', 'boot', 'prep'):
-                return False
-        return True
+        elif self.bootloader in [Bootloader.BIOS, Bootloader.PREP]:
+            return self.grub_install_device is None
+        elif self.bootloader == Bootloader.UEFI:
+            return self._mount_for_path('/boot/efi') is None
+        else:
+            raise AssertionError(
+                "unknown bootloader type {}".format(self.bootloader))
+
+    def _mount_for_path(self, path):
+        for mount in self.all_mounts():
+            if mount.path == path:
+                return mount
+        return None
 
     def is_root_mounted(self):
-        for mount in self.all_mounts():
-            if mount.path == '/':
-                return True
-        return False
+        return self._mount_for_path('/') is not None
 
     def is_slash_boot_on_local_disk(self):
-        for mount in self.all_mounts():
-            if mount.path == '/boot':
-                dev = mount.device.volume
-                # We should never allow anything other than a
-                # partition of a local disk to be mounted at /boot but
-                # well.
-                return (
-                    isinstance(dev, Partition)
-                    and isinstance(dev.device, Disk))
-        for mount in self.all_mounts():
-            if mount.path == '/':
+        for path in '/boot', '/':
+            mount = self._mount_for_path(path)
+            if mount is not None:
                 dev = mount.device.volume
                 return (
                     isinstance(dev, Partition)
@@ -1222,16 +1278,14 @@ class FilesystemModel(object):
         return False
 
     def can_install(self):
-        # Do we need to check that there is a disk with the boot flag?
         return (self.is_root_mounted()
                 and not self.needs_bootloader_partition()
                 and self.is_slash_boot_on_local_disk())
 
-    def add_swapfile(self):
-        for m in self.all_mounts():
-            if m.path == '/':
-                if m.device.fstype == 'btrfs':
-                    return False
+    def _should_add_swapfile(self):
+        mount = self._mount_for_path('/')
+        if mount is not None and mount.device.fstype == 'btrfs':
+            return False
         for fs in self.all_filesystems():
             if fs.fstype == "swap":
                 return False
