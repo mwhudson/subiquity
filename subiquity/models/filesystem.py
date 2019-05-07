@@ -1185,7 +1185,14 @@ class FilesystemModel(object):
         if platform.machine() == 's390x':
             return False
         for p in self.all_partitions():
-            # need to check p.flag == boot partition is mounted..
+            if p.device.type != "disk":
+                continue
+            # For bios_grub and prep partitions, curtin will (I think!) install
+            # grub on any device that is included in the config. For sanity's
+            # sake, we represent that here as any device that has a partition
+            # that is mounted or
+            if p.flag == "bios_grub" or p.flag == "prep":
+                pass
             if p.flag in ('bios_grub', 'boot', 'prep'):
                 return False
         return True
