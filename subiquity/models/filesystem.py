@@ -988,7 +988,7 @@ class FilesystemModel(object):
         self.reset()
 
     def reset(self):
-        self._actions = deserialize(self._existing_config, self._blockdevs)
+        self._actions = self.deserialize(self._existing_config, self._blockdevs)
         self.grub_install_device = None
 
     def _render_actions(self):
@@ -1289,6 +1289,41 @@ class FilesystemModel(object):
                 return False
         return True
 
+    def deserialize(self, config, blockdevs={}):
+        byid = {}
+        objs = []
+        mounted = set()
+        for action in config:
+            if action['type'] == 'mount':
+                for o in walk_up(byid[action['device']]):
+                    mounted.add(o)
+                continue
+            c = _type_to_cls[action['type']]
+            kw = {}
+            for f in attr.fields(c):
+                n = f.name
+                if n not in action:
+                    continue
+                v = action[n]
+                if f.metadata.get('ref', False):
+                    kw[n] = byid[v]
+                elif f.metadata.get('reflist', False):
+                    kw[n] = [byid[id] for id in v]
+                else:
+                    kw[n] = v
+            obj = c(m=self, **kw)
+            obj.preserve = True
+            if isinstance(obj, Disk):
+                from probert.storage import StorageInfo
+                obj._info = StorageInfo({obj.path: blockdevs[obj.path]})
+            if isinstance(obj, Filesystem):
+                obj.volume._original_fs = obj
+            if isinstance(obj, LVM_LogicalVolume):
+                obj.size = int(obj.size[:-1])
+            byid[action['id']] = obj
+            objs.append(obj)
+        return [o for o in objs if o not in mounted]
+
 
 def walk_up(obj):
     yield obj
@@ -1296,37 +1331,3 @@ def walk_up(obj):
         yield from walk_up(o)
 
 
-def deserialize(config, blockdevs={}):
-    byid = {}
-    objs = []
-    mounted = set()
-    for action in config:
-        if action['type'] == 'mount':
-            for o in walk_up(byid[action['device']]):
-                mounted.add(o)
-            continue
-        c = _type_to_cls[action['type']]
-        kw = {}
-        for f in attr.fields(c):
-            n = f.name
-            if n not in action:
-                continue
-            v = action[n]
-            if f.metadata.get('ref', False):
-                kw[n] = byid[v]
-            elif f.metadata.get('reflist', False):
-                kw[n] = [byid[id] for id in v]
-            else:
-                kw[n] = v
-        obj = c(**kw)
-        obj.preserve = True
-        if isinstance(obj, Disk):
-            from probert.storage import StorageInfo
-            obj._info = StorageInfo({obj.path: blockdevs[obj.path]})
-        if isinstance(obj, Filesystem):
-            obj.volume._original_fs = obj
-        if isinstance(obj, LVM_LogicalVolume):
-            obj.size = int(obj.size[:-1])
-        byid[action['id']] = obj
-        objs.append(obj)
-    return [o for o in objs if o not in mounted]
