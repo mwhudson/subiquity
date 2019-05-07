@@ -537,7 +537,8 @@ class Disk(_Device):
     _can_REMOVE = property(_generic_can_REMOVE)
     _can_MAKE_BOOT = property(
         lambda self:
-        not self.grub_device and self._fs is None
+        self._m.grub_install_device is not self
+        and self._fs is None
         and self._constructed_device is None)
 
     ok_for_raid = ok_for_lvm_vg = _can_FORMAT
@@ -895,6 +896,7 @@ class FilesystemModel(object):
     def reset(self):
         self._actions = [
             Disk.from_info(self, info) for info in self._disk_info]
+        self.grub_install_device = None
 
     def _render_actions(self):
         # the curtin storage config has the constraint that an action
@@ -987,6 +989,15 @@ class FilesystemModel(object):
             }
         if not self._should_add_swapfile():
             config['swap'] = {'size': 0}
+        if self.grub_install_device:
+            dev = self.grub_install_device
+            if dev.type == "partition":
+                devpath = "{}{}".format(dev.device.path, dev._number)
+            else:
+                devpath = dev.path
+            config['grub'] = {
+                'install_devices': [devpath],
+                }
         return config
 
     def _get_system_mounted_disks(self):
