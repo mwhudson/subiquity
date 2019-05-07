@@ -574,21 +574,19 @@ class Disk(_Device):
         return self.path
 
     def _potential_boot_partition(self):
-        # XXX This is violates all kinds of abstractions, needs a bit of thinking
-        # s390x has no such thing
-        if platform.machine() == 's390x':
-            return None
-        if platform.machine().startswith("ppc64"):
-            flag = "prep"
-        elif os.path.exists('/sys/firmware/efi'):
-            # Need to check partition isn't extended in this case too.
-            flag = "boot"
-        else:
-            flag == "bios_grub"
+        if self._m.bootloader == Bootloader.NONE:
+            return False
+        flag = {
+            Bootloader.BIOS: "bios_grub",
+            Bootloader.UEFI: "boot",
+            Bootloader.PREP: "prep",
+            }[self._m.bootloader]
         for p in self._partitions:
+            # XXX should check not extended in the UEFI case too (until we fix
+            # that bug)
             if p.flag == flag:
-                return p
-        return None
+                return True
+        return False
 
     supported_actions = [
         DeviceAction.INFO,
