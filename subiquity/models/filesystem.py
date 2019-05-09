@@ -344,9 +344,9 @@ class _Formattable(ABC):
         if preserve is None:
             return []
         elif preserve:
-            return ["existing"]
+            return [_("existing")]
         else:
-            return ["new"]
+            return [_("new")]
 
     # Filesystem
     _fs = attr.ib(default=None, repr=False)

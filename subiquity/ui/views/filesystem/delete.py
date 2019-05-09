@@ -17,11 +17,38 @@ import logging
 from urwid import Text
 
 from subiquitycore.ui.buttons import danger_btn, other_btn
+from subiquitycore.ui.table import TablePile, TableRow
 from subiquitycore.ui.utils import button_pile
 from subiquitycore.ui.stretchy import Stretchy
 
+from subiquity.models.filesystem import humanize_size
+
 
 log = logging.getLogger('subiquity.ui.filesystem.disk_info')
+
+
+def summarize(obj):
+    # [ label, size, annotations, usage comment ]
+    rows = []
+    for p in obj.partitions():
+        row = [
+            Text(p.short_label),
+            Text(humanize_size(p.size), align='right'),
+            ]
+        usage = p.annotations[1:]
+        fs = p.fs()
+        if fs is not None:
+            usage.append(fs.fstype)
+            m = fs.mount()
+            if m is not None:
+                usage.append( _("mounted at {}".format(m.path)))
+            elif fs._available():
+                usage.append(_("not mounted"))
+        if not usage:
+            usage = ["unused"]
+        row.append(Text(", ".join(usage)))
+        rows.append(TableRow(row))
+    return TablePile(rows)
 
 
 class ConfirmDeleteStretchy(Stretchy):
@@ -82,20 +109,20 @@ class ConfirmReformatStretchy(Stretchy):
         if fs is not None:
             title = _("Remove filesystem from {}").format(obj.desc())
             lines = [
-                _("Do you really want to remove the existing filesystem from {}?").format(obj.label),
-                "",
+                Text(_("Do you really want to remove the existing filesystem from {}?").format(obj.label)),
+                Text(""),
             ]
             m = fs.mount()
             if m is not None:
-                lines.append(_(
+                lines.append(Text(_(
                     "It is formatted as {fstype} and mounted at "
                     "{path}").format(
                         fstype=fs.fstype,
-                        path=m.path))
+                        path=m.path)))
             else:
-                lines.append(_(
+                lines.append(Text(_(
                     "It is formatted as {fstype} and not mounted.").format(
-                        fstype=fs.fstype))
+                        fstype=fs.fstype)))
         else:
             if obj.type == "lvm_volgroup":
                 things = _("logical volumes")
@@ -103,22 +130,21 @@ class ConfirmReformatStretchy(Stretchy):
                 things = _("partitions")
             title = _("Remove all {things} from {obj}").format(things=things, obj=obj.desc())
             lines = [
-                _("Do you really want to remove all {things} from {obj}?").format(
-                    things=things, obj=obj.label),
-                "",
+                Text(_("Do you really want to remove all {things} from {obj}?").format(
+                    things=things, obj=obj.label)),
+                Text(""),
             ]
-            ## XXX summarize partitions here?
+            lines.append(summarize(obj))
 
         delete_btn = danger_btn(label=_("Reformat"), on_press=self.confirm)
-        widgets = [
-            Text("\n".join(lines)),
+        widgets = lines + [
             Text(""),
             button_pile([
                 delete_btn,
                 other_btn(label=_("Cancel"), on_press=self.cancel),
                 ]),
         ]
-        super().__init__(title, widgets, 0, 2)
+        super().__init__(title, widgets, 0, len(lines) + 1)
 
     def confirm(self, sender=None):
         self.parent.controller.reformat(self.obj)
