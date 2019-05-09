@@ -590,7 +590,7 @@ class Disk(_Device):
         return None
 
     def _can_be_boot_disk(self):
-        if self._m.bootloader == Bootloader.BIOS and self.ptable == "msdos":
+        if self._m.bootloader == Bootloader.BIOS and self.ptable == "dos":
             return True
         else:
             return self._potential_boot_partition() is not None
