@@ -256,9 +256,7 @@ class FilesystemController(BaseController):
         if self.model.needs_bootloader_partition():
             vol = fs.volume
             if vol.type == "partition" and vol.device.type == "disk":
-                bp = vol.device._potential_boot_partition()
-                log.debug("bp %s", bp)
-                if bp is not None:
+                if vol.device._can_be_boot_disk():
                     self.make_boot_disk(vol.device)
         return mount
 

@@ -589,6 +589,12 @@ class Disk(_Device):
                 return p
         return None
 
+    def _can_be_boot_disk(self):
+        if self._m.bootloader == Bootloader.BIOS and self.ptable == "msdos":
+            return True
+        else:
+            return self._potential_boot_partition() is not None
+
     @property
     def supported_actions(self):
         actions = [
@@ -632,7 +638,7 @@ class Disk(_Device):
                 if p.flag == "boot" and p.fs().mount() is not None:
                     return False
         if self.preserve:
-            return self._potential_boot_partition() is not None
+            return self._can_be_boot_disk()
         else:
             if self._fs is not None:
                 return False
