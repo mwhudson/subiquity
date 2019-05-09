@@ -255,10 +255,11 @@ class FilesystemController(BaseController):
         mount = self.model.add_mount(fs, spec['mount'])
         if self.model.needs_bootloader_partition():
             vol = fs.volume
-            if vol.type == "disk":
-                bp = vol._potential_boot_partition()
+            if vol.type == "partition" and vol.device.type == "disk":
+                bp = vol.device._potential_boot_partition()
+                log.debug("bp %s", bp)
                 if bp is not None:
-                    self.make_boot_disk(vol)
+                    self.make_boot_disk(vol.device)
         return mount
 
     def delete_mount(self, mount):

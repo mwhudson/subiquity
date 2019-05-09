@@ -576,7 +576,7 @@ class Disk(_Device):
 
     def _potential_boot_partition(self):
         if self._m.bootloader == Bootloader.NONE:
-            return False
+            return None
         flag = {
             Bootloader.BIOS: "bios_grub",
             Bootloader.UEFI: "boot",
