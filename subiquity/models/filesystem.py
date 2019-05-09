@@ -585,17 +585,21 @@ class Disk(_Device):
             # XXX should check not extended in the UEFI case too (until we fix
             # that bug)
             if p.flag == flag:
-                return True
-        return False
+                return p
+        return None
 
-    supported_actions = [
-        DeviceAction.INFO,
-        DeviceAction.PARTITION,
-        DeviceAction.FORMAT,
-        DeviceAction.REMOVE,
-        ]
-    if platform.machine() != 's390x':
-        supported_actions.append(DeviceAction.MAKE_BOOT)
+    @property
+    def supported_actions(self):
+        actions = [
+            DeviceAction.INFO,
+            DeviceAction.PARTITION,
+            DeviceAction.FORMAT,
+            DeviceAction.REMOVE,
+            ]
+        if self._m.bootloader != Bootloader.NONE:
+            actions.append(DeviceAction.MAKE_BOOT)
+        return actions
+
     _can_INFO = True
     _can_PARTITION = property(
         lambda self: not self._has_preexisting_partition() and
@@ -607,12 +611,12 @@ class Disk(_Device):
 
     @property
     def _can_MAKE_BOOT(self):
+        if self._m.grub_install_device is self:
+            return False
         if self.preserve:
             return self._potential_boot_partition() is not None
         else:
-            if self._m.grub_install_device is self:
-                return False
-            elif self._fs is not None:
+            if self._fs is not None:
                 return False
             elif self._constructed_device is not None:
                 return False
