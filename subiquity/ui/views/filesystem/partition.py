@@ -138,9 +138,14 @@ LVNameField = simple_field(LVNameEditor)
 class PartitionForm(Form):
 
     def __init__(self, model, max_size, initial, ok_for_slash_boot,
-                 lvm_names, existing_fs_type):
+                 lvm_names, device):
         self.model = model
-        self.existing_fs_type = existing_fs_type
+        self.device = device
+        self.existing_fs_type = None
+        if device:
+            existing_fs = device.original_fs()
+            if existing_fs:
+                self.existing_fs_type = existing_fs.fstype
         initial_path = initial.get('mount')
         self.mountpoints = {
             m.path: m.device.volume for m in self.model.all_mounts()
@@ -160,7 +165,8 @@ class PartitionForm(Form):
     def select_fstype(self, sender, fstype):
         if fstype is None:
             fstype = self.existing_fs_type
-        self.mount.enabled = self.model.is_mounted_filesystem(fstype)
+        if getattr(self.device, 'flag', None) != "boot":
+            self.mount.enabled = self.model.is_mounted_filesystem(fstype)
 
     name = LVNameField(_("Name: "))
     size = SizeField()
@@ -233,8 +239,14 @@ boot_partition_description = _(
     "Required bootloader partition\n"
     "\n"
     'This is the ESP / "EFI system partition" required by UEFI. Grub will be '
-    'installed onto this partition, which must be formatted as fat32. The '
-    'only aspect of this partition that can be edited is the size.')
+    'installed onto this partition, which must be formatted as fat32.')
+
+boot_partition_description_size = _(
+    ' The only aspect of this partition that can be edited is the size.')
+
+boot_partition_description_reformat = _(
+    ' You can choose whether to use the existing filesystem on this '
+    'partition or reformat it.')
 
 prep_partition_description = _(
     "Required bootloader partition\n"
@@ -259,7 +271,6 @@ class PartitionStretchy(Stretchy):
             lvm_names = {p.name for p in disk.partitions()}
         else:
             lvm_names = None
-        existing_fs_type = None
         if self.partition:
             if self.partition.flag in ["bios_grub", "prep"]:
                 label = None
@@ -268,9 +279,6 @@ class PartitionStretchy(Stretchy):
                 label = _("Save")
             initial['size'] = humanize_size(self.partition.size)
             max_size += self.partition.size
-            existing_fs = self.partition.original_fs()
-            if existing_fs is not None:
-                existing_fs_type = existing_fs.fstype
             fs = self.partition.fs()
             if fs is not None:
                 if fs.preserve:
@@ -298,7 +306,7 @@ class PartitionStretchy(Stretchy):
 
         self.form = PartitionForm(
             self.model, max_size, initial, isinstance(disk, Disk), lvm_names,
-            existing_fs_type)
+            partition)
 
         if not isinstance(disk, LVM_VolGroup):
             self.form.remove_field('name')
@@ -311,11 +319,24 @@ class PartitionStretchy(Stretchy):
 
         if partition is not None:
             if partition.flag == "boot":
-                opts = [Option(("fat32", True))]
-                self.form.fstype.widget.options = opts
-                self.form.fstype.widget.index = 0
-                self.form.mount.enabled = False
-                self.form.fstype.enabled = False
+                if partition.original_fs():
+                    opts = [
+                        Option(("use existing fat32 filesystem", True, None)),
+                        Option(("---", False)),
+                        Option(("create new fat32", True, "fat32")),
+                        ]
+                    self.form.fstype.widget.options = opts
+                    if partition.fs().preserve:
+                        self.form.fstype.widget.index = 0
+                    else:
+                        self.form.fstype.widget.index = 2
+                    self.form.mount.enabled = False
+                else:
+                    opts = [Option(("fat32", True))]
+                    self.form.fstype.widget.options = opts
+                    self.form.fstype.widget.index = 0
+                    self.form.mount.enabled = False
+                    self.form.fstype.enabled = False
             elif partition.flag in ["bios_grub", "prep"]:
                 self.form.mount.enabled = False
                 self.form.fstype.enabled = False
@@ -331,8 +352,13 @@ class PartitionStretchy(Stretchy):
         focus_index = 0
         if partition is not None:
             if self.partition.flag == "boot":
+                desc = boot_partition_description
+                if self.partition.preserve:
+                    desc += boot_partition_description_reformat
+                else:
+                    desc += boot_partition_description_size
                 rows.extend([
-                    Text(_(boot_partition_description)),
+                    Text(_(desc)),
                     Text(""),
                 ])
             elif self.partition.flag == "bios_grub":
@@ -398,10 +424,6 @@ class FormatEntireStretchy(Stretchy):
 
         initial = {}
         fs = device.fs()
-        existing_fs_type = None
-        existing_fs = device.original_fs()
-        if existing_fs is not None:
-            existing_fs_type = existing_fs.fstype
         if fs is not None:
             if fs.preserve:
                 initial['fstype'] = None
@@ -413,7 +435,7 @@ class FormatEntireStretchy(Stretchy):
         elif not isinstance(device, Disk):
             initial['fstype'] = 'ext4'
         self.form = PartitionForm(
-            self.model, 0, initial, False, None, existing_fs_type)
+            self.model, 0, initial, False, None, device)
         self.form.remove_field('size')
         self.form.remove_field('name')
 
