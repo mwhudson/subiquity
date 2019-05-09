@@ -484,7 +484,7 @@ class FilesystemController(BaseController):
                 if self.model.bootloader == Bootloader.PREP:
                     boot_partition.wipe = None
                 elif self.model.bootloader == Bootloader.UEFI:
-                    self.delete_mount(boot_partition.filesystem().mount())
+                    self.delete_mount(boot_partition.fs().mount())
             else:
                 boot_disk = boot_partition.device
                 full = boot_disk.free_for_partitions == 0
@@ -503,7 +503,7 @@ class FilesystemController(BaseController):
                 self.model.grub_install_device == new_boot_disk
             elif self.model.bootloader == Bootloader.UEFI:
                 part = new_boot_disk._potential_boot_partition()
-                self.model.add_mount(part.filesystem(), '/boot/efi')
+                self.model.add_mount(part.fs(), '/boot/efi')
             elif self.model.bootloader == Bootloader.PREP:
                 part = new_boot_disk._potential_boot_partition()
                 part.wipe = 'zero'

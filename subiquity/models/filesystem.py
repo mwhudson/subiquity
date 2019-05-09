@@ -613,6 +613,10 @@ class Disk(_Device):
     def _can_MAKE_BOOT(self):
         if self._m.grub_install_device is self:
             return False
+        if self._m.bootloader == Bootloader.UEFI:
+            for p in self._partitions:
+                if p.flag == "boot" and p.fs().mount() is not None:
+                    return False
         if self.preserve:
             return self._potential_boot_partition() is not None
         else:
