@@ -1035,8 +1035,6 @@ class FilesystemModel(object):
         emitted_ids = set()
 
         def emit(obj):
-            if obj.type == 'disk' and not obj.used:
-                return
             r.append(asdict(obj))
             emitted_ids.add(obj.id)
 
