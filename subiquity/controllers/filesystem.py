@@ -383,6 +383,8 @@ class FilesystemController(BaseController):
             getattr(self, 'delete_' + obj.type)(obj)
 
     def reformat(self, disk):
+        disk.preserve = False
+        disk.wipe = 'superblock'
         if disk.constructed_device():
             self.delete(disk.constructed_device())
         elif disk.fs():
@@ -405,6 +407,7 @@ class FilesystemController(BaseController):
             return
 
         disk.preserve = False
+        disk.wipe = 'superblock'
 
         needs_boot = self.model.needs_bootloader_partition()
         log.debug('model needs a bootloader partition? {}'.format(needs_boot))
