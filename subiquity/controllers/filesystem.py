@@ -298,6 +298,7 @@ class FilesystemController(BaseController):
 
     def delete_partition(self, part):
         self.delete_filesystem(part.fs())
+        self.delete(part.constructed_device())
         self.model.remove_partition(part)
 
     def _create_boot_partition(self, disk):
@@ -342,7 +343,7 @@ class FilesystemController(BaseController):
     def delete_raid(self, raid):
         if raid is None:
             return
-        self.delete_raid(raid.constructed_device())  # XXX
+        self.delete(raid.constructed_device())
         self.delete_filesystem(raid.fs())
         for p in list(raid.partitions()):
             self.delete_partition(p)
@@ -379,12 +380,18 @@ class FilesystemController(BaseController):
         self.model.remove_logical_volume(lv)
     delete_lvm_partition = delete_logical_volume
 
+    def delete(self, obj):
+        if obj is not None:
+            getattr(self, 'delete_' + obj.type)(obj)
+
     def reformat(self, disk):
-        if disk.fs():
-            self.delete_filesystem(disk.fs())
+        if disk.constructed_device():
+            self.delete(disk.constructed_device())
+        elif disk.fs():
+            self.delete(disk.fs())
         else:
             for p in list(disk.partitions()):
-                getattr(self, 'delete_' + p.type)(p)
+                self.delete(p)
 
     def partition_disk_handler(self, disk, partition, spec):
         log.debug('partition_disk_handler: %s %s %s', disk, partition, spec)

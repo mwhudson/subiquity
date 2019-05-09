@@ -116,7 +116,7 @@ class GuidedDiskSelectionView(BaseView):
             if disk.size >= dehumanize_size("6G"):
                 disk_btn = ClickableIcon(disk.label)
                 connect_signal(
-                    disk_btn, 'click', self.choose_disk, disk.path)
+                    disk_btn, 'click', self.choose_disk, disk)
                 attr = Color.done_button
             else:
                 disk_btn = Text("  "+disk.label)
@@ -146,9 +146,8 @@ class GuidedDiskSelectionView(BaseView):
     def cancel(self, btn=None):
         self.controller.default()
 
-    def choose_disk(self, btn, disk_path):
-        self.model.reset()
-        disk = self.model.disk_by_path(disk_path)
+    def choose_disk(self, btn, disk):
+        self.controller.reformat(disk)
         if self.method == "direct":
             result = {
                 "size": disk.free_for_partitions,
