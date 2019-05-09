@@ -343,7 +343,7 @@ class FilesystemController(BaseController):
             return
         self.delete_raid(raid.constructed_device())  # XXX
         self.delete_filesystem(raid.fs())
-        for p in raid.partitions():
+        for p in list(raid.partitions()):
             self.delete_partition(p)
         self.model.remove_raid(raid)
 
@@ -377,6 +377,13 @@ class FilesystemController(BaseController):
         self.delete_filesystem(lv.fs())
         self.model.remove_logical_volume(lv)
     delete_lvm_partition = delete_logical_volume
+
+    def reformat(self, disk):
+        if disk.fs():
+            self.delete_filesystem(disk.fs())
+        else:
+            for p in list(disk.partitions()):
+                getattr(self, 'delete_' + p.type)(p)
 
     def partition_disk_handler(self, disk, partition, spec):
         log.debug('partition_disk_handler: %s %s %s', disk, partition, spec)

@@ -262,6 +262,7 @@ def asdict(inst):
 class DeviceAction(enum.Enum):
     INFO = _("Info")
     EDIT = _("Edit")
+    REFORMAT = _("Reformat")
     PARTITION = _("Add Partition")
     CREATE_LV = _("Create Logical Volume")
     FORMAT = _("Format")
@@ -592,6 +593,7 @@ class Disk(_Device):
     def supported_actions(self):
         actions = [
             DeviceAction.INFO,
+            DeviceAction.REFORMAT,
             DeviceAction.PARTITION,
             DeviceAction.FORMAT,
             DeviceAction.REMOVE,
@@ -601,6 +603,18 @@ class Disk(_Device):
         return actions
 
     _can_INFO = True
+
+    @property
+    def _can_REFORMAT(self):
+        if not self.preserve:
+            return False
+        if len(self._partitions) == 0:
+            return False
+        for p in self._partitions:
+            if p._constructed_device is not None:
+                return False
+        return True
+
     _can_PARTITION = property(
         lambda self: not self._has_preexisting_partition() and
         self.free_for_partitions > 0)
