@@ -17,7 +17,7 @@ import logging
 from urwid import Text
 
 from subiquitycore.ui.buttons import danger_btn, other_btn
-from subiquitycore.ui.table import TablePile, TableRow
+from subiquitycore.ui.table import ColSpec, TablePile, TableRow
 from subiquitycore.ui.utils import button_pile
 from subiquitycore.ui.stretchy import Stretchy
 
@@ -44,11 +44,14 @@ def summarize(obj):
                 usage.append( _("mounted at {}".format(m.path)))
             elif fs._available():
                 usage.append(_("not mounted"))
+        cd = p.constructed_device()
+        if cd is not None:
+            usage.append(_("part of {desc} {label}").format(desc=cd.desc(), label=cd.label))
         if not usage:
             usage = ["unused"]
         row.append(Text(", ".join(usage)))
         rows.append(TableRow(row))
-    return TablePile(rows)
+    return TablePile(rows, colspecs={2: ColSpec(can_shrink=True)})
 
 
 class ConfirmDeleteStretchy(Stretchy):
