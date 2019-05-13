@@ -75,11 +75,7 @@ class FilesystemController(BaseController):
             5.0, lambda loop, ud: self._check_probe_timeout())
 
     def _bg_probe(self, probe_types=None):
-        probed_data = self.prober.get_storage(probe_types=probe_types)
-        storage = {}
-        for path, data in probed_data["blockdev"].items():
-            storage[path] = StorageInfo({path: data})
-        return storage
+        return self.prober.get_storage(probe_types=probe_types)
 
     def _probed(self, fut, restricted=False):
         if not restricted and self._probe_state != ProbeState.PROBING:
