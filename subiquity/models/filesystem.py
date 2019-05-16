@@ -562,7 +562,7 @@ class Disk(_Device):
     serial = attr.ib(default=None)
     path = attr.ib(default=None)
     model = attr.ib(default=None)
-    wipe = attr.ib(default='superblock')
+    wipe = attr.ib(default=None)
     preserve = attr.ib(default=False)
     name = attr.ib(default="")
     grub_device = attr.ib(default=False)

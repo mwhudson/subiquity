@@ -380,6 +380,9 @@ class FilesystemController(BaseController):
         getattr(self, 'delete_' + obj.type)(obj)
 
     def clear(self, obj):
+        if hasattr(obj, 'wipe'):
+            obj.wipe = 'superblock'
+        obj.preserve = False
         for subobj in obj.fs(), obj.constructed_device():
             self.delete(subobj)
 
@@ -394,6 +397,10 @@ class FilesystemController(BaseController):
             self.delete_filesystem(partition.fs())
             self.create_filesystem(partition, spec)
             return
+
+        if len(disk.partitions()) == 0:
+            disk.preserve = False
+            disk.wipe = 'superblock'
 
         needs_boot = self.model.needs_bootloader_partition()
         log.debug('model needs a bootloader partition? {}'.format(needs_boot))
