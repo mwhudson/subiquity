@@ -43,6 +43,7 @@ from subiquity.models.filesystem import (
     dehumanize_size,
     humanize_size,
     )
+from .delete import summarize
 
 log = logging.getLogger("subiquity.ui.views.filesystem.guided")
 
@@ -127,6 +128,9 @@ class GuidedDiskSelectionView(BaseView):
                 Text('\N{BLACK RIGHT-POINTING SMALL TRIANGLE}'),
                 Text(']'),
                 ])))
+            summary = summarize(disk)
+            if summary.table_rows:
+                rows.append(TableRow([Text(""), Color.info_minor(summary)]))
         super().__init__(screen(
             TableListBox(rows, spacing=1, colspecs={
                 1: ColSpec(can_shrink=True, min_width=20, rpad=2),
