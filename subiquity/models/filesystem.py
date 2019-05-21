@@ -619,6 +619,27 @@ class Disk(_Device):
             return self.serial
         return self.path
 
+    def _potential_boot_partition(self):
+        if self._m.bootloader == Bootloader.NONE:
+            return None
+        flag = {
+            Bootloader.BIOS: "bios_grub",
+            Bootloader.UEFI: "boot",
+            Bootloader.PREP: "prep",
+            }[self._m.bootloader]
+        for p in self._partitions:
+            # XXX should check not extended in the UEFI case too (until we fix
+            # that bug)
+            if p.flag == flag:
+                return p
+        return None
+
+    def _can_be_boot_disk(self):
+        if self._m.bootloader == Bootloader.BIOS and self.ptable == "msdos":
+            return True
+        else:
+            return self._potential_boot_partition() is not None
+
     @property
     def supported_actions(self):
         actions = [
@@ -665,7 +686,10 @@ class Disk(_Device):
             install_dev = self._m.grub_install_device
             if install_dev.device is self:
                 return False
-        return self._fs is None and self._constructed_device is None
+        if self.preserve:
+            return self._can_be_boot_disk()
+        else:
+            return self._fs is None and self._constructed_device is None
 
     ok_for_raid = ok_for_lvm_vg = _can_FORMAT
 
