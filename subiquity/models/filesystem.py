@@ -391,7 +391,13 @@ class _Formattable(ABC):
 
     @property
     def annotations(self):
-        return []
+        preserve = getattr(self, 'preserve', None)
+        if preserve is None:
+            return []
+        elif preserve:
+            return [_("existing")]
+        else:
+            return [_("new")]
 
     # Filesystem
     _fs = attributes.backlink()
@@ -623,6 +629,10 @@ class Disk(_Device):
     def size(self):
         return align_down(self._info.size)
 
+    @property
+    def annotations(self):
+        return []
+
     def desc(self):
         return _("local disk")
 
@@ -782,6 +792,8 @@ class Partition(_Formattable):
         if self.flag in ('boot', 'bios_grub', 'prep'):
             return False
         if self._fs is not None:
+            if self._fs.preserve:
+                return self._fs._mount is None
             return False
         if self._constructed_device is not None:
             return False

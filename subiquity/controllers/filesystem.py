@@ -252,6 +252,11 @@ class FilesystemController(BaseController):
         if spec.get('mount') is None:
             return
         mount = self.model.add_mount(fs, spec['mount'])
+        if self.model.needs_bootloader_partition():
+            vol = fs.volume
+            if vol.type == "partition" and vol.device.type == "disk":
+                if vol.device._can_be_boot_disk():
+                    self.make_boot_disk(vol.device)
         return mount
 
     def delete_mount(self, mount):
@@ -396,9 +401,10 @@ class FilesystemController(BaseController):
         log.debug('disk.freespace: {}'.format(disk.free_for_partitions))
 
         if partition is not None:
-            partition.size = align_up(spec['size'])
-            if disk.free_for_partitions < 0:
-                raise Exception("partition size too large")
+            if 'size' in spec:
+                partition.size = align_up(spec['size'])
+                if disk.free_for_partitions < 0:
+                    raise Exception("partition size too large")
             self.delete_filesystem(partition.fs())
             self.create_filesystem(partition, spec)
             return
@@ -431,9 +437,10 @@ class FilesystemController(BaseController):
 
         if lv is not None:
             lv.name = spec['name']
-            lv.size = align_up(spec['size'])
-            if vg.free_for_partitions < 0:
-                raise Exception("lv size too large")
+            if 'size' in spec:
+                lv.size = align_up(spec['size'])
+                if vg.free_for_partitions < 0:
+                    raise Exception("lv size too large")
             self.delete_filesystem(lv.fs())
             self.create_filesystem(lv, spec)
             return
