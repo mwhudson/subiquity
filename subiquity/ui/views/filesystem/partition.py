@@ -25,6 +25,7 @@ import re
 from urwid import connect_signal, Text
 
 from subiquitycore.ui.form import (
+    BooleanField,
     Form,
     FormField,
     simple_field,
@@ -158,11 +159,21 @@ class PartitionForm(Form):
         if max_size is None:
             self.remove_field('size')
         connect_signal(self.fstype.widget, 'select', self.select_fstype)
+        self.form_pile = None
         self.select_fstype(None, self.fstype.widget.value)
 
     def select_fstype(self, sender, fstype):
+        show_use = False
         if fstype is None:
+            if self.existing_fs_type == "swap":
+                show_use = True
             fstype = self.existing_fs_type
+        if self.form_pile is not None:
+            for i, (w, o) in enumerate(self.form_pile.contents):
+                if w is self.mount._table and show_use:
+                    self.form_pile.contents[i] = (self.use_swap._table, o)
+                elif w is self.use_swap._table and not show_use:
+                    self.form_pile.contents[i] = (self.mount._table, o)
         if getattr(self.device, 'flag', None) != "boot":
             self.mount.enabled = self.model.is_mounted_filesystem(fstype)
 
@@ -170,6 +181,9 @@ class PartitionForm(Form):
     size = SizeField()
     fstype = FSTypeField(_("Format:"))
     mount = MountField(_("Mount:"))
+    use_swap = BooleanField(
+        _("Use as swap"),
+        help=_("Use this swap partition in the installed system."))
 
     def clean_size(self, val):
         if not val:
@@ -370,8 +384,13 @@ class PartitionStretchy(Stretchy):
                 ])
                 focus_index = 2
         rows.extend(self.form.as_rows())
+        pile = self.form.form_pile = Pile(rows)
+        for i, (w, o) in enumerate(pile.contents):
+            if w is self.form.use_swap._table:
+                del pile.contents[i-1:i+1]
+        self.form.select_fstype(None, self.form.fstype.widget.value)
         widgets = [
-            Pile(rows),
+            pile,
             Text(""),
             self.form.buttons,
         ]
@@ -447,8 +466,14 @@ class FormatEntireStretchy(Stretchy):
                 Text(""),
                 ]
         rows.extend(self.form.as_rows())
+        rows.extend(self.form.as_rows())
+        pile = self.form.form_pile = Pile(rows)
+        for i, (w, o) in enumerate(pile.contents):
+            if w is self.form.use_swap._table:
+                del pile.contents[i-1:i+1]
+        self.form.select_fstype(None, self.form.fstype.widget.value)
         widgets = [
-            Pile(rows),
+            pile,
             Text(""),
             self.form.buttons,
         ]
