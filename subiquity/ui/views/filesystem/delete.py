@@ -98,7 +98,6 @@ class ConfirmDeleteStretchy(Stretchy):
         self.parent.remove_overlay()
 
 
-
 class ConfirmReformatStretchy(Stretchy):
 
     def __init__(self, parent, obj):
@@ -109,7 +108,10 @@ class ConfirmReformatStretchy(Stretchy):
         if fs is not None:
             title = _("Remove filesystem from {}").format(obj.desc())
             lines = [
-                _("Do you really want to remove the existing filesystem from {}?").format(obj.label),
+                _(
+                    "Do you really want to remove the existing filesystem "
+                    "from {}?"
+                    ).format(obj.label),
                 "",
             ]
             m = fs.mount()
@@ -128,13 +130,16 @@ class ConfirmReformatStretchy(Stretchy):
                 things = _("logical volumes")
             else:
                 things = _("partitions")
-            title = _("Remove all {things} from {obj}").format(things=things, obj=obj.desc())
+            title = _("Remove all {things} from {obj}").format(
+                things=things, obj=obj.desc())
             lines = [
-                _("Do you really want to remove all {things} from {obj}?").format(
+                _(
+                    "Do you really want to remove all {things} from "
+                    "{obj}?").format(
                     things=things, obj=obj.label),
                 "",
             ]
-            ## XXX summarize partitions here?
+            # XXX summarize partitions here?
 
         delete_btn = danger_btn(label=_("Reformat"), on_press=self.confirm)
         widgets = [

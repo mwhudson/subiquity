@@ -492,8 +492,9 @@ class FilesystemController(BaseController):
     def make_boot_disk(self, new_boot_disk):
         boot_partition = None
         if self.model.bootloader == Bootloader.BIOS:
-            if self.model.grub_install_device:
-                boot_partition = self.model.grub_install_device._potential_boot_partition()
+            install_dev = self.model.grub_install_device
+            if install_dev:
+                boot_partition = install_dev._potential_boot_partition()
         elif self.model.bootloader == Bootloader.UEFI:
             mount = self.model._mount_for_path("/boot/efi")
             if mount is not None:
@@ -518,7 +519,8 @@ class FilesystemController(BaseController):
                     largest_part = max(
                         new_boot_disk.partitions(), key=lambda p: p.size)
                     largest_part.size -= (
-                        boot_partition.size - new_boot_disk.free_for_partitions)
+                        boot_partition.size -
+                        new_boot_disk.free_for_partitions)
         if new_boot_disk.preserve:
             if self.model.bootloader == Bootloader.BIOS:
                 self.model.grub_install_device == new_boot_disk
