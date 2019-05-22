@@ -429,7 +429,7 @@ class _Formattable(ABC):
                     r.append(_("mounted at {path}").format(path=m.path))
                 else:
                     r.append(_("not mounted"))
-            elif fs.preserve:
+            elif fs.preserve and fs.mount() is not None:
                 r.append(_("unused"))
             return r
         else:

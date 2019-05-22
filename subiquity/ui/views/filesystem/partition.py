@@ -293,6 +293,8 @@ class PartitionStretchy(Stretchy):
             if fs is not None:
                 if fs.preserve:
                     initial['fstype'] = None
+                    if fs.fstype == "swap":
+                        initial['use_swap'] = fs.mount() is not None
                 elif partition.flag != "boot":
                     initial['fstype'] = fs.fstype
                 if self.model.is_mounted_filesystem(fs.fstype):
@@ -442,6 +444,8 @@ class FormatEntireStretchy(Stretchy):
         if fs is not None:
             if fs.preserve:
                 initial['fstype'] = None
+                if fs.fstype == "swap":
+                    initial['use_swap'] = fs.mount() is not None
             else:
                 initial['fstype'] = fs.fstype
             initial['fstype'] = fs.fstype
