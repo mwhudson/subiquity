@@ -438,7 +438,8 @@ class FilesystemController(BaseController):
         log.debug('vg.freespace: {}'.format(vg.free_for_partitions))
 
         if lv is not None:
-            lv.name = spec['name']
+            if 'name' in spec:
+                lv.name = spec['name']
             if 'size' in spec:
                 lv.size = align_up(spec['size'])
                 if vg.free_for_partitions < 0:
