@@ -523,7 +523,7 @@ class FilesystemController(BaseController):
                         new_boot_disk.free_for_partitions)
         if new_boot_disk.preserve:
             if self.model.bootloader == Bootloader.BIOS:
-                self.model.grub_install_device == new_boot_disk
+                self.model.grub_install_device = new_boot_disk
             elif self.model.bootloader == Bootloader.UEFI:
                 part = new_boot_disk._potential_boot_partition()
                 self.model.add_mount(part.fs(), '/boot/efi')
