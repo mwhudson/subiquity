@@ -17,7 +17,8 @@ from abc import ABC, abstractmethod
 import attr
 import collections
 import enum
-import json
+import itertools
+# import json
 import logging
 import math
 import os
@@ -1086,10 +1087,11 @@ class FilesystemModel(object):
         self.reset()
 
     def reset(self):
-        # config = storage_config.extract_storage_config(self._probe_data)
+        from curtin import storage_config
         if len(self._probe_data['blockdev']) > 0:
-            with open('examples/curtin-storage.json') as fp:
-                config = json.load(fp)
+            # with open('examples/curtin-storage.json') as fp:
+            #     config = json.load(fp)
+            config = storage_config.extract_storage_config(self._probe_data)
         else:
             config = {"storage": {"config": []}}
         self._actions = self._actions_from_config(
