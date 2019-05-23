@@ -1102,11 +1102,10 @@ class FilesystemModel(object):
     def _actions_from_config(self, config, blockdevs):
         byid = {}
         objs = []
-        mounted = set()
+        exclusions = set()
         for action in config:
             if action['type'] == 'mount':
-                for o in walk_up(byid[action['device']]):
-                    mounted.add(o)
+                exclusions.add(byid[action['device']])
                 continue
             c = _type_to_cls[action['type']]
             kw = {}
@@ -1129,7 +1128,20 @@ class FilesystemModel(object):
             if action['type'] == "format":
                 obj.volume._original_fs = obj
             objs.append(obj)
-        return [o for o in objs if o not in mounted]
+
+        # We filter out anything that can be reached from a currently mounted
+        # device.
+        while True:
+            log.debug("exclusions %s", {e.id for e in exclusions})
+            next_exclusions = exclusions.copy()
+            for e in exclusions:
+                next_exclusions.update(itertools.chain(
+                    dependencies(e), reverse_dependencies(e)))
+            if len(exclusions) == len(next_exclusions):
+                break
+            exclusions = next_exclusions
+
+        return [o for o in objs if o not in exclusions]
 
     def _render_actions(self):
         # The curtin storage config has the constraint that an action must be
