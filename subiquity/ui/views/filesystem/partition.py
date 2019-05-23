@@ -470,7 +470,6 @@ class FormatEntireStretchy(Stretchy):
                 Text(""),
                 ]
         rows.extend(self.form.as_rows())
-        rows.extend(self.form.as_rows())
         pile = self.form.form_pile = Pile(rows)
         for i, (w, o) in enumerate(pile.contents):
             if w is self.form.use_swap._table:
