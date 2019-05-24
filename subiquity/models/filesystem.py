@@ -18,7 +18,6 @@ import attr
 import collections
 import enum
 import itertools
-# import json
 import logging
 import math
 import os
@@ -26,6 +25,7 @@ import pathlib
 import platform
 
 from curtin.util import human2bytes
+from curtin import storage_config
 
 from probert.storage import StorageInfo
 
@@ -1083,20 +1083,17 @@ class FilesystemModel(object):
 
     def __init__(self):
         self.bootloader = self._probe_bootloader()
-        self._probe_data = {'blockdev': {}}
+        self._probe_data = None
         self.reset()
 
     def reset(self):
-        from curtin import storage_config
-        if len(self._probe_data['blockdev']) > 0:
-            # with open('examples/curtin-storage.json') as fp:
-            #     config = json.load(fp)
+        if self._probe_data is not None:
             config = storage_config.extract_storage_config(self._probe_data)
+            self._actions = self._actions_from_config(
+                config["storage"]["config"],
+                self._probe_data['blockdev'])
         else:
-            config = {"storage": {"config": []}}
-        self._actions = self._actions_from_config(
-            config["storage"]["config"],
-            self._probe_data['blockdev'])
+            self._actions = []
         self.grub_install_device = None
 
     def _actions_from_config(self, config, blockdevs):
@@ -1129,8 +1126,10 @@ class FilesystemModel(object):
                 obj.volume._original_fs = obj
             objs.append(obj)
 
-        # We filter out anything that can be reached from a currently mounted
-        # device.
+        # We filter out anything that can be reached from a currently
+        # mounted device. The motivation here is only to exclude the
+        # media subiquity is mounted from, so this might be a bit
+        # excessive but hey it works.
         while True:
             log.debug("exclusions %s", {e.id for e in exclusions})
             next_exclusions = exclusions.copy()
