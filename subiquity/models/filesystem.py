@@ -429,6 +429,8 @@ class _Formattable(ABC):
                     r.append(_("mounted at {path}").format(path=m.path))
                 else:
                     r.append(_("not mounted"))
+            elif fs.preserve:
+                r.append(_("unused"))
             return r
         else:
             return [_("unused")]
@@ -1013,7 +1015,10 @@ class Filesystem:
     def _available(self):
         # False if mounted or if fs does not require a mount, True otherwise.
         if self._mount is None:
-            return FilesystemModel.is_mounted_filesystem(self.fstype)
+            if self.preserve:
+                return True
+            else:
+                return FilesystemModel.is_mounted_filesystem(self.fstype)
         else:
             return False
 
