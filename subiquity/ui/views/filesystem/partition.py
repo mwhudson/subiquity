@@ -67,10 +67,10 @@ class FSTypeField(FormField):
         if form.existing_fs_type is None:
             options = options + [
                 ('---',                  False),
-                (_('leave unformatted'), True, None),
+                (_('Leave unformatted'), True, None),
                 ]
         else:
-            label = _('leave formatted as {}').format(form.existing_fs_type)
+            label = _('Leave formatted as {}').format(form.existing_fs_type)
             options = [
                 (label, True, None),
                 ('---', False),
