@@ -119,16 +119,19 @@ class ActionMenu(PopUpLauncher):
 
     signals = ['action', 'open', 'close']
 
-    def __init__(self, opts,
+    def __init__(self, actions,
                  icon="\N{BLACK RIGHT-POINTING SMALL TRIANGLE}"):
-        self._actions = []
-        for opt in opts:
-            if not isinstance(opt, Action):
-                opt = Action(*opt)
-            self._actions.append(opt)
         self.icon = icon
         self._button = SelectableIcon(self.icon, 0)
+        self.set_actions(actions)
         super().__init__(self._button)
+
+    def set_actions(self, actions):
+        self._actions = []
+        for action in actions:
+            if not isinstance(action, Action):
+                action = Action(*action)
+            self._actions.append(action)
         self._dialog = None
 
     def get_natural_width(self):
@@ -143,10 +146,10 @@ class ActionMenu(PopUpLauncher):
         self._emit("action", action)
 
     def open_pop_up(self):
+        self._emit("open")
         if self._dialog is None:
             self._dialog = _ActionMenuDialog(self)
         self._dialog._w.base_widget.focus_position = 0
-        self._emit("open")
         super().open_pop_up()
 
     def close_pop_up(self):

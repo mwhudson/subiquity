@@ -88,10 +88,13 @@ class ZdevView(BaseView):
         row.base_widget.cells[1] = (1, zdevinfo.status)
         self.lb.invalidate()
 
-    def _make_zdev_row(self, zdevinfo):
+    def _open_zdev(self, action_menu, zdevinfo):
         actions = [(_("Enable"), not zdevinfo.on, 'enable'),
                    (_("Disable"), zdevinfo.on, 'disable')]
-        menu = ActionMenu(actions)
+        action_menu.set_actions(actions)
+
+    def _make_zdev_row(self, zdevinfo):
+        menu = ActionMenu([])
         cells = [
             Text(zdevinfo.id),
             zdevinfo.status,
@@ -108,6 +111,7 @@ class ZdevView(BaseView):
                 'info_minor': 'menu_button focus',
             })
         connect_signal(menu, 'action', self._zdev_action, (zdevinfo, row))
+        connect_signal(menu, 'open', self._open_zdev, zdevinfo)
         return row
 
     def _make_zdev_rows(self):
