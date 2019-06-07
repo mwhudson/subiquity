@@ -337,15 +337,16 @@ class AbstractTable(WidgetWrap):
 
     def _compute_widths_for_size(self, size):
         # Configure the table (and any bound tables) for the given size.
-        if self._last_size == size:
+        if self._last_size == size[0]:
             return
+        log.debug("_compute_widths_for_size %s", size)
         rows = []
         for table in self.group:
             rows.extend(table.table_rows)
         widths, total_width, has_unpacked = _compute_widths_for_size(
             size[0], rows, self.colspecs, self.spacing)
         for table in self.group:
-            table._last_size = size
+            table._last_size = size[0]
             for row in table.table_rows:
                 if not has_unpacked:
                     row.width = total_width
