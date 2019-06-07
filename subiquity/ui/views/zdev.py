@@ -33,11 +33,10 @@ from subiquitycore.ui.buttons import (
     done_btn,
     )
 from subiquitycore.ui.container import (
-    ListBox,
-    WidgetWrap,
+    Pile,
     )
 from subiquitycore.ui.table import (
-    ColSpec,
+    TableListBox,
     TablePile,
     TableRow,
     )
@@ -51,62 +50,6 @@ from subiquitycore.view import BaseView
 log = logging.getLogger('subiquity.ui.zdev')
 
 
-class ZdevList(WidgetWrap):
-
-    def __init__(self, parent):
-        self.parent = parent
-        self.table = TablePile([], spacing=2, colspecs={
-            0: ColSpec(rpad=2),
-            1: ColSpec(rpad=2),
-            2: ColSpec(rpad=2),
-            3: ColSpec(rpad=2),
-        })
-        self._no_zdev_content = Color.info_minor(
-            Text(_("No zdev devices found.")))
-        super().__init__(self.table)
-
-    def _zdev_action(self, sender, action, zdevinfo):
-        if action in ('disable', 'enable'):
-            self.parent.controller.chzdev(action, zdevinfo)
-            self.parent.refresh_model_inputs()
-
-    def refresh_model_inputs(self):
-        zdevinfos = self.parent.controller.get_zdevinfos()
-
-        rows = [TableRow([
-            Color.info_minor(heading) for heading in [
-                Text(_("ID")),
-                Text(_("ONLINE")),
-                Text(_("TYPE")),
-                Text(_("NAMES")),
-            ]])]
-
-        for i, zdevinfo in enumerate(zdevinfos):
-            actions = [(_("Enable"), not zdevinfo.on, 'enable'),
-                       (_("Disable"), zdevinfo.on, 'disable')]
-            menu = ActionMenu(actions)
-            connect_signal(menu, 'action', self._zdev_action, zdevinfo)
-            cells = [
-                Text(zdevinfo.id),
-                zdevinfo.status,
-                Text(zdevinfo.type),
-                Text(zdevinfo.names),
-                menu,
-            ]
-            row = make_action_menu_row(
-                cells,
-                menu,
-                attr_map='menu_button',
-                focus_map={
-                    None: 'menu_button focus',
-                    'info_minor': 'menu_button focus',
-                })
-            rows.append(row)
-        self.table.set_contents(rows)
-        if self.table._w.focus_position >= len(rows):
-            self.table._w.focus_position = len(rows) - 1
-
-
 class ZdevView(BaseView):
     title = _("Zdev setup")
     footer = _("Activate and configure Z devices")
@@ -114,29 +57,70 @@ class ZdevView(BaseView):
     def __init__(self, controller):
         log.debug('FileSystemView init start()')
         self.controller = controller
-        self.zdev_list = ZdevList(self)
 
-        body = [
-            self.zdev_list,
-            Text(""),
-            ]
+        header = TablePile([
+            TableRow([
+                Color.info_minor(heading) for heading in [
+                    Text(_("ID")),
+                    Text(_("ONLINE")),
+                    Text(_("TYPE")),
+                    Text(_("NAMES")),
+                ]])])
 
-        self.lb = ListBox(body, always_scroll=True)
+        self.lb = TableListBox(self._make_zdev_rows())
+        self.lb.bind(header)
+
+        pile = Pile([
+            ('pack', header),
+            self.lb,
+            ])
+
         frame = screen(
-            self.lb, self._build_buttons(),
+            pile, self._build_buttons(),
             focus_buttons=True)
         super().__init__(frame)
-        self.refresh_model_inputs()
         log.debug('ZdevView init complete()')
+
+    def _zdev_action(self, sender, action, user_arg):
+        zdevinfo, row = user_arg
+        if action in ('disable', 'enable'):
+            self.controller.chzdev(action, zdevinfo)
+        row.base_widget.cells[1] = (1, zdevinfo.status)
+        self.lb.invalidate()
+
+    def _make_zdev_row(self, zdevinfo):
+        actions = [(_("Enable"), not zdevinfo.on, 'enable'),
+                   (_("Disable"), zdevinfo.on, 'disable')]
+        menu = ActionMenu(actions)
+        cells = [
+            Text(zdevinfo.id),
+            zdevinfo.status,
+            Text(zdevinfo.type),
+            Text(zdevinfo.names),
+            menu,
+        ]
+        row = make_action_menu_row(
+            cells,
+            menu,
+            attr_map='menu_button',
+            focus_map={
+                None: 'menu_button focus',
+                'info_minor': 'menu_button focus',
+            })
+        connect_signal(menu, 'action', self._zdev_action, (zdevinfo, row))
+        return row
+
+    def _make_zdev_rows(self):
+        rows = []
+        for zdevinfo in self.controller.get_zdevinfos():
+            rows.append(self._make_zdev_row(zdevinfo))
+        return rows
 
     def _build_buttons(self):
         return [
             done_btn(_("Continue"), on_press=self.done),
             back_btn(_("Back"), on_press=self.cancel),
             ]
-
-    def refresh_model_inputs(self):
-        self.zdev_list.refresh_model_inputs()
 
     def cancel(self, button=None):
         self.controller.cancel()

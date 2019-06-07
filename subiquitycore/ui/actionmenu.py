@@ -129,7 +129,7 @@ class ActionMenu(PopUpLauncher):
         self.icon = icon
         self._button = SelectableIcon(self.icon, 0)
         super().__init__(self._button)
-        self._dialog = _ActionMenuDialog(self)
+        self._dialog = None
 
     def get_natural_width(self):
         return len(self.icon)
@@ -143,6 +143,8 @@ class ActionMenu(PopUpLauncher):
         self._emit("action", action)
 
     def open_pop_up(self):
+        if self._dialog is None:
+            self._dialog = _ActionMenuDialog(self)
         self._dialog._w.base_widget.focus_position = 0
         self._emit("open")
         super().open_pop_up()
