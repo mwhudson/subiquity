@@ -18,6 +18,9 @@
 Contains some default key navigations
 """
 
+import logging
+import os
+
 from urwid import Overlay, Text
 
 from subiquitycore.ui.container import (
@@ -28,6 +31,8 @@ from subiquitycore.ui.container import (
 from subiquitycore.ui.stretchy import StretchyOverlay
 from subiquitycore.ui.utils import disabled
 
+
+log = logging.getLogger("subiquitycore.view")
 
 class BaseView(WidgetWrap):
 
@@ -81,4 +86,12 @@ class BaseView(WidgetWrap):
             else:
                 self.cancel()
                 return None
+        if key in ['ctrl s']:
+            self.controller.loop.stop()
+            print("Welcome to your debug shell")
+            os.system("dash")
+            self.controller.loop.start()
+            self.controller.loop.screen.tty_signal_keys(stop="undefined")
+            # Should re-scan block, network devices here somehow?
+            return None
         return key

@@ -527,6 +527,8 @@ class Application:
                     self.next_screen()
 
             self.common['loop'].set_alarm_in(
+                0.00, lambda loop, ud: screen.tty_signal_keys(stop="undefined"))
+            self.common['loop'].set_alarm_in(
                 0.05, select_initial_screen, initial_controller_index)
             self._connect_base_signals()
 
