@@ -96,6 +96,7 @@ log = logging.getLogger('subiquitycore.ui.container')
 
 
 def _maybe_call(w, methname):
+    log.debug('_maybe_call %s', (w, methname))
     if w is None:
         return
     m = getattr(w.base_widget, methname, None)
@@ -532,7 +533,7 @@ def ListBox(body=None, *, always_scroll=False):
         always_scroll=always_scroll)
 
 
-get_delegate = operator.attrgetter("_wrapped_widget")
+get_delegate = operator.attrgetter("_wrapped_widget.base_widget")
 
 
 class OurWidgetWrap(urwid.WidgetWrap):

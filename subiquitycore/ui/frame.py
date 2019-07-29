@@ -15,17 +15,19 @@
 
 """ Base Frame Widget """
 
+import logging
+import os
+
 from urwid import (
-    Frame,
     Text,
     )
 from subiquitycore.ui.anchors import Header, Footer
 from subiquitycore.ui.container import (
     ListBox,
+    Pile,
     WidgetWrap,
     )
 from subiquitycore.ui.utils import Color
-import logging
 
 
 log = logging.getLogger('subiquitycore.ui.frame')
@@ -36,9 +38,11 @@ class SubiquityUI(WidgetWrap):
     def __init__(self):
         self.header = Header("")
         self.footer = Footer("", 0, 1)
-        self.frame = Frame(
+        self.frame = Pile([
+            ('pack', self.header),
             ListBox([Text("")]),
-            header=self.header, footer=self.footer)
+            ('pack', self.footer),
+            ])
         self.progress_current = 0
         self.progress_completion = 0
         # After the install starts, we want to stop setting the footer
@@ -46,18 +50,43 @@ class SubiquityUI(WidgetWrap):
         self.auto_footer = True
         super().__init__(Color.body(self.frame))
 
+
     def keypress(self, size, key):
-        return super().keypress(size, key)
+        if key in ['ctrl x']:
+            self.signal.emit_signal('control-x-quit')
+            return None
+        key = super().keypress(size, key)
+        if key == 'esc':
+            if hasattr(self._w, 'bottom_w'):
+                self.remove_overlay()
+                return None
+            else:
+                self.cancel()
+                return None
+        if key in ['ctrl s']:
+            self.loop.stop()
+            print("Welcome to your debug shell")
+            os.system("dash")
+            self.loop.start()
+            self.loop.screen.tty_signal_keys(stop="undefined")
+            # Should re-scan block, network devices here somehow?
+            return None
+        return key
 
     def set_header(self, title=None):
-        self.frame.header = Header(title)
+        self.frame.contents[0] = (
+            Header(title),
+            self.frame.options('pack'))
 
     def set_footer(self, message):
-        self.frame.footer = Footer(message, self.progress_current,
-                                   self.progress_completion)
+        self.frame.contents[2] = (
+            Footer(message, self.progress_current, self.progress_completion),
+            self.frame.options('pack'))
 
     def set_body(self, widget):
         self.set_header(_(widget.title))
-        self.frame.body = widget
+        self.frame.contents[1] = (
+            widget,
+            self.frame.options())
         if self.auto_footer:
             self.set_footer(_(widget.footer))

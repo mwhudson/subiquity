@@ -289,6 +289,7 @@ class Application:
             "scale_factor": scale,
             "run_in_bg": self.run_in_bg,
         }
+        ui.signal = self.common['signal']
         if opts.screens:
             self.controllers = [c for c in self.controllers
                                 if c in opts.screens]
@@ -473,6 +474,7 @@ class Application:
                 self.common['ui'], palette=palette, screen=screen,
                 handle_mouse=False, pop_ups=True,
                 input_filter=self.common['input_filter'].filter)
+            self.common['ui'].loop = self.common['loop']
 
             log.debug("Running event loop: {}".format(
                 self.common['loop'].event_loop))

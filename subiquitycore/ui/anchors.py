@@ -13,15 +13,24 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
+
 from urwid import (
     Text,
     ProgressBar,
     )
+
+from subiquitycore.ui.buttons import other_btn
 from subiquitycore.ui.container import (
+    Columns,
     Pile,
     WidgetWrap,
     )
 from subiquitycore.ui.utils import Padding, Color
+from subiquitycore.ui.width import widget_width
+
+log = logging.getLogger('subiquitycore.ui.anchors')
 
 
 class Header(WidgetWrap):
@@ -58,7 +67,8 @@ class Footer(WidgetWrap):
     def __init__(self, message, current, complete):
         if isinstance(message, str):
             message = Text(message)
-        message = Padding.center_79(message, min_width=76)
+        helpbtn = other_btn(_("Help"))
+        message = Padding.center_99(message, min_width=76)
         progress_bar = Padding.center_60(
             StepsProgressBar(normal='progress_incomplete',
                              complete='progress_complete',
@@ -66,6 +76,10 @@ class Footer(WidgetWrap):
         status = [
             progress_bar,
             Padding.line_break(""),
-            message,
+            Columns([
+                (widget_width(helpbtn), Text("")),
+                message,
+                (widget_width(helpbtn), helpbtn),
+                ])
         ]
         super().__init__(Color.frame_footer(Pile(status)))

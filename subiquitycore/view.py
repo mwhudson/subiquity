@@ -73,25 +73,3 @@ class BaseView(WidgetWrap):
 
     def cancel(self):
         pass
-
-    def keypress(self, size, key):
-        if key in ['ctrl x']:
-            self.controller.signal.emit_signal('control-x-quit')
-            return None
-        key = super().keypress(size, key)
-        if key == 'esc':
-            if hasattr(self._w, 'bottom_w'):
-                self.remove_overlay()
-                return None
-            else:
-                self.cancel()
-                return None
-        if key in ['ctrl s']:
-            self.controller.loop.stop()
-            print("Welcome to your debug shell")
-            os.system("dash")
-            self.controller.loop.start()
-            self.controller.loop.screen.tty_signal_keys(stop="undefined")
-            # Should re-scan block, network devices here somehow?
-            return None
-        return key
