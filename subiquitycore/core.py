@@ -472,8 +472,6 @@ class Application:
             os.system("dash")
             loop.start()
             loop.screen.tty_signal_keys(stop="undefined")
-            # Should re-scan block, network devices here somehow?
-            return None
 
     def run(self):
         if not hasattr(self, 'loop'):
