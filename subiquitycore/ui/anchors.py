@@ -17,11 +17,13 @@ import logging
 
 
 from urwid import (
+    AttrMap,
+    Button,
     Text,
     ProgressBar,
     )
 
-from subiquitycore.ui.buttons import other_btn
+from subiquitycore.ui.buttons import _stylized_button
 from subiquitycore.ui.container import (
     Columns,
     Pile,
@@ -67,7 +69,9 @@ class Footer(WidgetWrap):
     def __init__(self, message, current, complete):
         if isinstance(message, str):
             message = Text(message)
-        helpbtn = other_btn(_("Help"))
+        helpbtn = _stylized_button("[", "]", 'xx')(_("Help"))
+        helpbtn.attr_map = {}
+        helpbtn.focus_map = {None: 'progress_incomplete'}
         message = Padding.center_99(message, min_width=76)
         progress_bar = Padding.center_60(
             StepsProgressBar(normal='progress_incomplete',
