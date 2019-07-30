@@ -461,6 +461,20 @@ class Application:
 
         self.common['loop'].set_alarm_in(0.06, _run_script)
 
+    def unhandled_input(self, key):
+        signal = self.common['signal']
+        loop = self.common['loop']
+        if key == 'ctrl x':
+            signal.emit_signal('control-x-quit')
+        elif key == 'ctrl s':
+            loop.stop()
+            print("Welcome to your debug shell")
+            os.system("dash")
+            loop.start()
+            loop.screen.tty_signal_keys(stop="undefined")
+            # Should re-scan block, network devices here somehow?
+            return None
+
     def run(self):
         if not hasattr(self, 'loop'):
             if (self.common['opts'].run_on_serial and
@@ -473,7 +487,8 @@ class Application:
             self.common['loop'] = urwid.MainLoop(
                 self.common['ui'], palette=palette, screen=screen,
                 handle_mouse=False, pop_ups=True,
-                input_filter=self.common['input_filter'].filter)
+                input_filter=self.common['input_filter'].filter,
+                unhandled_input=self.unhandled_input)
             self.common['ui'].loop = self.common['loop']
 
             log.debug("Running event loop: {}".format(
