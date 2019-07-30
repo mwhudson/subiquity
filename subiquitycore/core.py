@@ -468,10 +468,12 @@ class Application:
             signal.emit_signal('control-x-quit')
         elif key == 'ctrl s':
             loop.stop()
+            os.system("clear")
             print("Welcome to your debug shell")
             os.system("dash")
             loop.start()
             loop.screen.tty_signal_keys(stop="undefined")
+            # Should probably re-scan for block / network devices here.
 
     def run(self):
         if not hasattr(self, 'loop'):
