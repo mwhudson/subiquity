@@ -59,6 +59,18 @@ class StepsProgressBar(ProgressBar):
         return "{} / {}".format(self.current, self.done)
 
 
+class MyColumns(Columns):
+    def column_widths(self, size, focus=False):
+        maxcol = size[0]
+        center = 79*maxcol//100
+        if center < 76:
+            center = 76
+        left = (maxcol - center)//2
+        right = widget_width(self.contents[2][0])
+        middle = maxcol - left - right
+        return [left, middle, right]
+
+
 class Footer(WidgetWrap):
     """ Footer widget
 
@@ -80,10 +92,6 @@ class Footer(WidgetWrap):
         status = [
             progress_bar,
             Padding.line_break(""),
-            Columns([
-                (widget_width(helpbtn), Text("")),
-                message,
-                (widget_width(helpbtn), helpbtn),
-                ])
+            MyColumns([Text(""), message, helpbtn]),
         ]
         super().__init__(Color.frame_footer(Pile(status)))
