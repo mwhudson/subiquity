@@ -102,7 +102,7 @@ parts:
     plugin: python
     build-packages: [python-setuptools, libnl-3-dev, libnl-genl-3-dev, libnl-route-3-dev]
     stage-packages: [libc6, libnl-3-dev, libnl-genl-3-dev, libnl-route-3-dev]
-    source: https://github.com/CanonicalLtd/probert.git
+    source: https://github.com/mwhudson/probert.git
     source-type: git
-    source-commit: b697ab779e7e056301e779f4708a9f1ce51b0027
+    source-commit: 5c2da38e6126f4c6068afc8c957e35784818966d
     requirements: requirements.txt
