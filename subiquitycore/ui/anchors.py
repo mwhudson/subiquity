@@ -13,15 +13,24 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
+
 from urwid import (
     Text,
     ProgressBar,
     )
+
+from subiquitycore.ui.buttons import _stylized_button
 from subiquitycore.ui.container import (
+    Columns,
     Pile,
     WidgetWrap,
     )
 from subiquitycore.ui.utils import Padding, Color
+from subiquitycore.ui.width import widget_width
+
+log = logging.getLogger('subiquitycore.ui.anchors')
 
 
 class Header(WidgetWrap):
@@ -48,6 +57,18 @@ class StepsProgressBar(ProgressBar):
         return "{} / {}".format(self.current, self.done)
 
 
+class MyColumns(Columns):
+    def column_widths(self, size, focus=False):
+        maxcol = size[0]
+        center = 79*maxcol//100
+        if center < 76:
+            center = 76
+        left = (maxcol - center)//2
+        right = widget_width(self.contents[2][0])
+        middle = maxcol - left - right
+        return [left, middle, right]
+
+
 class Footer(WidgetWrap):
     """ Footer widget
 
@@ -58,7 +79,10 @@ class Footer(WidgetWrap):
     def __init__(self, message, current, complete):
         if isinstance(message, str):
             message = Text(message)
-        message = Padding.center_79(message, min_width=76)
+        helpbtn = _stylized_button("[", "]", 'xx')(_("Help"))
+        helpbtn.attr_map = {}
+        helpbtn.focus_map = {None: 'progress_incomplete'}
+        message = Padding.center_99(message, min_width=76)
         progress_bar = Padding.center_60(
             StepsProgressBar(normal='progress_incomplete',
                              complete='progress_complete',
@@ -66,6 +90,6 @@ class Footer(WidgetWrap):
         status = [
             progress_bar,
             Padding.line_break(""),
-            message,
+            MyColumns([Text(""), message, helpbtn]),
         ]
         super().__init__(Color.frame_footer(Pile(status)))
