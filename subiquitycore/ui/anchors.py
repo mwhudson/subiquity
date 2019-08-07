@@ -76,10 +76,11 @@ class Footer(WidgetWrap):
 
     """
 
-    def __init__(self, message, current, complete):
+    def __init__(self, ui, message, current, complete):
+        self.ui = ui
         if isinstance(message, str):
             message = Text(message)
-        helpbtn = _stylized_button("[", "]", 'xx')(_("Help"))
+        helpbtn = _stylized_button("[", "]", 'xx')(_("Help"), on_press=self.show_help)
         helpbtn.attr_map = {}
         helpbtn.focus_map = {None: 'progress_incomplete'}
         message = Padding.center_99(message, min_width=76)
@@ -93,3 +94,6 @@ class Footer(WidgetWrap):
             MyColumns([Text(""), message, helpbtn]),
         ]
         super().__init__(Color.frame_footer(Pile(status)))
+
+    def show_help(self, sender):
+        self.ui.body.show_help()

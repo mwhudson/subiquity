@@ -473,6 +473,8 @@ class Application:
             self.loop.start()
             self.loop.screen.tty_signal_keys(stop="undefined")
             # Should probably re-scan for block / network devices here.
+        elif key in ['ctrl h', 'f1']:
+            self.ui.body.show_help()
 
     def run(self):
         if (self.opts.run_on_serial and

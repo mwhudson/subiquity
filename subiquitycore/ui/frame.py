@@ -36,7 +36,7 @@ class SubiquityUI(WidgetWrap):
 
     def __init__(self):
         self.header = Header("")
-        self.footer = Footer("", 0, 1)
+        self.footer = Footer(self, "", 0, 1)
         self.progress_current = 0
         self.progress_completion = 0
         # After the install starts, we want to stop setting the footer
@@ -58,7 +58,9 @@ class SubiquityUI(WidgetWrap):
     def set_footer(self, message):
         self._assign_contents(
             2,
-            Footer(message, self.progress_current, self.progress_completion))
+            Footer(
+                self, message,
+                self.progress_current, self.progress_completion))
 
     @property
     def body(self):

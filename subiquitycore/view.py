@@ -20,13 +20,14 @@ Contains some default key navigations
 
 from urwid import Overlay, Text
 
+from subiquitycore.ui.buttons import other_btn
 from subiquitycore.ui.container import (
     Columns,
     Pile,
     WidgetWrap,
     )
-from subiquitycore.ui.stretchy import StretchyOverlay
-from subiquitycore.ui.utils import disabled
+from subiquitycore.ui.stretchy import Stretchy, StretchyOverlay
+from subiquitycore.ui.utils import button_pile, disabled
 
 
 class BaseView(WidgetWrap):
@@ -65,6 +66,12 @@ class BaseView(WidgetWrap):
     def remove_overlay(self):
         # disabled() wraps a widget in two decorations.
         self._w = self._w.bottom_w.original_widget.original_widget
+
+    def show_help(self, sender=None):
+        close_btn = other_btn("Close", on_press=lambda sender:self.remove_overlay())
+        self.show_stretchy_overlay(Stretchy(
+            "Help",
+            [Text("HEEEEEEEEEELP"), Text(""), button_pile([close_btn])], 0, 2))
 
     def cancel(self):
         pass
