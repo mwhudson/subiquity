@@ -465,6 +465,14 @@ class Application:
     def unhandled_input(self, key):
         if key == 'ctrl x':
             self.signal.emit_signal('control-x-quit')
+        elif key == 'ctrl s':
+            self.loop.stop()
+            os.system("clear")
+            print("Welcome to your debug shell")
+            os.system("bash")
+            self.loop.start()
+            self.loop.screen.tty_signal_keys(stop="undefined")
+            # Should probably re-scan for block / network devices here.
 
     def run(self):
         if (self.opts.run_on_serial and
