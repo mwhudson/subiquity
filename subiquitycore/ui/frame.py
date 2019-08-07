@@ -21,6 +21,7 @@ from urwid import (
     Text,
     )
 from subiquitycore.ui.anchors import Header, Footer
+from subiquitycore.ui.buttons import _stylized_button
 from subiquitycore.ui.container import (
     ListBox,
     Pile,
@@ -34,7 +35,11 @@ log = logging.getLogger('subiquitycore.ui.frame')
 
 class SubiquityUI(WidgetWrap):
 
-    def __init__(self):
+    def __init__(self, app):
+        self.helpbtn = _stylized_button("[", "]", 'xx')(
+            _("Help"), on_press=lambda sender:app.show_help())
+        self.helpbtn.attr_map = {}
+        self.helpbtn.focus_map = {None: 'progress_incomplete'}
         self.header = Header("")
         self.footer = Footer(self, "", 0, 1)
         self.progress_current = 0

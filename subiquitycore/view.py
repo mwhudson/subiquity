@@ -64,10 +64,12 @@ class BaseView(WidgetWrap):
         self._w = StretchyOverlay(disabled(self._w), stretchy)
 
     def remove_overlay(self):
+        if 'closed' in getattr(self._w, 'signals', ()):
+            self._w._emit('closed')
         # disabled() wraps a widget in two decorations.
         self._w = self._w.bottom_w.original_widget.original_widget
 
-    def show_help(self, sender=None):
+    def show_help(self):
         close_btn = other_btn("Close", on_press=lambda sender:self.remove_overlay())
         self.show_stretchy_overlay(Stretchy(
             "Help",

@@ -29,6 +29,7 @@ import yaml
 from subiquitycore.controller import RepeatedController
 from subiquitycore.signals import Signal
 from subiquitycore.prober import Prober, ProberException
+from subiquitycore.ui.frame import SubiquityUI
 
 log = logging.getLogger('subiquitycore.core')
 
@@ -231,7 +232,7 @@ class Application:
     # controllers in order, calling the default method on the controller
     # instance.
 
-    def __init__(self, ui, opts):
+    def __init__(self, opts):
         try:
             prober = Prober(opts)
         except ProberException as e:
@@ -239,7 +240,7 @@ class Application:
             log.exception(err)
             raise ApplicationError(err)
 
-        self.ui = ui
+        self.ui = SubiquityUI(self)
         self.opts = opts
         opts.project = self.project
 
@@ -274,7 +275,7 @@ class Application:
                                 if c in opts.screens]
         else:
             self.controllers = self.controllers[:]
-        ui.progress_completion = len(self.controllers)
+        self.ui.progress_completion = len(self.controllers)
         self.controller_instances = dict.fromkeys(self.controllers)
         self.controller_index = -1
 
@@ -474,7 +475,18 @@ class Application:
             self.loop.screen.tty_signal_keys(stop="undefined")
             # Should probably re-scan for block / network devices here.
         elif key in ['ctrl h', 'f1']:
-            self.ui.body.show_help()
+            self.show_help()
+
+    def show_help(self):
+        self.ui.body.show_help()
+        fp = self.ui.frame.focus_position
+        self.ui.frame.focus_position = 1
+        self.ui.helpbtn.base_widget._label._selectable = False
+
+        def restore_focus(sender):
+            self.ui.frame.focus_position = fp
+            self.ui.helpbtn.base_widget._label._selectable = True
+        urwid.connect_signal(self.ui.body._w, 'closed', restore_focus)
 
     def run(self):
         if (self.opts.run_on_serial and

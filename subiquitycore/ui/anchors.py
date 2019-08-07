@@ -21,7 +21,6 @@ from urwid import (
     ProgressBar,
     )
 
-from subiquitycore.ui.buttons import _stylized_button
 from subiquitycore.ui.container import (
     Columns,
     Pile,
@@ -80,9 +79,6 @@ class Footer(WidgetWrap):
         self.ui = ui
         if isinstance(message, str):
             message = Text(message)
-        helpbtn = _stylized_button("[", "]", 'xx')(_("Help"), on_press=self.show_help)
-        helpbtn.attr_map = {}
-        helpbtn.focus_map = {None: 'progress_incomplete'}
         message = Padding.center_99(message, min_width=76)
         progress_bar = Padding.center_60(
             StepsProgressBar(normal='progress_incomplete',
@@ -91,9 +87,6 @@ class Footer(WidgetWrap):
         status = [
             progress_bar,
             Padding.line_break(""),
-            MyColumns([Text(""), message, helpbtn]),
+            MyColumns([Text(""), message, self.ui.helpbtn]),
         ]
         super().__init__(Color.frame_footer(Pile(status)))
-
-    def show_help(self, sender):
-        self.ui.body.show_help()
