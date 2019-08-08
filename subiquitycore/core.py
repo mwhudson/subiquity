@@ -232,6 +232,8 @@ class Application:
     # controllers in order, calling the default method on the controller
     # instance.
 
+    showing_help = False
+
     def __init__(self, opts):
         try:
             prober = Prober(opts)
@@ -475,9 +477,11 @@ class Application:
             self.loop.screen.tty_signal_keys(stop="undefined")
             # Should probably re-scan for block / network devices here.
         elif key in ['ctrl h', 'f1']:
-            self.show_help()
+            if not self.showing_help:
+                self.show_help()
 
     def show_help(self):
+        self.showing_help = True
         self.ui.body.show_help()
         fp = self.ui.frame.focus_position
         self.ui.frame.focus_position = 1
@@ -486,6 +490,7 @@ class Application:
         self.ui.helpbtn.base_widget._label._selectable = False
 
         def restore_focus(sender):
+            self.showing_help = False
             self.ui.frame.focus_position = fp
             self.ui.helpbtn.base_widget._label._selectable = True
             self.ui.helpbtn.attr_map = attr_map
