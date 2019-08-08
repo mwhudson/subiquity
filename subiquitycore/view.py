@@ -102,9 +102,11 @@ class BaseView(WidgetWrap):
 
     def show_help(self):
         close_btn = other_btn("Close", on_press=lambda sender:self.remove_overlay())
-        local_help = Text(self.local_help().strip())
+        local_help = self.local_help().strip()
         global_help = self.global_help()
         if local_help:
+            if isinstance(local_help, str):
+                local_help = Text(local_help)
             help_text = Pile([('pack', local_help), ('pack', Text("")), ('pack', global_help)])
         else:
             help_text = global_help

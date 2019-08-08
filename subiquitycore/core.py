@@ -481,11 +481,14 @@ class Application:
         self.ui.body.show_help()
         fp = self.ui.frame.focus_position
         self.ui.frame.focus_position = 1
+        attr_map = self.ui.helpbtn.attr_map
+        self.ui.helpbtn.attr_map = self.ui.helpbtn.focus_map
         self.ui.helpbtn.base_widget._label._selectable = False
 
         def restore_focus(sender):
             self.ui.frame.focus_position = fp
             self.ui.helpbtn.base_widget._label._selectable = True
+            self.ui.helpbtn.attr_map = attr_map
         urwid.connect_signal(self.ui.body._w, 'closed', restore_focus)
 
     def run(self):
