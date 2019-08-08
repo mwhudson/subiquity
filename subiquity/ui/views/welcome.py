@@ -30,9 +30,10 @@ log = logging.getLogger("subiquity.views.welcome")
 help_text = _("""
 Welcome to the Ubuntu Server Installer!
 
-<generic welcome to ubuntu text>
+The most popular server Linux in the cloud and data centre, you can
+rely on Ubuntu Server and its five years of guaranteed free upgrades.
 
-Select your language using the up and down arrows and press enter or \
+Select your language using the up and down arrows and press enter or
 space to continue.""")
 
 

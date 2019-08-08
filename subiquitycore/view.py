@@ -106,8 +106,9 @@ class BaseView(WidgetWrap):
         global_help = self.global_help()
         if local_help:
             if isinstance(local_help, str):
-                local_help = Text(local_help)
-            help_text = Pile([('pack', local_help), ('pack', Text("")), ('pack', global_help)])
+                local_help = local_help.split('\n\n')
+                local_help = Pile([Text(line.replace('\n', ' ')+"\n") for line in local_help])
+            help_text = Pile([('pack', local_help), ('pack', global_help)])
         else:
             help_text = global_help
         self.show_stretchy_overlay(Stretchy(
