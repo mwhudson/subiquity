@@ -474,7 +474,7 @@ class Application:
             print("Welcome to your debug shell")
             os.system("bash")
             self.loop.start()
-            self.loop.screen.tty_signal_keys(stop="undefined")
+            tty.setraw(0)
             # Should probably re-scan for block / network devices here.
         elif key in ['ctrl h', 'f1']:
             if not self.showing_help:
