@@ -37,7 +37,6 @@ from subiquity.models.filesystem import (
 from subiquity.ui.views import (
     FilesystemView,
     GuidedDiskSelectionView,
-    GuidedFilesystemView,
     )
 from subiquity.ui.views.filesystem.probing import (
     SlowProbing,
@@ -255,7 +254,7 @@ class FilesystemController(BaseController):
             # performed would be tricky.  Possibly worth doing though! Just
             # not today.
             self.stop_listening_udev()
-            self.ui.set_body(GuidedFilesystemView(self))
+            self.ui.set_body(GuidedDiskSelectionView(self.model, self))
             if self._cur_probe.restricted:
                 pr = self._probes[False].crash_report
                 if pr is not None:

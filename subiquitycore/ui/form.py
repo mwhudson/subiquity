@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 
 from urwid import (
     CheckBox,
+    RadioButton,
     connect_signal,
     delegate_to_widget_mixin,
     emit_signal,
@@ -378,6 +379,19 @@ class CheckBoxEditor(CheckBox):
         self.state = val
 
 
+class RadioButtonEditor(RadioButton):
+
+    reserve_columns = 3
+
+    @property
+    def value(self):
+        return self.state
+
+    @value.setter
+    def value(self, val):
+        self.state = val
+
+
 class BooleanField(FormField):
 
     caption_first = False
@@ -385,6 +399,19 @@ class BooleanField(FormField):
 
     def _make_widget(self, form):
         return CheckBoxEditor('')
+
+
+class RadioField(FormField):
+
+    caption_first = False
+    takes_default_style = False
+
+    def __init__(self, caption=None, help=None, group=None):
+        super().__init__(caption, help)
+        self.group = group
+
+    def _make_widget(self, form):
+        return RadioButtonEditor(self.group, '')
 
 
 class MetaForm(MetaSignals):
