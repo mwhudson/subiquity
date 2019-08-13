@@ -469,16 +469,22 @@ class Application:
         if key == 'ctrl x':
             self.signal.emit_signal('control-x-quit')
         elif key == 'ctrl s':
-            self.loop.stop()
-            os.system("clear")
-            print("Welcome to your debug shell")
-            os.system("bash")
-            self.loop.start()
-            tty.setraw(0)
-            # Should probably re-scan for block / network devices here.
+            self.debug_shell()
         elif key in ['ctrl h', 'f1']:
             if not self.showing_help:
                 self.show_help()
+
+    def debug_shell(self):
+        def run():
+            os.system("bash")
+        def exit(fut):
+            # Should probably re-scan for block / network devices here.
+            self.loop.screen.start()
+            tty.setraw(0)
+        self.loop.screen.stop()
+        os.system("clear")
+        print("Welcome to your debug shell")
+        self.run_in_bg(run, exit)
 
     def show_help(self):
         self.showing_help = True
