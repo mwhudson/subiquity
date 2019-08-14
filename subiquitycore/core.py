@@ -479,14 +479,18 @@ class Application:
         def run():
             os.system("dash")
         def exit(fut):
-            screen._term_output_file = output
+            screen.start()
+            # Calling screen.start() sends the INPUT_DESCRIPTORS_CHANGED
+            # signal. This calls _reset_input_descriptors() which calls
+            # unhook_event_loop / hook_event_loop on the screen. But this all
+            # happens before _started is set on the screen, so hook_event_loop
+            # does not actually do anything -- and we end up not listening to
+            # stdin, obviously a defective situation for a console
+            # application. So send it again now the screen is started...
+            urwid.emit_signal(
+                screen, urwid.display_common.INPUT_DESCRIPTORS_CHANGED)
             tty.setraw(0)
-            screen.clear()
-        fd = screen._term_input_file.fileno()
-        if os.isatty(fd):
-            termios.tcsetattr(fd, termios.TCSADRAIN, screen._old_termios_settings)
-        output = screen._term_output_file
-        screen._term_output_file = open('/dev/null', 'w')
+        screen.stop()
         os.system("clear")
         print("Welcome to your debug shell")
         self.run_in_bg(run, exit)
