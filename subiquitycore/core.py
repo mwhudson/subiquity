@@ -475,13 +475,18 @@ class Application:
                 self.show_help()
 
     def debug_shell(self):
+        screen = self.loop.screen
         def run():
-            os.system("bash")
+            os.system("dash")
         def exit(fut):
-            # Should probably re-scan for block / network devices here.
-            self.loop.screen.start()
+            screen._term_output_file = output
             tty.setraw(0)
-        self.loop.screen.stop()
+            screen.clear()
+        fd = screen._term_input_file.fileno()
+        if os.isatty(fd):
+            termios.tcsetattr(fd, termios.TCSADRAIN, screen._old_termios_settings)
+        output = screen._term_output_file
+        screen._term_output_file = open('/dev/null', 'w')
         os.system("clear")
         print("Welcome to your debug shell")
         self.run_in_bg(run, exit)
