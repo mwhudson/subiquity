@@ -232,8 +232,6 @@ class Application:
     # controllers in order, calling the default method on the controller
     # instance.
 
-    showing_help = False
-
     make_ui = SubiquityCoreUI
 
     def __init__(self, opts):

@@ -41,7 +41,8 @@ class Subiquity(Application):
     from subiquity.palette import COLORS, STYLES, STYLES_MONO
 
     project = "subiquity"
-
+    showing_help = False
+    
     def make_model(self):
         root = '/'
         if self.opts.dry_run:
