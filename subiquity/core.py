@@ -16,6 +16,10 @@
 import logging
 import os
 import platform
+import tty
+
+
+import urwid
 
 from subiquitycore.core import Application
 
@@ -24,6 +28,7 @@ from subiquity.snapd import (
     FakeSnapdConnection,
     SnapdConnection,
     )
+from subiquity.ui.frame import SubiquityUI
 
 
 log = logging.getLogger('subiquity.core')
@@ -42,6 +47,9 @@ class Subiquity(Application):
         if self.opts.dry_run:
             root = os.path.abspath('.subiquity')
         return SubiquityModel(root, self.opts.sources)
+
+    def make_ui(self):
+        return SubiquityUI(self)
 
     controllers = [
             "Welcome",
@@ -90,3 +98,53 @@ class Subiquity(Application):
             lambda fut: (
                 fut.result(), self.signal.emit_signal('snapd-network-change')),
             )
+
+    def unhandled_input(self, key):
+        if key == 'ctrl s':
+            self.debug_shell()
+        elif key in ['ctrl h', 'f1']:
+            if not self.showing_help:
+                self.show_help()
+        else:
+            super().unhandled_input(key)
+
+    def debug_shell(self):
+        screen = self.loop.screen
+
+        def run():
+            os.system("dash")
+
+        def restore(fut):
+            screen.start()
+            # Calling screen.start() sends the INPUT_DESCRIPTORS_CHANGED
+            # signal. This calls _reset_input_descriptors() which calls
+            # unhook_event_loop / hook_event_loop on the screen. But this all
+            # happens before _started is set on the screen, so hook_event_loop
+            # does not actually do anything -- and we end up not listening to
+            # stdin, obviously a defective situation for a console
+            # application. So send it again now the screen is started...
+            urwid.emit_signal(
+                screen, urwid.display_common.INPUT_DESCRIPTORS_CHANGED)
+            tty.setraw(0)
+
+        screen.stop()
+        os.system("clear")
+        print("Welcome to your debug shell")
+
+        self.run_in_bg(run, restore)
+
+    def show_help(self):
+        self.showing_help = True
+        self.ui.body.show_help(self.ui.global_help())
+        fp = self.ui.frame.focus_position
+        self.ui.frame.focus_position = 1
+        attr_map = self.ui.right_icon.attr_map
+        self.ui.right_icon.attr_map = self.ui.right_icon.focus_map
+        self.ui.right_icon.base_widget._label._selectable = False
+
+        def restore_focus(sender):
+            self.showing_help = False
+            self.ui.frame.focus_position = fp
+            self.ui.right_icon.base_widget._label._selectable = True
+            self.ui.right_icon.attr_map = attr_map
+        urwid.connect_signal(self.ui.body._w, 'closed', restore_focus)

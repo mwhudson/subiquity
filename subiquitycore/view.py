@@ -27,24 +27,7 @@ from subiquitycore.ui.container import (
     WidgetWrap,
     )
 from subiquitycore.ui.stretchy import Stretchy, StretchyOverlay
-from subiquitycore.ui.table import (
-    ColSpec,
-    TablePile,
-    TableRow,
-    )
 from subiquitycore.ui.utils import button_pile, disabled
-
-
-GLOBAL_HELP = _("""\
-GLOBAL HOT KEYS
-
-The following keys can be used at any time:""")
-
-GLOBAL_KEYS = (
-    (_('Control-S'), _('drop to a shell session')),
-    (_('F1'),        _('open this help dialog')),
-    (_("ESC"),       _('close current dialog or menu or go to previous screen if none')),
-    )
 
 
 class BaseView(WidgetWrap):
@@ -89,21 +72,9 @@ class BaseView(WidgetWrap):
     def local_help(self):
         return ""
 
-    def global_help(self):
-        rows = []
-        for key, text in GLOBAL_KEYS:
-            rows.append(TableRow([Text(_(key)), Text(_(text))]))
-        table = TablePile(rows, spacing=2, colspecs={1:ColSpec(can_shrink=True)})
-        return Pile([
-            ('pack', Text(GLOBAL_HELP.strip())),
-            ('pack', Text("")),
-            ('pack', table),
-            ])
-
-    def show_help(self):
+    def show_help(self, global_help):
         close_btn = other_btn("Close", on_press=lambda sender:self.remove_overlay())
         local_help = self.local_help().strip()
-        global_help = self.global_help()
         if local_help:
             if isinstance(local_help, str):
                 local_help = local_help.split('\n\n')

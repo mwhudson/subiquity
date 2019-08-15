@@ -29,7 +29,7 @@ import yaml
 from subiquitycore.controller import RepeatedController
 from subiquitycore.signals import Signal
 from subiquitycore.prober import Prober, ProberException
-from subiquitycore.ui.frame import SubiquityUI
+from subiquitycore.ui.frame import SubiquityCoreUI
 
 log = logging.getLogger('subiquitycore.core')
 
@@ -234,6 +234,8 @@ class Application:
 
     showing_help = False
 
+    make_ui = SubiquityCoreUI
+
     def __init__(self, opts):
         try:
             prober = Prober(opts)
@@ -242,7 +244,7 @@ class Application:
             log.exception(err)
             raise ApplicationError(err)
 
-        self.ui = SubiquityUI(self)
+        self.ui = self.make_ui()
         self.opts = opts
         opts.project = self.project
 
@@ -468,48 +470,6 @@ class Application:
     def unhandled_input(self, key):
         if key == 'ctrl x':
             self.signal.emit_signal('control-x-quit')
-        elif key == 'ctrl s':
-            self.debug_shell()
-        elif key in ['ctrl h', 'f1']:
-            if not self.showing_help:
-                self.show_help()
-
-    def debug_shell(self):
-        screen = self.loop.screen
-        def run():
-            os.system("dash")
-        def exit(fut):
-            screen.start()
-            # Calling screen.start() sends the INPUT_DESCRIPTORS_CHANGED
-            # signal. This calls _reset_input_descriptors() which calls
-            # unhook_event_loop / hook_event_loop on the screen. But this all
-            # happens before _started is set on the screen, so hook_event_loop
-            # does not actually do anything -- and we end up not listening to
-            # stdin, obviously a defective situation for a console
-            # application. So send it again now the screen is started...
-            urwid.emit_signal(
-                screen, urwid.display_common.INPUT_DESCRIPTORS_CHANGED)
-            tty.setraw(0)
-        screen.stop()
-        os.system("clear")
-        print("Welcome to your debug shell")
-        self.run_in_bg(run, exit)
-
-    def show_help(self):
-        self.showing_help = True
-        self.ui.body.show_help()
-        fp = self.ui.frame.focus_position
-        self.ui.frame.focus_position = 1
-        attr_map = self.ui.helpbtn.attr_map
-        self.ui.helpbtn.attr_map = self.ui.helpbtn.focus_map
-        self.ui.helpbtn.base_widget._label._selectable = False
-
-        def restore_focus(sender):
-            self.showing_help = False
-            self.ui.frame.focus_position = fp
-            self.ui.helpbtn.base_widget._label._selectable = True
-            self.ui.helpbtn.attr_map = attr_map
-        urwid.connect_signal(self.ui.body._w, 'closed', restore_focus)
 
     def run(self):
         if (self.opts.run_on_serial and

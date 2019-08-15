@@ -75,8 +75,7 @@ class Footer(WidgetWrap):
 
     """
 
-    def __init__(self, ui, message, current, complete):
-        self.ui = ui
+    def __init__(self, message, right_icon, current, complete):
         if isinstance(message, str):
             message = Text(message)
         message = Padding.center_99(message, min_width=76)
@@ -87,6 +86,6 @@ class Footer(WidgetWrap):
         status = [
             progress_bar,
             Padding.line_break(""),
-            MyColumns([Text(""), message, self.ui.helpbtn]),
+            MyColumns([Text(""), message, right_icon]),
         ]
         super().__init__(Color.frame_footer(Pile(status)))

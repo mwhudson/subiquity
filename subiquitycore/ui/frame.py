@@ -21,7 +21,6 @@ from urwid import (
     Text,
     )
 from subiquitycore.ui.anchors import Header, Footer
-from subiquitycore.ui.buttons import _stylized_button
 from subiquitycore.ui.container import (
     ListBox,
     Pile,
@@ -33,15 +32,18 @@ from subiquitycore.ui.utils import Color
 log = logging.getLogger('subiquitycore.ui.frame')
 
 
-class SubiquityUI(WidgetWrap):
+class SubiquityCoreUI(WidgetWrap):
 
-    def __init__(self, app):
-        self.helpbtn = _stylized_button("[", "]", 'xx')(
-            _("Help"), on_press=lambda sender:app.show_help())
-        self.helpbtn.attr_map = {}
-        self.helpbtn.focus_map = {None: 'progress_incomplete'}
+    right_icon = Text("")
+
+    def __init__(self):
         self.header = Header("")
-        self.footer = Footer(self, "", 0, 1)
+        self.footer = Footer("", self.right_icon, 0, 1)
+        self.frame = Pile([
+            ('pack', self.header),
+            ListBox([Text("")]),
+            ('pack', self.footer),
+            ])
         self.progress_current = 0
         self.progress_completion = 0
         # After the install starts, we want to stop setting the footer
@@ -64,7 +66,7 @@ class SubiquityUI(WidgetWrap):
         self._assign_contents(
             2,
             Footer(
-                self, message,
+                message, self.right_icon,
                 self.progress_current, self.progress_completion))
 
     @property
