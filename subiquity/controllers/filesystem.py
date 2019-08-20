@@ -17,6 +17,7 @@ import enum
 import json
 import logging
 import os
+import traceback
 
 from subiquitycore.controller import BaseController
 
@@ -67,6 +68,8 @@ class FilesystemController(BaseController):
         self.answers.setdefault('manual', [])
         self.showing = False
         self._probe_state = ProbeState.NOT_STARTED
+        self._rich_probe_crash_path = None
+        self._restricted_probe_crash_path = None
 
     def start(self):
         block_discover_log.info("starting probe")
@@ -77,6 +80,26 @@ class FilesystemController(BaseController):
 
     def _bg_probe(self, probe_types=None):
         return self.app.prober.get_storage(probe_types=probe_types)
+
+    def _make_probe_failure_crash_file(self):
+        import apport, apport.fileutils
+        pr = apport.Report()
+        pr.add_proc_info()
+        i = 0
+        while 1:
+            try:
+                path = os.path.join(
+                    self.app.block_log_dir, "probe.{}.crash".format(i))
+                f = open(path, 'xb')
+            except FileExistsError:
+                i += 1
+                continue
+            else:
+                break
+        pr['Traceback'] = traceback.format_exc()
+        with f:
+            pr.write(f)
+        return path
 
     def _probed(self, fut, restricted=False):
         if not restricted and self._probe_state != ProbeState.PROBING:
@@ -97,11 +120,10 @@ class FilesystemController(BaseController):
                 "probing failed restricted=%s", restricted)
             if not restricted:
                 block_discover_log.info("reprobing for blockdev only")
-                # Should make a crash file for apport, arrange for it to be
-                # copied onto the installed system and tell user all this
-                # happened!
+                self._rich_probe_crash_path = self._make_probe_failure_crash_file()
                 self._reprobe()
             else:
+                self._restricted_probe_crash_path = self._make_probe_failure_crash_file()
                 self._probe_state = ProbeState.FAILED
                 if self.showing:
                     self.default()
