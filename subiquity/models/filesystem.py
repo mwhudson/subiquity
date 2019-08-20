@@ -1148,6 +1148,7 @@ class FilesystemModel(object):
         exclusions = set()
         for action in config:
             if action['type'] == 'mount':
+                1/0
                 exclusions.add(byid[action['device']])
                 continue
             c = _type_to_cls.get(action['type'], None)
