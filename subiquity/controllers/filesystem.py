@@ -17,6 +17,7 @@ import enum
 import json
 import logging
 import os
+import sys
 import traceback
 
 from subiquitycore.controller import BaseController
@@ -68,8 +69,7 @@ class FilesystemController(BaseController):
         self.answers.setdefault('manual', [])
         self.showing = False
         self._probe_state = ProbeState.NOT_STARTED
-        self._rich_probe_crash_path = None
-        self._restricted_probe_crash_path = None
+        self._crash_files = {}
 
     def start(self):
         block_discover_log.info("starting probe")
@@ -81,10 +81,26 @@ class FilesystemController(BaseController):
     def _bg_probe(self, probe_types=None):
         return self.app.prober.get_storage(probe_types=probe_types)
 
-    def _make_probe_failure_crash_file(self):
-        import apport, apport.fileutils
-        pr = apport.Report()
+    def _bg_make_probe_failure_crash_file(self, exc_info):
+        log.debug("_make_probe_failure_crash_file starting")
+        import apport, apport.hookutils, apport.fileutils
+        pr = apport.Report('Bug')
         pr.add_proc_info()
+        del pr['ExecutableTimestamp']
+        pr.add_os_info()
+        pr.add_hooks_info(None)
+        pr['Package'] = pr['SourcePackage'] = 'subiquity'
+        pr['Title'] = "block probing failed with {}".format(exc_info[0].__name__)
+        pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
+        pr['JournalErrors'] = apport.hookutils.command_output(
+                ['journalctl', '-b', '--priority=warning', '--lines=1000'])
+        crashdb = {
+            'impl': 'launchpad',
+            'project': 'subiquity',
+            }
+        if self.app.opts.dry_run:
+            crashdb['launchpad_instance'] = 'staging'
+        pr['CrashDB'] = repr(crashdb)
         i = 0
         while 1:
             try:
@@ -96,10 +112,18 @@ class FilesystemController(BaseController):
                 continue
             else:
                 break
-        pr['Traceback'] = traceback.format_exc()
         with f:
             pr.write(f)
+        log.debug("_make_probe_failure_crash_file done")
         return path
+
+    def _made_probe_failure_crash_file(self, restricted, fut):
+        try:
+            path = fut.result()
+        except Exception:
+            log.exception("creating crash report failed")
+            return
+        self._crash_files[restricted] = path
 
     def _probed(self, fut, restricted=False):
         if not restricted and self._probe_state != ProbeState.PROBING:
@@ -120,13 +144,15 @@ class FilesystemController(BaseController):
                 "probing failed restricted=%s", restricted)
             if not restricted:
                 block_discover_log.info("reprobing for blockdev only")
-                self._rich_probe_crash_path = self._make_probe_failure_crash_file()
                 self._reprobe()
             else:
-                self._restricted_probe_crash_path = self._make_probe_failure_crash_file()
                 self._probe_state = ProbeState.FAILED
                 if self.showing:
                     self.default()
+            exc_info = sys.exc_info()
+            self.run_in_bg(
+                lambda: self._bg_make_probe_failure_crash_file(exc_info),
+                lambda fut: self._made_probe_failure_crash_file(restricted, fut))
         else:
             self._probe_state = ProbeState.DONE
             # Should do something here if probing found no devices.
