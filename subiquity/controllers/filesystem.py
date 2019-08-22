@@ -83,43 +83,10 @@ class FilesystemController(BaseController):
 
     def _bg_make_probe_failure_crash_file(self, exc_info):
         log.debug("_make_probe_failure_crash_file starting")
-        import apport, apport.hookutils, apport.fileutils
-        pr = apport.Report('Bug')
-        pr.add_proc_info()
-        del pr['ExecutableTimestamp']
-        del pr['ProcMaps']
-        pr.add_os_info()
-        pr.add_hooks_info(None)
-        pr['Package'] = pr['SourcePackage'] = 'subiquity'
-        pr['Title'] = "block probing failed with {}".format(exc_info[0].__name__)
-        pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
-        pr['JournalErrors'] = apport.hookutils.command_output(
-                ['journalctl', '-b', '--priority=warning', '--lines=1000'])
-        pr['UdevDump'] = apport.hookutils.command_output(
-                ['udevadm', 'info', '--export-db'])
-        apport.hookutils.attach_file_if_exists(
-            pr, os.path.join(self.app.block_log_dir, 'discover.log'), 'DiscoverLog')
-        apport.hookutils.attach_hardware(pr)
-        crashdb = {
-            'impl': 'launchpad',
-            'project': 'subiquity',
-            }
-        if self.app.opts.dry_run:
-            crashdb['launchpad_instance'] = 'staging'
-        pr['CrashDB'] = repr(crashdb)
-        i = 0
-        while 1:
-            try:
-                path = os.path.join(
-                    self.app.block_log_dir, "probe.{}.crash".format(i))
-                f = open(path, 'xb')
-            except FileExistsError:
-                i += 1
-                continue
-            else:
-                break
-        with f:
-            pr.write(f)
+        title = "block probing failed with {}".format(exc_info[0].__name__)
+        pr = self.app._make_apport_report(title, exc_info)
+        path = self.app._write_apport_report(
+            pr, os.path.join(self.app.block_log_dir, "probe.{}.crash"))
         log.debug("_make_probe_failure_crash_file done")
         return path
 

@@ -16,6 +16,9 @@
 import logging
 import os
 import platform
+import traceback
+
+import apport, apport.hookutils, apport.fileutils
 
 from subiquitycore.core import Application
 
@@ -90,3 +93,45 @@ class Subiquity(Application):
             lambda fut: (
                 fut.result(), self.signal.emit_signal('snapd-network-change')),
             )
+
+    def _make_apport_report(self, title, exc_info):
+        log.debug("_make_probe_failure_crash_file starting")
+        pr = apport.Report('Bug')
+        pr.add_proc_info()
+        del pr['ExecutableTimestamp']
+        del pr['ProcMaps']
+        pr.add_os_info()
+        pr.add_hooks_info(None)
+        pr['Package'] = pr['SourcePackage'] = 'subiquity'
+        pr['Title'] = title
+        pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
+        pr['JournalErrors'] = apport.hookutils.command_output(
+                ['journalctl', '-b', '--priority=warning', '--lines=1000'])
+        pr['UdevDump'] = apport.hookutils.command_output(
+                ['udevadm', 'info', '--export-db'])
+        apport.hookutils.attach_file_if_exists(
+            pr, os.path.join(self.block_log_dir, 'discover.log'), 'DiscoverLog')
+        apport.hookutils.attach_hardware(pr)
+        crashdb = {
+            'impl': 'launchpad',
+            'project': 'subiquity',
+            }
+        if self.app.opts.dry_run:
+            crashdb['launchpad_instance'] = 'staging'
+        pr['CrashDB'] = repr(crashdb)
+        return pr
+
+    def _write_apport_report(self, pr, file_pat):
+        i = 0
+        while 1:
+            try:
+                path = os.path.join(file_pat.format(i))
+                f = open(path, 'xb')
+            except FileExistsError:
+                i += 1
+                continue
+            else:
+                break
+        with f:
+            pr.write(f)
+        return path
