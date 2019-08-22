@@ -83,11 +83,8 @@ class FilesystemController(BaseController):
 
     def _bg_make_probe_failure_crash_file(self, exc_info):
         log.debug("_make_probe_failure_crash_file starting")
-        title = "block probing failed with {}".format(exc_info[0].__name__)
-        pr = self.app._make_apport_report(title, exc_info)
-        path = self.app._write_apport_report(
-            pr, os.path.join(self.app.block_log_dir, "probe.{}.crash"))
-        log.debug("_make_probe_failure_crash_file done")
+        path = self.app.make_apport_report("block probing", exc_info)
+        log.debug("_make_probe_failure_crash_file done %s", path)
         return path
 
     def _made_probe_failure_crash_file(self, restricted, fut):
@@ -107,10 +104,14 @@ class FilesystemController(BaseController):
             storage = fut.result()
             if restricted:
                 fname = 'probe-data-restricted.json'
+                apport_key = "ProbeDataRestricted"
             else:
                 fname = 'probe-data.json'
-            with open(os.path.join(self.app.block_log_dir, fname), 'w') as fp:
+                apport_key = "ProbeData"
+            path = os.path.join(self.app.block_log_dir, fname)
+            with open(path, 'w') as fp:
                 json.dump(storage, fp, indent=4)
+            self.app.note_file_for_apport(apport_key, path)
             self.model.load_probe_data(storage)
         except Exception:
             block_discover_log.exception(

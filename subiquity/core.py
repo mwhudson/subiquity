@@ -16,6 +16,7 @@
 import logging
 import os
 import platform
+import sys
 import traceback
 
 import apport, apport.hookutils, apport.fileutils
@@ -82,6 +83,17 @@ class Subiquity(Application):
             ('network-proxy-set', self._proxy_set),
             ('network-change', self._network_change),
             ])
+        self._apport_files = []
+
+    def run(self):
+        try:
+            super().run()
+        except Exception:
+            print("making crash report")
+            path = self.make_apport_report("Installer UI", sys.exc_info())
+            print("crash report at", path)
+            print("press enter to continue")
+            input()
 
     def _network_change(self):
         self.signal.emit_signal('snapd-network-change')
@@ -94,38 +106,52 @@ class Subiquity(Application):
                 fut.result(), self.signal.emit_signal('snapd-network-change')),
             )
 
-    def _make_apport_report(self, title, exc_info):
-        log.debug("_make_probe_failure_crash_file starting")
+    def note_file_for_apport(self, key, path):
+        self._apport_files.append((key, path))
+
+    def make_apport_report(self, thing, exc_info):
         pr = apport.Report('Bug')
         pr.add_proc_info()
-        del pr['ExecutableTimestamp']
-        del pr['ProcMaps']
         pr.add_os_info()
         pr.add_hooks_info(None)
-        pr['Package'] = pr['SourcePackage'] = 'subiquity'
-        pr['Title'] = title
+        pr['Title'] = "{} crashed with {}".format(thing, exc_info[0].__name__)
         pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
-        pr['JournalErrors'] = apport.hookutils.command_output(
-                ['journalctl', '-b', '--priority=warning', '--lines=1000'])
-        pr['UdevDump'] = apport.hookutils.command_output(
-                ['udevadm', 'info', '--export-db'])
-        apport.hookutils.attach_file_if_exists(
-            pr, os.path.join(self.block_log_dir, 'discover.log'), 'DiscoverLog')
+        for key, path in self._apport_files:
+            apport.hookutils.attach_file_if_exists(pr, path, key)
+
+        # Should attach full log, but hard to know where that is from here :/
         apport.hookutils.attach_hardware(pr)
+        # Attach e.g. curtin config if written by this point.
+
+        # Because apport-cli will in general be run on a different
+        # machine, we make some slightly obscure alterations to the
+        # report to make this go better.
+
+        # If ExecutableTimestamp is present, apport-cli will try to check that
+        # ExecutablePath hasn't changed. But it won't be there.
+        del pr['ExecutableTimestamp']
+        # apport-cli gets upset at the probert C extensions it sees in here.
+        # /proc/maps is very unlikely to be interesting for us anyway.
+        del pr['ProcMaps']
+
+        # apport-cli gets upset if neither of these are present.
+        pr['Package'] = 'subiquity'
+        pr['SourcePackage'] = 'subiquity'
+
+        # Report to the subiquity project on Launchpad.
         crashdb = {
             'impl': 'launchpad',
             'project': 'subiquity',
             }
-        if self.app.opts.dry_run:
+        if self.opts.dry_run:
             crashdb['launchpad_instance'] = 'staging'
         pr['CrashDB'] = repr(crashdb)
-        return pr
-
-    def _write_apport_report(self, pr, file_pat):
         i = 0
+        crash_dir = os.path.join(self.base_model.root, 'var/log/crash')
+        os.makedirs(crash_dir, exist_ok=True)
         while 1:
             try:
-                path = os.path.join(file_pat.format(i))
+                path = os.path.join(crash_dir, "installer.{}.crash".format(i))
                 f = open(path, 'xb')
             except FileExistsError:
                 i += 1
