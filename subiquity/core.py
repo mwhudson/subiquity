@@ -110,29 +110,8 @@ class Subiquity(Application):
             super().unhandled_input(key)
 
     def debug_shell(self):
-        screen = self.loop.screen
-
-        def run():
-            os.system("dash")
-
-        def restore(fut):
-            screen.start()
-            # Calling screen.start() sends the INPUT_DESCRIPTORS_CHANGED
-            # signal. This calls _reset_input_descriptors() which calls
-            # unhook_event_loop / hook_event_loop on the screen. But this all
-            # happens before _started is set on the screen, so hook_event_loop
-            # does not actually do anything -- and we end up not listening to
-            # stdin, obviously a defective situation for a console
-            # application. So send it again now the screen is started...
-            urwid.emit_signal(
-                screen, urwid.display_common.INPUT_DESCRIPTORS_CHANGED)
-            tty.setraw(0)
-
-        screen.stop()
-        os.system("clear")
-        print("Welcome to your debug shell")
-
-        self.run_in_bg(run, restore)
+        self.run_command_in_foreground(
+            "clear && echo 'Welcome to your debug shell' && bash", shell=True)
 
     def show_help(self):
         self.showing_help = True
