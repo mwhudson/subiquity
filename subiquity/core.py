@@ -19,7 +19,9 @@ import platform
 import sys
 import traceback
 
-import apport, apport.hookutils, apport.fileutils
+import apport
+import apport.hookutils
+import apport.fileutils
 
 from subiquitycore.core import Application
 
@@ -90,7 +92,7 @@ class Subiquity(Application):
             super().run()
         except Exception:
             print("making crash report")
-            path = self.make_apport_report("Installer UI", sys.exc_info())
+            path = self.make_apport_report("Installer UI")
             print("crash report at", path)
             print("press enter to continue")
             input()
@@ -109,19 +111,22 @@ class Subiquity(Application):
     def note_file_for_apport(self, key, path):
         self._apport_files.append((key, path))
 
-    def make_apport_report(self, thing, exc_info):
+    def make_apport_report(self, thing):
         pr = apport.Report('Bug')
+
+        # Add basic info to report.
         pr.add_proc_info()
         pr.add_os_info()
         pr.add_hooks_info(None)
+        apport.hookutils.attach_hardware(pr)
+
+        exc_info = sys.exc_info()
         pr['Title'] = "{} crashed with {}".format(thing, exc_info[0].__name__)
         pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
+
+        # Attach any files other parts of the code think we should know about.
         for key, path in self._apport_files:
             apport.hookutils.attach_file_if_exists(pr, path, key)
-
-        # Should attach full log, but hard to know where that is from here :/
-        apport.hookutils.attach_hardware(pr)
-        # Attach e.g. curtin config if written by this point.
 
         # Because apport-cli will in general be run on a different
         # machine, we make some slightly obscure alterations to the
@@ -146,6 +151,8 @@ class Subiquity(Application):
         if self.opts.dry_run:
             crashdb['launchpad_instance'] = 'staging'
         pr['CrashDB'] = repr(crashdb)
+
+        # Write the log file to disk.
         i = 0
         crash_dir = os.path.join(self.base_model.root, 'var/log/crash')
         os.makedirs(crash_dir, exist_ok=True)

@@ -17,8 +17,6 @@ import enum
 import json
 import logging
 import os
-import sys
-import traceback
 
 from subiquitycore.controller import BaseController
 
@@ -81,9 +79,9 @@ class FilesystemController(BaseController):
     def _bg_probe(self, probe_types=None):
         return self.app.prober.get_storage(probe_types=probe_types)
 
-    def _bg_make_probe_failure_crash_file(self, exc_info):
+    def _bg_make_probe_failure_crash_file(self):
         log.debug("_make_probe_failure_crash_file starting")
-        path = self.app.make_apport_report("block probing", exc_info)
+        path = self.app.make_apport_report("block probing")
         log.debug("_make_probe_failure_crash_file done %s", path)
         return path
 
@@ -123,10 +121,10 @@ class FilesystemController(BaseController):
                 self._probe_state = ProbeState.FAILED
                 if self.showing:
                     self.default()
-            exc_info = sys.exc_info()
             self.run_in_bg(
-                lambda: self._bg_make_probe_failure_crash_file(exc_info),
-                lambda fut: self._made_probe_failure_crash_file(restricted, fut))
+                lambda: self._bg_make_probe_failure_crash_file(),
+                lambda fut: self._made_probe_failure_crash_file(
+                    restricted, fut))
         else:
             self._probe_state = ProbeState.DONE
             # Should do something here if probing found no devices.
