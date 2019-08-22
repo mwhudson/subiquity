@@ -85,6 +85,7 @@ class Subiquity(Application):
             ('network-proxy-set', self._proxy_set),
             ('network-change', self._network_change),
             ])
+        self._apport_data = []
         self._apport_files = []
 
     def run(self):
@@ -111,7 +112,13 @@ class Subiquity(Application):
     def note_file_for_apport(self, key, path):
         self._apport_files.append((key, path))
 
-    def make_apport_report(self, thing):
+    def note_data_for_apport(self, key, value):
+        self._apport_data.append((key, value))
+
+    def make_apport_report(self, thing, exc_info=None):
+        if exc_info is None:
+            exc_info = sys.exc_info()
+
         pr = apport.Report('Bug')
 
         # Add basic info to report.
@@ -120,13 +127,14 @@ class Subiquity(Application):
         pr.add_hooks_info(None)
         apport.hookutils.attach_hardware(pr)
 
-        exc_info = sys.exc_info()
         pr['Title'] = "{} crashed with {}".format(thing, exc_info[0].__name__)
         pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
 
-        # Attach any files other parts of the code think we should know about.
+        # Attach any stuff other parts of the code think we should know about.
         for key, path in self._apport_files:
             apport.hookutils.attach_file_if_exists(pr, path, key)
+        for key, value in self._apport_data:
+            pr[key] = value
 
         # Because apport-cli will in general be run on a different
         # machine, we make some slightly obscure alterations to the
