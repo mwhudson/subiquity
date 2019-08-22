@@ -87,6 +87,7 @@ class FilesystemController(BaseController):
         pr = apport.Report('Bug')
         pr.add_proc_info()
         del pr['ExecutableTimestamp']
+        del pr['ProcMaps']
         pr.add_os_info()
         pr.add_hooks_info(None)
         pr['Package'] = pr['SourcePackage'] = 'subiquity'
@@ -94,6 +95,11 @@ class FilesystemController(BaseController):
         pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
         pr['JournalErrors'] = apport.hookutils.command_output(
                 ['journalctl', '-b', '--priority=warning', '--lines=1000'])
+        pr['UdevDump'] = apport.hookutils.command_output(
+                ['udevadm', 'info', '--export-db'])
+        apport.hookutils.attach_file_if_exists(
+            pr, os.path.join(self.app.block_log_dir, 'discover.log'), 'DiscoverLog')
+        apport.hookutils.attach_hardware(pr)
         crashdb = {
             'impl': 'launchpad',
             'project': 'subiquity',
