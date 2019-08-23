@@ -31,3 +31,4 @@ for line in open(json_file):
         time.sleep(min((time_for_entry(ev) - time_for_entry(prev_ev)), 8)/scale_factor)
     prev_ev = ev
 report(prev_ev)
+sys.exit(1)

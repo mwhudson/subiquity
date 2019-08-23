@@ -24,7 +24,7 @@ from subiquitycore.ui.buttons import cancel_btn, ok_btn, other_btn
 from subiquitycore.ui.container import Columns, ListBox, Pile
 from subiquitycore.ui.form import Toggleable
 from subiquitycore.ui.spinner import Spinner
-from subiquitycore.ui.utils import button_pile, Padding
+from subiquitycore.ui.utils import button_pile, disabled, Padding
 from subiquitycore.ui.width import widget_width
 
 log = logging.getLogger("subiquity.views.installprogress")
@@ -47,6 +47,10 @@ class ProgressView(BaseView):
             _("Reboot Now"), on_press=self.reboot))
         self.exit_btn = cancel_btn(
             _("Exit To Shell"), on_press=self.quit)
+        self.view_error_btn = cancel_btn(
+            _("View Error Report"), on_press=self.view_error)
+        self.submit_error_btn = cancel_btn(
+            _("Submit Error Report"), on_press=self.submit_error)
         self.view_log_btn = other_btn(
             _("View full log"), on_press=self.view_log)
 
@@ -127,12 +131,27 @@ class ProgressView(BaseView):
         self.event_buttons.base_widget.focus_position = 1
         self.event_pile.base_widget.focus_position = 3
 
+    def apport_report_done(self, path):
+        self._apport_path = path
+        btns = [self.view_log_btn, self.view_error_btn, self.submit_error_btn, self.exit_btn, self.reboot_btn]
+        self._set_buttons(btns)
+
     def reboot(self, btn):
         self.reboot_btn.base_widget.set_label(_("Rebooting..."))
         self.reboot_btn.enabled = False
         self.event_buttons.original_widget._select_first_selectable()
         self.controller.click_reboot()
         self._set_button_width()
+
+    def view_error(self, btn):
+        self.controller.app.run_command_in_foreground(
+            ["less", self._apport_path])
+
+    def submit_error(self, btn):
+        btns = [self.view_log_btn, self.view_error_btn, disabled(self.submit_error_btn), self.exit_btn, self.reboot_btn]
+        self._set_buttons(btns)
+        self.event_buttons.base_widget.focus_position += 1
+        pass
 
     def quit(self, btn):
         self.controller.quit()

@@ -96,7 +96,7 @@ class Subiquity(Application):
                 raise
             traceback.print_exc()
             print("making crash report")
-            path = self.make_apport_report("Installer UI")
+            path = self.make_apport_report("Installer UI", sys.exc_info())
             print("crash report at", path)
             print("press enter to continue")
             input()
@@ -119,9 +119,6 @@ class Subiquity(Application):
         self._apport_data.append((key, value))
 
     def make_apport_report(self, thing, exc_info=None, extra_data=None):
-        if exc_info is None:
-            exc_info = sys.exc_info()
-
         # Write the log file to disk.
         i = 0
         crash_dir = os.path.join(self.base_model.root, 'var/log/crash')
@@ -144,8 +141,10 @@ class Subiquity(Application):
             pr.add_hooks_info(None)
             apport.hookutils.attach_hardware(pr)
 
-            pr['Title'] = "{} crashed with {}".format(thing, exc_info[0].__name__)
-            pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
+            if exc_info is not None:
+                pr['Title'] = "{} crashed with {}".format(thing, exc_info[0].__name__)
+                pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
+
             pr['Path'] = crash_path
 
             # Attach any stuff other parts of the code think we should know about.
