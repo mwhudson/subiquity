@@ -160,6 +160,11 @@ class FilesystemController(BaseController):
                 self.guided(self.answers.get('guided-method', 'direct'))
             elif self.answers['manual']:
                 self.manual()
+            if False in self._crash_files:
+                from subiquity.ui.crash_report import stretchy_for_crash_report
+                self.ui.body.show_stretchy_overlay(
+                    stretchy_for_crash_report(
+                        self.ui.body, self._crash_files[False]))
 
     def _action_get(self, id):
         dev_spec = id[0].split()

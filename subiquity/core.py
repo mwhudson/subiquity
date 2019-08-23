@@ -92,6 +92,9 @@ class Subiquity(Application):
         try:
             super().run()
         except Exception:
+            if self.opts.dry_run:
+                raise
+            traceback.print_exc()
             print("making crash report")
             path = self.make_apport_report("Installer UI")
             print("crash report at", path)

@@ -302,7 +302,9 @@ class Application:
         screen = self.loop.screen
 
         def run():
-            subprocess.run(cmd, **kw)
+            log.debug("starting %s %s", cmd, kw)
+            cp = subprocess.run(cmd, **kw)
+            log.debug("foreground command exited %s", cp)
 
         def restore(fut):
             screen.start()
