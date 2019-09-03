@@ -22,8 +22,6 @@ import time
 
 import attr
 
-from urwid import Text
-
 from subiquitycore.controller import BaseController
 
 
@@ -39,16 +37,36 @@ class ErrorReportState(enum.Enum):
 
 @attr.s
 class ErrorReport:
-    filepath = attr.ib()
+    controller = attr.ib()
+    base = attr.ib()
+
+    def _path_with_ext(self, ext):
+        return os.path.join(
+            self.controller.crash_directory, self.base + '.' + ext)
+
+    @property
+    def path(self):
+        return self._path_with_ext('crash')
+
+    @property
+    def uploaded_path(self):
+        return self._path_with_ext('uploaded_path')
+
+    @property
+    def upload_path(self):
+        return self._path_with_ext('upload')
+
+    @property
+    def seen_path(self):
+        return self._path_with_ext('seen')
 
     @property
     def state(self):
-        base, extension = os.path.splitext(self.filepath)
-        if os.path.exists(base + '.uploaded'):
+        if os.path.exists(self.uploaded_path):
             return ErrorReport.UPLOADED
-        elif os.path.exists(base + '.upload'):
+        elif os.path.exists(self.upload_path):
             return ErrorReport.UPLOADING
-        elif os.path.exists(base + '.seen'):
+        elif os.path.exists(self.seen_path):
             return ErrorReport.SEEN
         else:
             return ErrorReport.UNSEEN
@@ -65,7 +83,6 @@ class ErrorController(BaseController):
         self.crash_directory = os.path.join(self.app.root, 'var/log/crash')
         self.show_report_btn = self.app.show_report_btn
         self.reports = {}
-        self.unseen_reports = 0
         self.report_queue = queue.Queue()
 
     def network_proxy_set(self):
@@ -75,49 +92,86 @@ class ErrorController(BaseController):
     def start(self):
         # start watching self.crash_directory
         self.set_button_title()
-        self.report_pipe_w = self.app.loop.watch_pipe(self._report_changed)
+        self._scan_lock = threading.Lock()
+        self._seen_files = set()
+        self.report_pipe_w = self.app.loop.watch_pipe(
+            self._report_pipe_callback)
         t = threading.Thread(target=self._bg_scan_crash_dir)
         t.setDaemon(True)
         t.start()
 
     def set_button_title(self):
-        if self.unseen_reports > 0:
-            title = _("{} new error reports").format(self.unseen_reports)
-            style = 'info_error'
-        elif len(self.reports) > 0:
-            title = _("{} error reports").format(len(self.reports))
-            style = 'body'
-        else:
-            self.show_report_btn._w = Text("")
-            return
-        self.show_report_btn._w = Text((style, title))
+        unseen_reports = len([
+            r for r in self.reports.values()
+            if r.state == ErrorReportState.UNSEEN
+            ])
+        self.show_report_btn.set_title(unseen_reports, len(self.reports))
 
-    def _report_changed(self, ignored):
-        try:
-            (act, report) = self.report_queue.get(block=False)
-        except queue.Empty:
-            return True
+    def _report_pipe_callback(self, ignored):
+        while True:
+            try:
+                (act, typ, path) = self.report_queue.get(block=False)
+            except queue.Empty:
+                return True
+            self._report_changed(act, typ, path)
+
+    def _report_changed(self, act, base):
         if act == "NEW":
-            if report.state == ErrorReport.UNSEEN:
-                self.unseen_reports += 1
+            self.reports[base] = ErrorReport(self, base)
             self.set_button_title()
-        return True
+        elif act == "DEL" and base in self.reports:
+            del self.reports[base]
+            self.set_button_title()
+        elif act == "CHANGE"  and base in self.reports:
+            # Update view of crash report, if showing
+            pass
 
     def _bg_scan_crash_dir(self):
+        def _report(act, name):
+            self.report_queue.put(act, name)
+            os.write(self.report_pipe_w, b'x')
         while True:
-            for filename in os.listdir(self.crash_directory):
-                if not filename.endswith('.crash'):
-                    continue
-                path = os.path.join(self.crash_directory, filename)
-                if path not in self.reports:
-                    log.debug("saw error report %s", path)
-                    r = self.reports[path] = ErrorReport(filepath=path)
-                    self.report_queue.put(("NEW", r))
-                    os.write(self.report_pipe_w, b'x')
+            self._scan_crash_dir(_report)
             time.sleep(1)
 
+    def fg_scan_crash_dir(self):
+        self._scan_crash_dir(self._report_changed)
+
+    def _scan_crash_dir(self, report_func):
+        with self._scan_lock:
+            next_files = set()
+            exts_bases = [
+                os.path.splitext(filename)[::-1] + (filename,)
+                for filename in os.listdir(self.crash_directory)
+                ]
+            for ext, base, filename in sorted(exts_bases):
+                next_files.add(filename)
+                if filename in self._seen_files:
+                    continue
+                if ext == 'crash':
+                    log.debug("saw error report %s", base)
+                    report_func("NEW", base)
+                if ext in ['seen', 'upload', 'uploaded']:
+                    report_func("CHANGE", base)
+            for filename in self._seen_files - next_files:
+                base, ext = os.path.splitext(filename)
+                if ext == 'crash':
+                    report_func("DEL", base)
+            self._seen_files = next_files
+
+    def mark_seen(self, base):
+        pass
+
+    def mark_for_upload(self, base):
+        pass
+
     def start_ui(self):
+        self.fg_scan_crash_dir()
         self.ui.body.show_stretchy_overlay(ErrorListStretchy(self))
+
+    def show_error(self, base):
+        self.start_ui()
+        self.ui.body.show_stretchy_overlay(ErrorReportStretchy(self, base))
 
     def done(self, sender=None):
         self.ui.body.remove_overlay()
