@@ -39,11 +39,6 @@ class SubiquityCoreUI(WidgetWrap):
     def __init__(self):
         self.header = Header("")
         self.footer = Footer("", self.right_icon, 0, 1)
-        self.frame = Pile([
-            ('pack', self.header),
-            ListBox([Text("")]),
-            ('pack', self.footer),
-            ])
         self.progress_current = 0
         self.progress_completion = 0
         # After the install starts, we want to stop setting the footer

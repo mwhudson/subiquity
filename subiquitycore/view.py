@@ -72,20 +72,6 @@ class BaseView(WidgetWrap):
     def local_help(self):
         return ""
 
-    def show_help(self, global_help):
-        close_btn = other_btn("Close", on_press=lambda sender:self.remove_overlay())
-        local_help = self.local_help().strip()
-        if local_help:
-            if isinstance(local_help, str):
-                local_help = local_help.split('\n\n')
-                local_help = Pile([Text(line.replace('\n', ' ')+"\n") for line in local_help])
-            help_text = Pile([('pack', local_help), ('pack', global_help)])
-        else:
-            help_text = global_help
-        self.show_stretchy_overlay(Stretchy(
-            "Help",
-            [help_text, Text(""), button_pile([close_btn])], 0, 2))
-
     def cancel(self):
         pass
 
