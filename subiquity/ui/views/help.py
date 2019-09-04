@@ -62,17 +62,23 @@ def rewrap(text):
     paras = text.split("\n\n")
     return "\n\n".join([p.replace('\n', ' ') for p in paras]).strip()
 
+
+def close_btn(parent):
+    return other_btn(
+        _("Close"), on_press=lambda sender: parent.remove_overlay())
+
+
 class GlobalKeyHelpStretchy(Stretchy):
 
     def __init__(self, app, parent):
-        close_btn = other_btn(_("Close"), on_press=lambda sender:parent.remove_overlay())
         rows = []
         for key, text in GLOBAL_KEYS:
             rows.append(TableRow([Text(_(key)), Text(_(text))]))
         if app.opts.dry_run:
             for key, text in DRY_RUN_KEYS:
                 rows.append(TableRow([Text(_(key)), Text(_(text))]))
-        table = TablePile(rows, spacing=2, colspecs={1:ColSpec(can_shrink=True)})
+        table = TablePile(
+            rows, spacing=2, colspecs={1: ColSpec(can_shrink=True)})
         widgets = [
             Pile([
                 ('pack', Text(rewrap(GLOBAL_KEY_HELP))),
@@ -80,36 +86,60 @@ class GlobalKeyHelpStretchy(Stretchy):
                 ('pack', table),
                 ]),
             Text(""),
-            button_pile([close_btn]),
+            button_pile([close_btn(parent)]),
             ]
-        super().__init__(_("Global hot keys"), widgets, 0, 2)
+        super().__init__(_("Global Hot Keys"), widgets, 0, 2)
 
 
-class GeneralHelpStretchy(Stretchy):
-    def __init__(self, parent):
-        close_btn = other_btn(_("Close"), on_press=lambda sender:parent.remove_overlay())
+class SimpleHelpStretchy(Stretchy):
+    def __init__(self, parent, title, text):
         widgets = [
-            Text(rewrap(GENERAL_HELP.format(**lsb_release()))),
+            Text(rewrap(text)),
             Text(""),
-                button_pile([close_btn]),
+            button_pile([close_btn(parent)]),
             ]
-        super().__init__(_("General help"), widgets, 0, 2)
-
-class LocalHelpStretchy(Stretchy):
-    pass
+        super().__init__(title, widgets, 0, 2)
 
 
 class HelpStretchy(Stretchy):
 
     def __init__(self, app, parent):
-        general_help_btn = other_btn(_("General Help"), on_press=lambda sender:parent.show_stretchy_overlay(GeneralHelpStretchy(parent)))
-        global_keys_btn = other_btn(_("Global Hot Keys"), on_press=lambda sender:parent.show_stretchy_overlay(GlobalKeyHelpStretchy(app, parent)))
-        close_btn = other_btn(_("Close"), on_press=lambda sender:parent.remove_overlay())
-        btns = button_pile([general_help_btn, global_keys_btn, close_btn])
-        btns.base_widget.focus_position = len(btns.base_widget.contents) - 1
+        self.app = app
+        self.parent = parent
+
+        btns = []
+        local_help = parent.local_help()
+        if local_help:
+            btns.append(
+                other_btn(
+                    _("Help on this screen"), on_press=self.show_local_help))
+        btns.append(
+            other_btn(
+                _("General Help"), on_press=self.show_general_help))
+        btns.append(
+            other_btn(
+                _("Global Hot Keys"), on_press=self.show_hot_key_help))
+        btns.append(close_btn(parent))
+
         widgets = [
             Text(_("Select the topic you would like help on:")),
             Text(""),
-            btns,
+            button_pile(btns),
             ]
         super().__init__(_("Help"), widgets, 2, 2)
+
+    def show_local_help(self, sender):
+        title, text = self.parent.local_help()
+        self.parent.show_stretchy_overlay(
+            SimpleHelpStretchy(self.parent, title, text))
+
+    def show_general_help(self, sender):
+        self.parent.show_stretchy_overlay(
+            SimpleHelpStretchy(
+                self.parent,
+                _("General Help"),
+                GENERAL_HELP.format(**lsb_release())))
+
+    def show_hot_key_help(self, sender):
+        self.parent.show_stretchy_overlay(
+            GlobalKeyHelpStretchy(self.app, self.parent))

@@ -27,6 +27,10 @@ from subiquitycore.view import BaseView
 
 log = logging.getLogger("subiquity.views.welcome")
 
+help_text = _("""
+Select your language using the up and down arrows and press enter or
+space to continue.""")
+
 
 class WelcomeView(BaseView):
     title = "Willkommen! Bienvenue! Welcome! Добро пожаловать! Welkom!"
@@ -42,7 +46,7 @@ class WelcomeView(BaseView):
             excerpt=_("Please choose your preferred language.")))
 
     def local_help(self):
-        return _(help_text)
+        return _("Language Selection"), _(help_text)
 
     def _build_model_inputs(self):
         btns = []
