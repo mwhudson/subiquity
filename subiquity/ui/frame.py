@@ -28,7 +28,7 @@ class SubiquityUI(SubiquityCoreUI):
 
     def __init__(self, app):
         self.right_icon = _stylized_button("[", "]", 'xx')(
-            _("Help"), on_press=lambda sender:app.show_help())
+            _("Help"), on_press=lambda sender: app.show_help())
         self.right_icon.attr_map = {}
         self.right_icon.focus_map = {None: 'progress_incomplete'}
         super().__init__()

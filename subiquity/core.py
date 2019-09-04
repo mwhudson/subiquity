@@ -16,8 +16,6 @@
 import logging
 import os
 import platform
-import tty
-
 
 import urwid
 
@@ -42,7 +40,7 @@ class Subiquity(Application):
 
     project = "subiquity"
     showing_help = False
-    
+
     def make_model(self):
         root = '/'
         if self.opts.dry_run:

@@ -20,14 +20,13 @@ Contains some default key navigations
 
 from urwid import Overlay, Text
 
-from subiquitycore.ui.buttons import other_btn
 from subiquitycore.ui.container import (
     Columns,
     Pile,
     WidgetWrap,
     )
-from subiquitycore.ui.stretchy import Stretchy, StretchyOverlay
-from subiquitycore.ui.utils import button_pile, disabled
+from subiquitycore.ui.stretchy import StretchyOverlay
+from subiquitycore.ui.utils import disabled
 
 
 class BaseView(WidgetWrap):
