@@ -18,6 +18,7 @@ import logging
 from urwid import Text
 
 from subiquitycore.ui.buttons import other_btn
+from subiquitycore.lsb_release import lsb_release
 from subiquitycore.ui.container import Pile
 from subiquitycore.ui.stretchy import Stretchy
 from subiquitycore.ui.table import (
@@ -43,6 +44,24 @@ DRY_RUN_KEYS = (
     (_('Control-X'), _('quit (dry-run only)')),
     )
 
+
+GENERAL_HELP = _("""
+Welcome to the Ubuntu Server Installer!
+
+The most popular server Linux in the cloud and data centre, you can
+rely on Ubuntu Server and its five years of guaranteed free upgrades.
+
+The installer will guide you through installing Ubuntu Server
+{release}.
+
+The installer only requires the up and down arrow keys, space (or
+return) and the occasional bit of typing.""")
+
+
+def rewrap(text):
+    paras = text.split("\n\n")
+    return "\n\n".join([p.replace('\n', ' ') for p in paras]).strip()
+
 class GlobalKeyHelpStretchy(Stretchy):
 
     def __init__(self, app, parent):
@@ -56,7 +75,7 @@ class GlobalKeyHelpStretchy(Stretchy):
         table = TablePile(rows, spacing=2, colspecs={1:ColSpec(can_shrink=True)})
         widgets = [
             Pile([
-                ('pack', Text(GLOBAL_KEY_HELP.strip())),
+                ('pack', Text(rewrap(GLOBAL_KEY_HELP))),
                 ('pack', Text("")),
                 ('pack', table),
                 ]),
@@ -66,8 +85,15 @@ class GlobalKeyHelpStretchy(Stretchy):
         super().__init__(_("Global hot keys"), widgets, 0, 2)
 
 
-class GlobalHelpStretchy(Stretchy):
-    pass
+class GeneralHelpStretchy(Stretchy):
+    def __init__(self, parent):
+        close_btn = other_btn(_("Close"), on_press=lambda sender:parent.remove_overlay())
+        widgets = [
+            Text(rewrap(GENERAL_HELP.format(**lsb_release()))),
+            Text(""),
+                button_pile([close_btn]),
+            ]
+        super().__init__(_("General help"), widgets, 0, 2)
 
 class LocalHelpStretchy(Stretchy):
     pass
@@ -76,12 +102,13 @@ class LocalHelpStretchy(Stretchy):
 class HelpStretchy(Stretchy):
 
     def __init__(self, app, parent):
+        general_help_btn = other_btn(_("General Help"), on_press=lambda sender:parent.show_stretchy_overlay(GeneralHelpStretchy(parent)))
         global_keys_btn = other_btn(_("Global Hot Keys"), on_press=lambda sender:parent.show_stretchy_overlay(GlobalKeyHelpStretchy(app, parent)))
         close_btn = other_btn(_("Close"), on_press=lambda sender:parent.remove_overlay())
-        btns = button_pile([global_keys_btn, close_btn])
-        btns.base_widget.focus_position = 1
+        btns = button_pile([general_help_btn, global_keys_btn, close_btn])
+        btns.base_widget.focus_position = len(btns.base_widget.contents) - 1
         widgets = [
-            Text("yo"),
+            Text(_("Select the topic you would like help on:")),
             Text(""),
             btns,
             ]
