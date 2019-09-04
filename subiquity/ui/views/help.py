@@ -39,13 +39,20 @@ GLOBAL_KEYS = (
     (_("ESC"),       _('go back')),
     )
 
+DRY_RUN_KEYS = (
+    (_('Control-X'), _('quit (dry-run only)')),
+    )
+
 class GlobalKeyHelpStretchy(Stretchy):
 
-    def __init__(self, parent):
+    def __init__(self, app, parent):
         close_btn = other_btn(_("Close"), on_press=lambda sender:parent.remove_overlay())
         rows = []
         for key, text in GLOBAL_KEYS:
             rows.append(TableRow([Text(_(key)), Text(_(text))]))
+        if app.opts.dry_run:
+            for key, text in DRY_RUN_KEYS:
+                rows.append(TableRow([Text(_(key)), Text(_(text))]))
         table = TablePile(rows, spacing=2, colspecs={1:ColSpec(can_shrink=True)})
         widgets = [
             Pile([
@@ -68,8 +75,8 @@ class LocalHelpStretchy(Stretchy):
 
 class HelpStretchy(Stretchy):
 
-    def __init__(self, parent):
-        global_keys_btn = other_btn(_("Global Hot Keys"), on_press=lambda sender:parent.show_stretchy_overlay(GlobalKeyHelpStretchy(parent)))
+    def __init__(self, app, parent):
+        global_keys_btn = other_btn(_("Global Hot Keys"), on_press=lambda sender:parent.show_stretchy_overlay(GlobalKeyHelpStretchy(app, parent)))
         close_btn = other_btn(_("Close"), on_press=lambda sender:parent.remove_overlay())
         btns = button_pile([global_keys_btn, close_btn])
         btns.base_widget.focus_position = 1

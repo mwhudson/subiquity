@@ -116,7 +116,7 @@ class Subiquity(Application):
     def show_help(self):
         self.showing_help = True
         from subiquity.ui.views.help import HelpStretchy
-        self.ui.body.show_stretchy_overlay(HelpStretchy(self.ui.body))
+
         fp = self.ui.pile.focus_position
         self.ui.pile.focus_position = 1
         attr_map = self.ui.right_icon.attr_map
@@ -128,4 +128,6 @@ class Subiquity(Application):
             self.ui.pile.focus_position = fp
             self.ui.right_icon.base_widget._label._selectable = True
             self.ui.right_icon.attr_map = attr_map
+
+        self.ui.body.show_stretchy_overlay(HelpStretchy(self, self.ui.body))
         urwid.connect_signal(self.ui.body._w, 'closed', restore_focus)
