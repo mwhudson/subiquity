@@ -37,6 +37,7 @@ The following keys can be used at any time:""")
 GLOBAL_KEYS = (
     (_('F1'),        _('help')),
     (_("ESC"),       _('go back')),
+    (_("Control-S"), _('open a shell session')),
     )
 
 DRY_RUN_KEYS = (
@@ -122,6 +123,10 @@ class GlobalExtraStretchy(Stretchy):
             other_btn(
                 _("Read about global hot keys"),
                 on_press=self.show_hot_keys))
+        btns.append(
+            other_btn(
+                _("Open a shell session"),
+                on_press=self.debug_shell))
         widgets = [
             button_pile(btns),
             Text(""),
@@ -145,3 +150,6 @@ class GlobalExtraStretchy(Stretchy):
     def show_hot_keys(self, sender):
         self.parent.show_stretchy_overlay(
             GlobalKeyStretchy(self.app, self.parent))
+
+    def debug_shell(self, sender):
+        self.app.debug_shell()

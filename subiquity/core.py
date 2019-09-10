@@ -16,6 +16,7 @@
 import logging
 import os
 import platform
+import shlex
 
 import urwid
 
@@ -30,6 +31,17 @@ from subiquity.ui.frame import SubiquityUI
 
 
 log = logging.getLogger('subiquity.core')
+
+DEBUG_SHELL_INTRO = _("""\
+Installer shell session activated.
+
+This shell session is running inside the installer environment.  You
+will be returned to the installer when this shell is exited, for
+example by typing Control-D or 'exit'.
+
+Be aware that this is an ephemeral environment.  Changes to this
+environment will not survive a reboot. If the install has started, the
+installed system will be mounted at /target.""")
 
 
 class Subiquity(Application):
@@ -100,10 +112,17 @@ class Subiquity(Application):
             )
 
     def unhandled_input(self, key):
-        if key in ['ctrl h', 'f1']:
+        if key == 'ctrl s':
+            self.debug_shell()
+        elif key in ['ctrl h', 'f1']:
             self.show_global_extra()
         else:
             super().unhandled_input(key)
+
+    def debug_shell(self):
+        self.run_command_in_foreground(
+            "clear && echo {} && bash".format(shlex.quote(DEBUG_SHELL_INTRO)),
+            shell=True)
 
     def show_global_extra(self):
         if self.showing_global_extra:
