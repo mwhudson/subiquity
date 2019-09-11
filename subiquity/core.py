@@ -22,6 +22,7 @@ import urwid
 
 from subiquitycore.core import Application
 
+from subiquity.controllers.error import ErrorController
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.snapd import (
     FakeSnapdConnection,
@@ -99,6 +100,14 @@ class Subiquity(Application):
             ('network-proxy-set', self._proxy_set),
             ('network-change', self._network_change),
             ])
+
+    def load_controllers(self):
+        super().load_controllers()
+        self.error_controller = ErrorController(self)
+
+    def start_controllers(self):
+        super().start_controllers()
+        self.error_controller.start()
 
     def _network_change(self):
         self.signal.emit_signal('snapd-network-change')

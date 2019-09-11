@@ -64,6 +64,9 @@ class Stretchy:
         self.stretchy_index = stretchy_index
         self.focus_index = focus_index
 
+    def closed(self):
+        pass
+
     @property
     def stretchy_w(self):
         return self.widgets[self.stretchy_index]
@@ -76,6 +79,7 @@ class StretchyOverlay(urwid.Widget):
     signals = ['closed']
 
     def __init__(self, bottom_w, stretchy):
+        urwid.connect_signal(self, 'closed', lambda sender: stretchy.closed())
         self.bottom_w = bottom_w
         self.stretchy = stretchy
         self.listbox = ListBox([stretchy.stretchy_w])

@@ -18,7 +18,11 @@
 Contains some default key navigations
 """
 
-from urwid import Overlay, Text
+from urwid import (
+    connect_signal,
+    Overlay,
+    Text,
+    )
 
 from subiquitycore.ui.container import (
     Columns,

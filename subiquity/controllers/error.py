@@ -22,6 +22,8 @@ import time
 
 import attr
 
+import urwid
+
 from subiquitycore.controller import BaseController
 
 
@@ -72,18 +74,22 @@ class ErrorReport:
             return ErrorReport.UNSEEN
 
 
-class ErrorController(BaseController):
+from abc import ABC
+class MetaClass(type(ABC), urwid.MetaSignals):
+    pass
 
-    signals = [
-        ('network-proxy-set', 'network_proxy_set'),
-    ]
+class ErrorController(BaseController, metaclass=MetaClass):
+
+    signals = ['new_report']
 
     def __init__(self, app):
         super().__init__(app)
         self.crash_directory = os.path.join(self.app.root, 'var/log/crash')
-        self.show_report_btn = self.app.show_report_btn
         self.reports = {}
         self.report_queue = queue.Queue()
+
+    def register_signals(self):
+        self.signal.connect_signals(('network-proxy-set', 'network_proxy_set'))
 
     def network_proxy_set(self):
         # configure proxy for whoopsie
@@ -91,7 +97,6 @@ class ErrorController(BaseController):
 
     def start(self):
         # start watching self.crash_directory
-        self.set_button_title()
         self._scan_lock = threading.Lock()
         self._seen_files = set()
         self.report_pipe_w = self.app.loop.watch_pipe(
@@ -100,38 +105,33 @@ class ErrorController(BaseController):
         t.setDaemon(True)
         t.start()
 
-    def set_button_title(self):
-        unseen_reports = len([
-            r for r in self.reports.values()
-            if r.state == ErrorReportState.UNSEEN
-            ])
-        self.show_report_btn.set_title(unseen_reports, len(self.reports))
-
     def _report_pipe_callback(self, ignored):
         while True:
             try:
-                (act, typ, path) = self.report_queue.get(block=False)
+                (act, base) = self.report_queue.get(block=False)
             except queue.Empty:
                 return True
-            self._report_changed(act, typ, path)
+            self._report_changed(act, base)
 
     def _report_changed(self, act, base):
         if act == "NEW":
-            self.reports[base] = ErrorReport(self, base)
-            self.set_button_title()
+            report = self.reports[base] = ErrorReport(self, base)
+            urwid.emit_signal(self, 'new_report', report)
         elif act == "DEL" and base in self.reports:
             del self.reports[base]
-            self.set_button_title()
         elif act == "CHANGE"  and base in self.reports:
             # Update view of crash report, if showing
             pass
 
     def _bg_scan_crash_dir(self):
         def _report(act, name):
-            self.report_queue.put(act, name)
+            self.report_queue.put((act, name))
             os.write(self.report_pipe_w, b'x')
         while True:
-            self._scan_crash_dir(_report)
+            try:
+                self._scan_crash_dir(_report)
+            except Exception:
+                log.exception("_scan_crash_dir failed")
             time.sleep(1)
 
     def fg_scan_crash_dir(self):
@@ -148,14 +148,14 @@ class ErrorController(BaseController):
                 next_files.add(filename)
                 if filename in self._seen_files:
                     continue
-                if ext == 'crash':
+                if ext == '.crash':
                     log.debug("saw error report %s", base)
                     report_func("NEW", base)
-                if ext in ['seen', 'upload', 'uploaded']:
+                if ext in ['.seen', '.upload', '.uploaded']:
                     report_func("CHANGE", base)
             for filename in self._seen_files - next_files:
                 base, ext = os.path.splitext(filename)
-                if ext == 'crash':
+                if ext == '.crash':
                     report_func("DEL", base)
             self._seen_files = next_files
 
@@ -166,12 +166,7 @@ class ErrorController(BaseController):
         pass
 
     def start_ui(self):
-        self.fg_scan_crash_dir()
-        self.ui.body.show_stretchy_overlay(ErrorListStretchy(self))
-
-    def show_error(self, base):
-        self.start_ui()
-        self.ui.body.show_stretchy_overlay(ErrorReportStretchy(self, base))
+        pass
 
     def done(self, sender=None):
         self.ui.body.remove_overlay()
