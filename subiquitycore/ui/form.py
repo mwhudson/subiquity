@@ -20,12 +20,10 @@ from urllib.parse import urlparse
 from urwid import (
     CheckBox,
     connect_signal,
-    delegate_to_widget_mixin,
     emit_signal,
     MetaSignals,
     Padding as UrwidPadding,
     Text,
-    WidgetDecoration,
     )
 
 from subiquitycore.ui.buttons import cancel_btn, done_btn
@@ -47,8 +45,8 @@ from subiquitycore.ui.table import (
 from subiquitycore.ui.utils import (
     button_pile,
     Color,
-    disabled,
     screen,
+    Toggleable,
     )
 from subiquitycore.ui.width import (
     widget_width,
@@ -56,29 +54,6 @@ from subiquitycore.ui.width import (
 
 
 log = logging.getLogger("subiquitycore.ui.form")
-
-
-class Toggleable(delegate_to_widget_mixin('_original_widget'),
-                 WidgetDecoration):
-
-    has_original_width = True
-
-    def __init__(self, original):
-        self.original = original
-        self._enabled = False
-        self.enabled = True
-
-    @property
-    def enabled(self):
-        return self._enabled
-
-    @enabled.setter
-    def enabled(self, val):
-        if val and not self._enabled:
-            self.original_widget = self.original
-        elif not val and self._enabled:
-            self.original_widget = disabled(self.original)
-        self._enabled = val
 
 
 class _Validator(WidgetWrap):

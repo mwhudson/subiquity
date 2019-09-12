@@ -23,6 +23,7 @@ from urwid import (
     AttrMap,
     CompositeCanvas,
     connect_signal,
+    delegate_to_widget_mixin,
     Padding as _Padding,
     SelectableIcon,
     Text,
@@ -208,6 +209,29 @@ _disable_everything_map = {k: 'info_minor' for k in STYLE_NAMES | set([None])}
 
 def disabled(w):
     return WidgetDisable(AttrMap(w, _disable_everything_map))
+
+
+class Toggleable(delegate_to_widget_mixin('_original_widget'),
+                 WidgetDecoration):
+
+    has_original_width = True
+
+    def __init__(self, original):
+        self.original = original
+        self._enabled = False
+        self.enabled = True
+
+    @property
+    def enabled(self):
+        return self._enabled
+
+    @enabled.setter
+    def enabled(self, val):
+        if val and not self._enabled:
+            self.original_widget = self.original
+        elif not val and self._enabled:
+            self.original_widget = disabled(self.original)
+        self._enabled = val
 
 
 def button_pile(buttons):

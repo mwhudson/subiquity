@@ -15,7 +15,11 @@
 
 import logging
 
-from urwid import Text
+from urwid import (
+    connect_signal,
+    disconnect_signal,
+    Text,
+    )
 
 from subiquitycore.lsb_release import lsb_release
 from subiquitycore.ui.buttons import other_btn
@@ -26,7 +30,10 @@ from subiquitycore.ui.table import (
     TablePile,
     TableRow,
     )
-from subiquitycore.ui.utils import button_pile
+from subiquitycore.ui.utils import (
+    button_pile,
+    Toggleable,
+    )
 
 log = logging.getLogger('subiquity.ui.view.global_extra')
 
@@ -102,6 +109,36 @@ class SimpleTextStretchy(Stretchy):
         super().__init__(title, widgets, 0, 2)
 
 
+class ErrorReportStretchy(Stretchy):
+
+    def __init__(self, app, parent):
+        self.app = app
+        self.parent = parent
+        rows = []
+        for report in self.app.error_controller.reports.values():
+            rows.append(TableRow([Text(report.base)]))
+        connect_signal(
+            self.app.error_controller, 'new_report', self._new_report)
+        widgets = [
+            TablePile(rows),
+            Text(""),
+            button_pile([close_btn(parent)]),
+            ]
+        super().__init__(_("Error Reports"), widgets, 0, 0)
+
+    def opened(self):
+        connect_signal(
+            self.app.error_controller, 'new_report', self._new_report)
+
+    def closed(self):
+        disconnect_signal(
+            self.app.error_controller, 'new_report', self._new_report)
+
+    def _new_report(self, report):
+        pass
+
+
+
 class GlobalExtraStretchy(Stretchy):
 
     def __init__(self, app, parent):
@@ -109,12 +146,11 @@ class GlobalExtraStretchy(Stretchy):
         self.parent = parent
 
         btns = []
-        local_help = parent.local_help()
-        if local_help:
-            btns.append(
-                other_btn(
-                    _("View help on this screen"),
-                    on_press=self.show_local_help))
+        local_help_btn = Toggleable(other_btn(
+            _("View help on this screen"),
+            on_press=self.show_local_help))
+        local_help_btn.enabled = bool(parent.local_help())
+        btns.append(local_help_btn)
         btns.append(
             other_btn(
                 _("Read about this installer"),
@@ -127,6 +163,13 @@ class GlobalExtraStretchy(Stretchy):
             other_btn(
                 _("Open a shell session"),
                 on_press=self.debug_shell))
+        self.error_btn= Toggleable(other_btn(
+            _("View error reports"),
+            on_press=self.view_error_reports))
+        if not self.app.error_controller.reports:
+            self.error_btn.enabled = False
+        btns.append(self.error_btn)
+
         widgets = [
             button_pile(btns),
             Text(""),
@@ -134,6 +177,17 @@ class GlobalExtraStretchy(Stretchy):
             ]
 
         super().__init__(_("Available Actions"), widgets, 0, 0)
+
+    def opened(self):
+        connect_signal(
+            self.app.error_controller, 'new_report', self._new_report)
+
+    def closed(self):
+        disconnect_signal(
+            self.app.error_controller, 'new_report', self._new_report)
+
+    def _new_report(self, report):
+        self.error_btn.enabled = True
 
     def show_local_help(self, sender):
         title, text = self.parent.local_help()
@@ -150,6 +204,10 @@ class GlobalExtraStretchy(Stretchy):
     def show_hot_keys(self, sender):
         self.parent.show_stretchy_overlay(
             GlobalKeyStretchy(self.app, self.parent))
+
+    def view_error_reports(self, sender):
+        self.parent.show_stretchy_overlay(
+            ErrorReportStretchy(self.app, self.parent))
 
     def debug_shell(self, sender):
         self.app.debug_shell()

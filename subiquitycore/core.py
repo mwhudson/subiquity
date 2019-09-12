@@ -496,6 +496,10 @@ class Application:
                     orig, count)
         log.debug("*** %s", self.controller_instances)
 
+    def start_controllers(self):
+        for k in self.controllers:
+            self.controller_instances[k].start()
+
     def load_serialized_state(self):
         for k in self.controllers:
             state_path = os.path.join(self.state_dir, 'states', k)
@@ -556,8 +560,7 @@ class Application:
                 0.05, select_initial_screen, initial_controller_index)
             self._connect_base_signals()
 
-            for k in self.controllers:
-                self.controller_instances[k].start()
+            self.start_controllers()
 
             self.loop.run()
         except Exception:
