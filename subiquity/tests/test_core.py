@@ -46,6 +46,11 @@ class SubiquityTests(TestCase):
         else:
             self.fail("global extra dialog not focused")
 
+        self.assertIsNotNone(
+            view_helpers.find_button_matching(
+                overlay,
+                '^Read about global hot keys$'))
+
         self.assertFalse(app.ui.right_icon.selectable())
 
         app.ui.body.remove_overlay()
@@ -59,3 +64,41 @@ class SubiquityTests(TestCase):
         app = self.make_app()
         app.unhandled_input('ctrl h')
         self.assertTrue(app.showing_global_extra)
+
+    def test_general_help(self):
+        app = self.make_app()
+        overlay = app.show_global_extra()
+
+        general_help_btn = view_helpers.find_button_matching(
+            overlay, '^Read about this installer$')
+        self.assertIsNotNone(general_help_btn)
+
+        for w in view_helpers.get_focus_path(overlay):
+            if w is general_help_btn:
+                break
+        else:
+            self.fail("about button not focused")
+
+        view_helpers.click(general_help_btn)
+
+        def pred(w):
+            return isinstance(w, Text) and \
+              'Welcome to the Ubuntu Server Installer' in w.text
+
+        self.assertIsNotNone(view_helpers.find_with_pred(app.ui, pred))
+
+    def test_global_keys_help(self):
+        app = self.make_app()
+        overlay = app.show_global_extra()
+
+        global_hot_keys_btn = view_helpers.find_button_matching(
+            overlay, '^Read about global hot keys$')
+        self.assertIsNotNone(global_hot_keys_btn)
+
+        view_helpers.click(global_hot_keys_btn)
+
+        def pred(w):
+            return isinstance(w, Text) and \
+              'The following keys can be used at any time' in w.text
+
+        self.assertIsNotNone(view_helpers.find_with_pred(app.ui, pred))
