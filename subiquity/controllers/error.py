@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from abc import ABC
 import enum
 import logging
 import os
@@ -74,9 +75,9 @@ class ErrorReport:
             return ErrorReport.UNSEEN
 
 
-from abc import ABC
 class MetaClass(type(ABC), urwid.MetaSignals):
     pass
+
 
 class ErrorController(BaseController, metaclass=MetaClass):
 
@@ -84,7 +85,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
 
     def __init__(self, app):
         super().__init__(app)
-        self.crash_directory = os.path.join(self.app.root, 'var/log/crash')
+        self.crash_directory = os.path.join(self.app.root, 'var/crash')
         self.reports = {}
         self.report_queue = queue.Queue()
 
