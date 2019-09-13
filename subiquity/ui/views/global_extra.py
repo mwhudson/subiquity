@@ -114,28 +114,39 @@ class ErrorReportStretchy(Stretchy):
     def __init__(self, app, parent):
         self.app = app
         self.parent = parent
+        self.ec = app.error_controller
         rows = []
+        self.report_to_status = {}
         for report in self.app.error_controller.reports.values():
-            rows.append(TableRow([Text(report.base)]))
+            t = self.report_to_status[report] = Text(_(report.state.name))
+            rows.append(TableRow([Text(report.base), t]))
         connect_signal(
             self.app.error_controller, 'new_report', self._new_report)
+        self.table = TablePile(rows)
         widgets = [
-            TablePile(rows),
+            self.table,
             Text(""),
             button_pile([close_btn(parent)]),
             ]
         super().__init__(_("Error Reports"), widgets, 0, 0)
 
     def opened(self):
-        connect_signal(
-            self.app.error_controller, 'new_report', self._new_report)
+        connect_signal(self.ec, 'new_report', self._new_report)
+        connect_signal(self.ec, 'report_changed', self._report_changed)
 
     def closed(self):
-        disconnect_signal(
-            self.app.error_controller, 'new_report', self._new_report)
+        disconnect_signal(self.ec, 'new_report', self._new_report)
+        disconnect_signal(self.ec, 'report_changed', self._report_changed)
 
     def _new_report(self, report):
         pass
+
+    def _report_changed(self, report):
+        t = self.report_to_status.get(report)
+        if t is None:
+            return
+        t.set_text(_(report.state.name))
+        self.table.invalidate()
 
 
 

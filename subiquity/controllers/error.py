@@ -32,13 +32,13 @@ log = logging.getLogger('subiquity.controllers.errros')
 
 
 class ErrorReportState(enum.Enum):
-    UNSEEN = enum.auto()
-    SEEN = enum.auto()
-    UPLOADING = enum.auto()
-    UPLOADED = enum.auto()
+    UNSEEN = _("UNSEEN")
+    SEEN = _("SEEN")
+    UPLOADING = _("UPLOADING")
+    UPLOADED = _("UPLOADED")
 
 
-@attr.s
+@attr.s(cmp=False)
 class ErrorReport:
     controller = attr.ib()
     base = attr.ib()
@@ -53,7 +53,7 @@ class ErrorReport:
 
     @property
     def uploaded_path(self):
-        return self._path_with_ext('uploaded_path')
+        return self._path_with_ext('uploaded')
 
     @property
     def upload_path(self):
@@ -66,13 +66,13 @@ class ErrorReport:
     @property
     def state(self):
         if os.path.exists(self.uploaded_path):
-            return ErrorReport.UPLOADED
+            return ErrorReportState.UPLOADED
         elif os.path.exists(self.upload_path):
-            return ErrorReport.UPLOADING
+            return ErrorReportState.UPLOADING
         elif os.path.exists(self.seen_path):
-            return ErrorReport.SEEN
+            return ErrorReportState.SEEN
         else:
-            return ErrorReport.UNSEEN
+            return ErrorReportState.UNSEEN
 
 
 class MetaClass(type(ABC), urwid.MetaSignals):
@@ -81,7 +81,7 @@ class MetaClass(type(ABC), urwid.MetaSignals):
 
 class ErrorController(BaseController, metaclass=MetaClass):
 
-    signals = ['new_report']
+    signals = ['new_report', 'report_changed']
 
     def __init__(self, app):
         super().__init__(app)
@@ -122,7 +122,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
             del self.reports[base]
         elif act == "CHANGE"  and base in self.reports:
             # Update view of crash report, if showing
-            pass
+            urwid.emit_signal(self, 'report_changed', self.reports[base])
 
     def _bg_scan_crash_dir(self):
         def _report(act, name):
