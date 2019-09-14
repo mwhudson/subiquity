@@ -35,7 +35,7 @@ from subiquitycore.ui.utils import (
     Toggleable,
     )
 from subiquitycore.ui.views import (
-    ErrorReportStretchy,
+    ErrorReportListStretchy,
     )
 
 log = logging.getLogger('subiquity.ui.view.global_extra')
@@ -180,7 +180,7 @@ class GlobalExtraStretchy(Stretchy):
 
     def view_error_reports(self, sender):
         self.parent.show_stretchy_overlay(
-            ErrorReportStretchy(self.app, self.parent))
+            ErrorReportListStretchy(self.app, self.parent))
 
     def debug_shell(self, sender):
         self.app.debug_shell()

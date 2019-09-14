@@ -141,15 +141,16 @@ class ErrorController(BaseController, metaclass=MetaClass):
     def _scan_crash_dir(self, report_func):
         with self._scan_lock:
             next_files = set()
+            filenames = os.listdir(self.crash_directory)
             exts_bases = [
                 os.path.splitext(filename)[::-1] + (filename,)
-                for filename in os.listdir(self.crash_directory)
+                for filename in filenames
                 ]
             for ext, base, filename in sorted(exts_bases):
                 next_files.add(filename)
                 if filename in self._seen_files:
                     continue
-                if ext == '.crash':
+                if ext == '.crash' and base + '.lock' not in filenames:
                     log.debug("saw error report %s", base)
                     report_func("NEW", base)
                 if ext in ['.seen', '.upload', '.uploaded']:
@@ -158,6 +159,10 @@ class ErrorController(BaseController, metaclass=MetaClass):
                 base, ext = os.path.splitext(filename)
                 if ext == '.crash':
                     report_func("DEL", base)
+                if ext == '.lock':
+                    if base + '.crash' in filenames and \
+                      base not in self.reports:
+                        report_func("NEW", base)
             self._seen_files = next_files
 
     def mark_seen(self, base):

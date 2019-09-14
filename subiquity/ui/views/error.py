@@ -42,6 +42,14 @@ def close_btn(parent):
 
 class ErrorReportStretchy(Stretchy):
 
+    def __init__(self, report, parent):
+        self.report = report
+        self.parent = parent
+        super().__init__("report", [Text(report.base)], 0, 0)
+
+
+class ErrorReportListStretchy(Stretchy):
+
     def __init__(self, app, parent):
         self.app = app
         self.parent = parent
@@ -67,12 +75,22 @@ class ErrorReportStretchy(Stretchy):
             ]
         super().__init__(_("Error Reports"), widgets, 0, 0)
 
-    def _click_report(self, sender, report):
-        pass
+    def focus_report(self, report):
+        row = self.report_to_row.get(report)
+        for i, orow in enumerate(self.table.table_rows):
+            if orow.base_widget == row:
+                break
+        else:
+            return
+        self.table.focus_position = i
+
+    def open_report(self, sender, report):
+        self.parent.show_stretchy_overlay(ErrorReportStretchy(
+            report, self))
 
     def row_for_report(self, report):
         icon = ClickableIcon(report.base, 0)
-        connect_signal(icon, 'click', self._click_report, report)
+        connect_signal(icon, 'click', self.open_report, report)
         cells = [
             Text("["),
             icon,

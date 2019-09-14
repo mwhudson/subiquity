@@ -119,11 +119,7 @@ class FilesystemController(BaseController):
                 self._probe_state = ProbeState.FAILED
                 if self.showing:
                     self.default()
-            exc_info = sys.exc_info()
-            self.run_in_bg(
-                lambda: self._bg_make_probe_failure_crash_file(exc_info),
-                lambda fut: self._made_probe_failure_crash_file(
-                    restricted, fut))
+            self.app.make_apport_report("block probing", sys.exc_info())
         else:
             self._probe_state = ProbeState.DONE
             # Should do something here if probing found no devices.
