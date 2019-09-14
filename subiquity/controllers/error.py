@@ -65,6 +65,10 @@ class ErrorReport:
             # machine, we make some slightly obscure alterations to the report
             # to make this go better.
 
+            # apport-cli gets upset if neither of these are present.
+            self.pr['Package'] = 'subiquity 0.0'
+            self.pr['SourcePackage'] = 'subiquity'
+
             # If ExecutableTimestamp is present, apport-cli will try to check
             # that ExecutablePath hasn't changed. But it won't be there.
             del self.pr['ExecutableTimestamp']
@@ -109,6 +113,12 @@ class ErrorReport:
     @property
     def seen_path(self):
         return self._path_with_ext('seen')
+
+    @property
+    def summary(self):
+        if self.pr is not None:
+            return self.pr.get("Title")
+        return '???'
 
     @property
     def state(self):
@@ -157,38 +167,35 @@ class ErrorController(BaseController, metaclass=MetaClass):
         t.start()
 
     def create_report(self, attach_hook):
-        i = 0
-        while 1:
-            base = "installer.{}".format(i)
-            crash_path = os.path.join(self.crash_directory, base + ".crash")
-            try:
-                crash_file = open(crash_path, 'xb')
-            except FileExistsError:
-                i += 1
-                continue
-            else:
-                break
-        pr = apport.Report('Bug')
+        with self._scan_lock:
+            i = 0
+            while 1:
+                base = "installer.{}".format(i)
+                crash_path = os.path.join(self.crash_directory, base + ".crash")
+                try:
+                    crash_file = open(crash_path, 'xb')
+                except FileExistsError:
+                    i += 1
+                    continue
+                else:
+                    break
+            pr = apport.Report('Bug')
 
-        pr['Path'] = crash_path
-        # apport-cli gets upset if neither of these are present.
-        pr['Package'] = 'subiquity 0.0'
-        pr['SourcePackage'] = 'subiquity'
+            pr['Path'] = crash_path
+            # Report to the subiquity project on Launchpad.
+            crashdb = {
+                'impl': 'launchpad',
+                'project': 'subiquity',
+                }
 
-        # Report to the subiquity project on Launchpad.
-        crashdb = {
-            'impl': 'launchpad',
-            'project': 'subiquity',
-            }
+            if self.app.opts.dry_run:
+                crashdb['launchpad_instance'] = 'staging'
+            pr['CrashDB'] = repr(crashdb)
 
-        if self.app.opts.dry_run:
-            crashdb['launchpad_instance'] = 'staging'
-        pr['CrashDB'] = repr(crashdb)
-
-        r = self.reports[base] = ErrorReport(
-            controller=self, base=base, pr=pr, file=crash_file,
-            attach_hook=attach_hook, state=ErrorReportState.INCOMPLETE)
-        return r
+            r = self.reports[base] = ErrorReport(
+                controller=self, base=base, pr=pr, file=crash_file,
+                attach_hook=attach_hook, state=ErrorReportState.INCOMPLETE)
+            return r
 
     def _report_pipe_callback(self, ignored):
         while True:
@@ -199,7 +206,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
             self._report_changed(act, base)
 
     def _report_changed(self, act, base):
-        if act == "NEW":
+        if act == "NEW" and base not in self.reports:
             report = self.reports[base] = ErrorReport(self, base)
             urwid.emit_signal(self, 'new_report', report)
         elif act == "DEL" and base in self.reports:

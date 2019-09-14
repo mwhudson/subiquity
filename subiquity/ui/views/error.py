@@ -45,7 +45,7 @@ class ErrorReportStretchy(Stretchy):
     def __init__(self, report, parent):
         self.report = report
         self.parent = parent
-        super().__init__("report", [Text(report.base)], 0, 0)
+        super().__init__("report", [Text(report.summary)], 0, 0)
 
 
 class ErrorReportListStretchy(Stretchy):
@@ -89,7 +89,7 @@ class ErrorReportListStretchy(Stretchy):
             report, self))
 
     def row_for_report(self, report):
-        icon = ClickableIcon(report.base, 0)
+        icon = ClickableIcon(report.summary, 0)
         connect_signal(icon, 'click', self.open_report, report)
         cells = [
             Text("["),

@@ -25,6 +25,7 @@ import apport.hookutils
 import urwid
 
 from subiquitycore.core import Application
+from subiquitycore.ui.stretchy import StretchyOverlay
 
 from subiquity.controllers.error import ErrorController
 from subiquity.models.subiquity import SubiquityModel
@@ -181,13 +182,7 @@ class Subiquity(Application):
     def note_data_for_apport(self, key, value):
         self._apport_data.append((key, value))
 
-    def make_apport_report(self, thing, exc_info=None, extra_data=None):
-        log.debug("make_apport_report")
-        self.run_in_bg(
-            lambda: self._bg_make_apport_report(thing, exc_info, extra_data),
-            self._made_apport_crash_file)
-
-    def _bg_make_apport_report(self, thing, exc_info, extra_data,
+    def make_apport_report(self, thing, exc_info=None, extra_data=None,
                                *, interrupt=True):
         log.debug("generating crash report")
         apport_files = self._apport_files[:]
@@ -216,23 +211,19 @@ class Subiquity(Application):
         else:
             report.pr["Title"] = thing
         report.add_info()
-        return report, interrupt
-
-    def _made_apport_crash_file(self, fut):
-        try:
-            report, interrupt = fut.result()
-        except Exception:
-            log.exception("making crash file failed")
-            return
         if interrupt:
-            # w = self.ui.body._w
-            # while isinstance(w, StretchyOverlay):
-            #     overlays.append(w)
-            #     w = w.bottom_w.original_widget.original_widget
+            error_list = None
+            w = self.ui.body._w
+            while isinstance(w, StretchyOverlay):
+                if isinstance(w.stretchy, ErrorReportListStretchy):
+                    error_list = w.stretchy
+                    break
+                w = w.bottom_w.original_widget.original_widget
             from subiquity.ui.views.error import (
                 ErrorReportListStretchy,
                 )
-            error_list = ErrorReportListStretchy(self, self.ui.body)
-            self.ui.body.show_stretchy_overlay(error_list)
+            if error_list is None:
+                error_list = ErrorReportListStretchy(self, self.ui.body)
+                self.ui.body.show_stretchy_overlay(error_list)
             error_list.focus_report(report)
             error_list.open_report(None, report)
