@@ -32,7 +32,7 @@ log = logging.getLogger('subiquity.controllers.errros')
 
 
 class ErrorReportState(enum.Enum):
-    UNSEEN = _("UNSEEN")
+    NEW = _("NEW")
     SEEN = _("SEEN")
     UPLOADING = _("UPLOADING")
     UPLOADED = _("UPLOADED")
@@ -72,7 +72,7 @@ class ErrorReport:
         elif os.path.exists(self.seen_path):
             return ErrorReportState.SEEN
         else:
-            return ErrorReportState.UNSEEN
+            return ErrorReportState.NEW
 
 
 class MetaClass(type(ABC), urwid.MetaSignals):
