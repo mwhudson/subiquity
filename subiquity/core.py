@@ -113,14 +113,9 @@ class Subiquity(Application):
         try:
             super().run()
         except Exception:
-            if self.opts.dry_run:
-                raise
-            traceback.print_exc()
-            print("making crash report")
-            path = self.make_apport_report("Installer UI", sys.exc_info())
-            print("crash report at", path)
-            print("press enter to continue")
-            input()
+            print("generating crash report")
+            self.make_apport_report("Installer UI", sys.exc_info())
+            raise
 
     def load_controllers(self):
         super().load_controllers()
@@ -144,6 +139,13 @@ class Subiquity(Application):
     def unhandled_input(self, key):
         if key == 'ctrl s':
             self.debug_shell()
+        elif self.opts.dry_run and key == 'ctrl e':
+            def _bg():
+                try:
+                    1/0
+                except ZeroDivisionError:
+                    self.make_apport_report("example", sys.exc_info())
+            self.run_in_bg(_bg, lambda fut: None)
         elif key in ['ctrl h', 'f1']:
             self.show_global_extra()
         else:
@@ -182,9 +184,9 @@ class Subiquity(Application):
         self._apport_data.append((key, value))
 
     def make_apport_report(self, thing, exc_info=None, extra_data=None):
-        # Write the log file to disk.
+        log.debug("generating crash report")
         i = 0
-        crash_dir = os.path.join(self.base_model.root, 'var/log/crash')
+        crash_dir = os.path.join(self.base_model.root, 'var/crash')
         os.makedirs(crash_dir, exist_ok=True)
         while 1:
             try:
@@ -207,6 +209,8 @@ class Subiquity(Application):
             if exc_info is not None:
                 pr['Title'] = "{} crashed with {}".format(thing, exc_info[0].__name__)
                 pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
+            else:
+                pr['Title'] = thing
 
             pr['Path'] = crash_path
 
