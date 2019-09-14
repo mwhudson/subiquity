@@ -190,7 +190,8 @@ class Subiquity(Application):
         os.makedirs(crash_dir, exist_ok=True)
         while 1:
             try:
-                crash_path = os.path.join(crash_dir, "installer.{}.crash".format(i))
+                crash_path = os.path.join(
+                    crash_dir, "installer.{}.crash".format(i))
                 f = open(crash_path, 'xb')
             except FileExistsError:
                 i += 1
@@ -207,14 +208,17 @@ class Subiquity(Application):
             apport.hookutils.attach_hardware(pr)
 
             if exc_info is not None:
-                pr['Title'] = "{} crashed with {}".format(thing, exc_info[0].__name__)
-                pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
+                pr['Title'] = "{} crashed with {}".format(
+                    thing, exc_info[0].__name__)
+                pr['Traceback'] = "".join(
+                    traceback.format_exception(*exc_info))
             else:
                 pr['Title'] = thing
 
             pr['Path'] = crash_path
 
-            # Attach any stuff other parts of the code think we should know about.
+            # Attach any stuff other parts of the code think we should know
+            # about.
             for key, path in self._apport_files:
                 apport.hookutils.attach_file_if_exists(pr, path, key)
             for key, value in self._apport_data:
@@ -224,14 +228,15 @@ class Subiquity(Application):
                     pr[key] = value
 
             # Because apport-cli will in general be run on a different
-            # machine, we make some slightly obscure alterations to the
-            # report to make this go better.
+            # machine, we make some slightly obscure alterations to the report
+            # to make this go better.
 
-            # If ExecutableTimestamp is present, apport-cli will try to check that
-            # ExecutablePath hasn't changed. But it won't be there.
+            # If ExecutableTimestamp is present, apport-cli will try to check
+            # that ExecutablePath hasn't changed. But it won't be there.
             del pr['ExecutableTimestamp']
-            # apport-cli gets upset at the probert C extensions it sees in here.
-            # /proc/maps is very unlikely to be interesting for us anyway.
+            # apport-cli gets upset at the probert C extensions it sees in
+            # here.  /proc/maps is very unlikely to be interesting for us
+            # anyway.
             del pr['ProcMaps']
 
             # apport-cli gets upset if neither of these are present.

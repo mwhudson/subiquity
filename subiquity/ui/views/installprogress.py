@@ -24,7 +24,7 @@ from subiquitycore.ui.buttons import cancel_btn, ok_btn, other_btn
 from subiquitycore.ui.container import Columns, ListBox, Pile
 from subiquitycore.ui.form import Toggleable
 from subiquitycore.ui.spinner import Spinner
-from subiquitycore.ui.utils import button_pile, disabled, Padding
+from subiquitycore.ui.utils import button_pile, Padding
 from subiquitycore.ui.width import widget_width
 
 log = logging.getLogger("subiquity.views.installprogress")

@@ -52,6 +52,7 @@ class SubiquityTests(TestCase):
         for w in view_helpers.get_focus_path(app.ui._w):
             if isinstance(w, StretchyOverlay):
                 if isinstance(w.stretchy, GlobalExtraStretchy):
+                    overlay = w
                     break
         else:
             self.fail("global extra dialog not focused")

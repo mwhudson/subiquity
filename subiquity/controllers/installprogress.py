@@ -339,7 +339,6 @@ class InstallProgressController(BaseController):
             curtin_cmd = [sys.executable, '-m', 'curtin', '--showtrace', '-c',
                           config_location, 'install']
 
-
         ident = self._event_syslog_identifier
         self._write_config(config_location,
                            self.model.render(syslog_identifier=ident))

@@ -32,8 +32,10 @@ from subiquitycore.ui.table import (
     )
 from subiquitycore.ui.utils import (
     button_pile,
-    ClickableIcon,
     Toggleable,
+    )
+from subiquitycore.ui.views import (
+    ErrorReportStretchy,
     )
 
 log = logging.getLogger('subiquity.ui.view.global_extra')
@@ -110,67 +112,6 @@ class SimpleTextStretchy(Stretchy):
         super().__init__(title, widgets, 0, 2)
 
 
-class ErrorReportStretchy(Stretchy):
-
-    def __init__(self, app, parent):
-        self.app = app
-        self.parent = parent
-        self.ec = app.error_controller
-        rows = [
-            TableRow([
-                Text(""),
-                Text(_("SUMMARY")),
-                Text(_("STATUS")),
-                Text(""),
-            ])]
-        self.report_to_row = {}
-        for report in self.app.error_controller.reports.values():
-            r = self.report_to_row[report] = self.row_for_report(report)
-            rows.append(r)
-        connect_signal(
-            self.app.error_controller, 'new_report', self._new_report)
-        self.table = TablePile(rows)
-        widgets = [
-            self.table,
-            Text(""),
-            button_pile([close_btn(parent)]),
-            ]
-        super().__init__(_("Error Reports"), widgets, 0, 0)
-
-    def _click_report(self, sender, report):
-        pass
-
-    def row_for_report(self, report):
-        icon = ClickableIcon(report.base, 0)
-        connect_signal(icon, 'click', self._click_report, report)
-        cells = [
-            Text("["),
-            icon,
-            Text(_(report.state.name)),
-            Text("]"),
-            ]
-        return TableRow(cells)
-
-    def opened(self):
-        connect_signal(self.ec, 'new_report', self._new_report)
-        connect_signal(self.ec, 'report_changed', self._report_changed)
-
-    def closed(self):
-        disconnect_signal(self.ec, 'new_report', self._new_report)
-        disconnect_signal(self.ec, 'report_changed', self._report_changed)
-
-    def _new_report(self, report):
-        pass
-
-    def _report_changed(self, report):
-        r = self.report_to_row.get(report)
-        if r is None:
-            return
-        r.cells[2][1].set_text(_(report.state.name))
-        self.table.invalidate()
-
-
-
 class GlobalExtraStretchy(Stretchy):
 
     def __init__(self, app, parent):
@@ -195,7 +136,7 @@ class GlobalExtraStretchy(Stretchy):
             other_btn(
                 _("Open a shell session"),
                 on_press=self.debug_shell))
-        self.error_btn= Toggleable(other_btn(
+        self.error_btn = Toggleable(other_btn(
             _("View error reports"),
             on_press=self.view_error_reports))
         if not self.app.error_controller.reports:

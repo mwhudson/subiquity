@@ -86,7 +86,7 @@ class FilesystemController(BaseController):
 
     def _made_probe_failure_crash_file(self, restricted, fut):
         try:
-            path = fut.result()
+            fut.result()
         except Exception:
             log.exception("creating crash report failed")
             return

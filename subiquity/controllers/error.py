@@ -120,7 +120,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
             urwid.emit_signal(self, 'new_report', report)
         elif act == "DEL" and base in self.reports:
             del self.reports[base]
-        elif act == "CHANGE"  and base in self.reports:
+        elif act == "CHANGE" and base in self.reports:
             # Update view of crash report, if showing
             urwid.emit_signal(self, 'report_changed', self.reports[base])
 
