@@ -30,6 +30,7 @@ from subiquitycore.ui.table import (
 from subiquitycore.ui.utils import (
     button_pile,
     ClickableIcon,
+    Toggleable,
     )
 
 from subiquity.controllers.error import (
@@ -54,15 +55,28 @@ class ErrorReportStretchy(Stretchy):
         self.report = report
         self.parent = parent
 
-        btns = [
-            other_btn(),
+        self.view_btn = Toggleable(other_btn(_("View")))
+        self.report_btn = Toggleable(other_btn(_("Report")))
+        self.close_btn = close_btn(parent)
+
+        self.desc = Text("")
+        self._report_changed(self.report)
+        widgets = [
+            self.desc,
+            Text(""),
+            button_pile([self.view_btn, self.report_btn, self.close_btn]),
             ]
+        super().__init__(report.summary, widgets, 0, 0)
 
-        if report.status == ErrorReportState.INCOMPLETE:
-            desc = Text(_(incomplete_text))
+    def _report_changed(self, report):
+        if report is not self.report:
+            return
+        if report.state == ErrorReportState.INCOMPLETE:
+            self.desc.set_text(_(incomplete_text))
+            self.report_btn.enabled = False
         else:
-            desc = "All done."
-
+            self.desc.set_text("All done.")
+            self.report_btn.enabled = True
 
     def opened(self):
         connect_signal(self.ec, 'report_changed', self._report_changed)

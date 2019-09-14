@@ -214,14 +214,14 @@ class Subiquity(Application):
         if interrupt:
             error_list = None
             w = self.ui.body._w
+            from subiquity.ui.views.error import (
+                ErrorReportListStretchy,
+                )
             while isinstance(w, StretchyOverlay):
                 if isinstance(w.stretchy, ErrorReportListStretchy):
                     error_list = w.stretchy
                     break
                 w = w.bottom_w.original_widget.original_widget
-            from subiquity.ui.views.error import (
-                ErrorReportListStretchy,
-                )
             if error_list is None:
                 error_list = ErrorReportListStretchy(self, self.ui.body)
                 self.ui.body.show_stretchy_overlay(error_list)
