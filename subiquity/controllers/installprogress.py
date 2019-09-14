@@ -26,10 +26,13 @@ import tempfile
 import time
 import traceback
 
-import urwid
-import yaml
+from curtin.commands.install import INSTALL_LOG, ERROR_TARFILE
 
 from systemd import journal
+
+import urwid
+
+import yaml
 
 from subiquitycore import utils
 from subiquitycore.controller import BaseController
@@ -247,6 +250,9 @@ class InstallProgressController(BaseController):
 
     def curtin_error(self, log_text=None):
         log.debug('curtin_error: %s', log_text)
+        self.run_in_bg(
+            lambda: self.app.make_apport_report("Installation failed"),
+            lambda fut: self.progress_view.apport_report_done(fut.result()))
         self.install_state = InstallState.ERROR
         self.progress_view.spinner.stop()
         if log_text:
@@ -333,9 +339,13 @@ class InstallProgressController(BaseController):
             curtin_cmd = [sys.executable, '-m', 'curtin', '--showtrace', '-c',
                           config_location, 'install']
 
+
         ident = self._event_syslog_identifier
         self._write_config(config_location,
                            self.model.render(syslog_identifier=ident))
+        self.app.note_file_for_apport("CurtinConfig", config_location)
+        self.app.note_file_for_apport("CurtinLog", INSTALL_LOG)
+        self.app.note_file_for_apport("CurtinErrors", ERROR_TARFILE)
 
         return curtin_cmd
 

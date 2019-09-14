@@ -151,6 +151,8 @@ def main():
         print(e)
         return 1
 
+    subiquity_interface.note_file_for_apport("InstallerLog", LOGFILE)
+
     subiquity_interface.run()
 
 

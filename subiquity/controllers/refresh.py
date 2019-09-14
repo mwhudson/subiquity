@@ -79,6 +79,9 @@ class RefreshController(BaseController):
         else:
             r = response.json()
             self.current_snap_version = r['result']['version']
+            self.app.note_data_for_apport("SnapVersion", r['result']['version'])
+            self.app.note_data_for_apport("SnapRevision", r['result']['revision'])
+            self.app.note_data_for_apport("SnapChannel", r['result']['channel'])
             log.debug(
                 "current version of snap is: %r",
                 self.current_snap_version)

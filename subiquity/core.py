@@ -17,8 +17,14 @@ import logging
 import os
 import platform
 import shlex
+import sys
+import traceback
 
 import urwid
+
+import apport
+import apport.hookutils
+import apport.fileutils
 
 from subiquitycore.core import Application
 
@@ -100,6 +106,21 @@ class Subiquity(Application):
             ('network-proxy-set', self._proxy_set),
             ('network-change', self._network_change),
             ])
+        self._apport_data = []
+        self._apport_files = []
+
+    def run(self):
+        try:
+            super().run()
+        except Exception:
+            if self.opts.dry_run:
+                raise
+            traceback.print_exc()
+            print("making crash report")
+            path = self.make_apport_report("Installer UI", sys.exc_info())
+            print("crash report at", path)
+            print("press enter to continue")
+            input()
 
     def load_controllers(self):
         super().load_controllers()
@@ -153,3 +174,74 @@ class Subiquity(Application):
         urwid.connect_signal(extra, 'closed', restore_focus)
 
         self.ui.body.show_stretchy_overlay(extra)
+
+    def note_file_for_apport(self, key, path):
+        self._apport_files.append((key, path))
+
+    def note_data_for_apport(self, key, value):
+        self._apport_data.append((key, value))
+
+    def make_apport_report(self, thing, exc_info=None, extra_data=None):
+        # Write the log file to disk.
+        i = 0
+        crash_dir = os.path.join(self.base_model.root, 'var/log/crash')
+        os.makedirs(crash_dir, exist_ok=True)
+        while 1:
+            try:
+                crash_path = os.path.join(crash_dir, "installer.{}.crash".format(i))
+                f = open(crash_path, 'xb')
+            except FileExistsError:
+                i += 1
+                continue
+            else:
+                break
+        with f:
+            pr = apport.Report('Bug')
+
+            # Add basic info to report.
+            pr.add_proc_info()
+            pr.add_os_info()
+            pr.add_hooks_info(None)
+            apport.hookutils.attach_hardware(pr)
+
+            if exc_info is not None:
+                pr['Title'] = "{} crashed with {}".format(thing, exc_info[0].__name__)
+                pr['Traceback'] = "".join(traceback.format_exception(*exc_info))
+
+            pr['Path'] = crash_path
+
+            # Attach any stuff other parts of the code think we should know about.
+            for key, path in self._apport_files:
+                apport.hookutils.attach_file_if_exists(pr, path, key)
+            for key, value in self._apport_data:
+                pr[key] = value
+            if extra_data:
+                for key, value in extra_data.items():
+                    pr[key] = value
+
+            # Because apport-cli will in general be run on a different
+            # machine, we make some slightly obscure alterations to the
+            # report to make this go better.
+
+            # If ExecutableTimestamp is present, apport-cli will try to check that
+            # ExecutablePath hasn't changed. But it won't be there.
+            del pr['ExecutableTimestamp']
+            # apport-cli gets upset at the probert C extensions it sees in here.
+            # /proc/maps is very unlikely to be interesting for us anyway.
+            del pr['ProcMaps']
+
+            # apport-cli gets upset if neither of these are present.
+            pr['Package'] = 'subiquity'
+            pr['SourcePackage'] = 'subiquity'
+
+            # Report to the subiquity project on Launchpad.
+            crashdb = {
+                'impl': 'launchpad',
+                'project': 'subiquity',
+                }
+            if self.opts.dry_run:
+                crashdb['launchpad_instance'] = 'staging'
+            pr['CrashDB'] = repr(crashdb)
+
+            pr.write(f)
+        return crash_path

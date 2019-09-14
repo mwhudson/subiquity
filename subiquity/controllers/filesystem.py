@@ -17,6 +17,7 @@ import enum
 import json
 import logging
 import os
+import sys
 
 from subiquitycore.controller import BaseController
 
@@ -77,6 +78,19 @@ class FilesystemController(BaseController):
     def _bg_probe(self, probe_types=None):
         return self.app.prober.get_storage(probe_types=probe_types)
 
+    def _bg_make_probe_failure_crash_file(self, exc_info):
+        log.debug("_make_probe_failure_crash_file starting")
+        path = self.app.make_apport_report("block probing", exc_info)
+        log.debug("_make_probe_failure_crash_file done %s", path)
+        return path
+
+    def _made_probe_failure_crash_file(self, restricted, fut):
+        try:
+            path = fut.result()
+        except Exception:
+            log.exception("creating crash report failed")
+            return
+
     def _probed(self, fut, restricted=False):
         if not restricted and self._probe_state != ProbeState.PROBING:
             block_discover_log.debug(
@@ -86,24 +100,30 @@ class FilesystemController(BaseController):
             storage = fut.result()
             if restricted:
                 fname = 'probe-data-restricted.json'
+                apport_key = "ProbeDataRestricted"
             else:
                 fname = 'probe-data.json'
-            with open(os.path.join(self.app.block_log_dir, fname), 'w') as fp:
+                apport_key = "ProbeData"
+            path = os.path.join(self.app.block_log_dir, fname)
+            with open(path, 'w') as fp:
                 json.dump(storage, fp, indent=4)
+            self.app.note_file_for_apport(apport_key, path)
             self.model.load_probe_data(storage)
         except Exception:
             block_discover_log.exception(
                 "probing failed restricted=%s", restricted)
             if not restricted:
                 block_discover_log.info("reprobing for blockdev only")
-                # Should make a crash file for apport, arrange for it to be
-                # copied onto the installed system and tell user all this
-                # happened!
                 self._reprobe()
             else:
                 self._probe_state = ProbeState.FAILED
                 if self.showing:
                     self.default()
+            exc_info = sys.exc_info()
+            self.run_in_bg(
+                lambda: self._bg_make_probe_failure_crash_file(exc_info),
+                lambda fut: self._made_probe_failure_crash_file(
+                    restricted, fut))
         else:
             self._probe_state = ProbeState.DONE
             # Should do something here if probing found no devices.
