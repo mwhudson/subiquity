@@ -200,82 +200,79 @@ class Subiquity(Application):
         os.makedirs(crash_dir, exist_ok=True)
         while 1:
             base = "installer.{}".format(i)
-            lock_path = os.path.join(crash_dir, base + ".lock")
             crash_path = os.path.join(crash_dir, base + ".crash")
-            try:
-                lock_file = open(lock_path, 'xb')
-            except FileExistsError:
-                i += 1
-                continue
-            lock_file.close()
             try:
                 crash_file = open(crash_path, 'xb')
             except FileExistsError:
-                os.unlink(lock_path)
                 i += 1
                 continue
             else:
+                progress_path = os.path.join(crash_dir, base + ".progress")
                 summary_path = os.path.join(crash_dir, base + ".summary")
-                summary_file = open(summary_path, 'w')
+                progress_file = open(progress_path, 'w')
                 break
 
-        pr = apport.Report('Bug')
-
-        # Add basic info to report.
-        pr.add_proc_info()
-        pr.add_os_info()
-        pr.add_hooks_info(None)
-        apport.hookutils.attach_hardware(pr)
-
         if exc_info is not None:
-            pr['Title'] = "{} crashed with {}".format(
+            summary = "{} crashed with {}".format(
                 thing, exc_info[0].__name__)
-            pr['Traceback'] = "".join(
-                traceback.format_exception(*exc_info))
         else:
-            pr['Title'] = thing
+            summary = thing
 
-        pr['Path'] = crash_path
- 
-        # Attach any stuff other parts of the code think we should know
-        # about.
-        for key, path in self._apport_files:
-            apport.hookutils.attach_file_if_exists(pr, path, key)
-        for key, value in self._apport_data:
-            pr[key] = value
-        if extra_data:
-            for key, value in extra_data.items():
+        with open(summary_path, 'w') as summary_file:
+            yaml.dump({'Title': summary}, summary_file)
+        with crash_file:
+            pr = apport.Report('Bug')
+
+            # Add basic info to report.
+            pr.add_proc_info()
+            pr.add_os_info()
+            pr.add_hooks_info(None)
+            apport.hookutils.attach_hardware(pr)
+
+            pr['Path'] = crash_path
+
+            # Attach any stuff other parts of the code think we should know
+            # about.
+            for key, path in self._apport_files:
+                apport.hookutils.attach_file_if_exists(pr, path, key)
+            for key, value in self._apport_data:
                 pr[key] = value
+            if extra_data:
+                for key, value in extra_data.items():
+                    pr[key] = value
 
-        # Because apport-cli will in general be run on a different
-        # machine, we make some slightly obscure alterations to the report
-        # to make this go better.
+            if exc_info:
+                pr['Traceback'] = "".join(
+                    traceback.format_exception(*exc_info))
+            pr['Title'] = summary
 
-        # If ExecutableTimestamp is present, apport-cli will try to check
-        # that ExecutablePath hasn't changed. But it won't be there.
-        del pr['ExecutableTimestamp']
-        # apport-cli gets upset at the probert C extensions it sees in
-        # here.  /proc/maps is very unlikely to be interesting for us
-        # anyway.
-        del pr['ProcMaps']
+            # Because apport-cli will in general be run on a different
+            # machine, we make some slightly obscure alterations to the report
+            # to make this go better.
 
-        # apport-cli gets upset if neither of these are present.
-        pr['Package'] = 'subiquity'
-        pr['SourcePackage'] = 'subiquity'
+            # If ExecutableTimestamp is present, apport-cli will try to check
+            # that ExecutablePath hasn't changed. But it won't be there.
+            del pr['ExecutableTimestamp']
+            # apport-cli gets upset at the probert C extensions it sees in
+            # here.  /proc/maps is very unlikely to be interesting for us
+            # anyway.
+            del pr['ProcMaps']
 
-        # Report to the subiquity project on Launchpad.
-        crashdb = {
-            'impl': 'launchpad',
-            'project': 'subiquity',
-            }
-        if self.opts.dry_run:
-            crashdb['launchpad_instance'] = 'staging'
-        pr['CrashDB'] = repr(crashdb)
+            # apport-cli gets upset if neither of these are present.
+            pr['Package'] = 'subiquity'
+            pr['SourcePackage'] = 'subiquity'
 
-        with crash_file, summary_file:
+            # Report to the subiquity project on Launchpad.
+            crashdb = {
+                'impl': 'launchpad',
+                'project': 'subiquity',
+                }
+            if self.opts.dry_run:
+                crashdb['launchpad_instance'] = 'staging'
+            pr['CrashDB'] = repr(crashdb)
+
             pr.write(crash_file)
-            yaml.dump({'Title': pr['Title']}, summary_file)
-        os.unlink(lock_path)
+        os.unlink(progress_path)
         return base, interrupt
 
     def _made_apport_crash_file(self, fut):
@@ -287,6 +284,10 @@ class Subiquity(Application):
         self.error_controller.fg_scan_crash_dir()
         if interrupt:
             report = self.error_controller.reports.get(base)
+            #w = self.ui.body._w
+            #while isinstance(w, StretchyOverlay):
+            #    overlays.append(w)
+            #    w = w.bottom_w.original_widget.original_widget
             if report is None:
                 log.debug("report %r generated but not found?", base)
                 return

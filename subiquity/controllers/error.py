@@ -32,6 +32,7 @@ log = logging.getLogger('subiquity.controllers.errros')
 
 
 class ErrorReportState(enum.Enum):
+    INCOMPLETE = _("INCOMPLETE")
     NEW = _("NEW")
     SEEN = _("SEEN")
     UPLOADING = _("UPLOADING")
@@ -52,6 +53,10 @@ class ErrorReport:
         return self._path_with_ext('crash')
 
     @property
+    def progress_path(self):
+        return self._path_with_ext('uploaded')
+
+    @property
     def uploaded_path(self):
         return self._path_with_ext('uploaded')
 
@@ -65,7 +70,9 @@ class ErrorReport:
 
     @property
     def state(self):
-        if os.path.exists(self.uploaded_path):
+        if os.path.exists(self.progress_path):
+            return ErrorReportState.INCOMPLETE
+        elif os.path.exists(self.uploaded_path):
             return ErrorReportState.UPLOADED
         elif os.path.exists(self.upload_path):
             return ErrorReportState.UPLOADING

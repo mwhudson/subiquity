@@ -34,7 +34,7 @@ from subiquitycore.ui.utils import (
     button_pile,
     Toggleable,
     )
-from subiquitycore.ui.views import (
+from subiquity.ui.views.error import (
     ErrorReportListStretchy,
     )
 
