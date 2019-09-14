@@ -32,6 +32,10 @@ from subiquitycore.ui.utils import (
     ClickableIcon,
     )
 
+from subiquity.controllers.error import (
+    ErrorReportState,
+    )
+
 log = logging.getLogger('subiquity.ui.error')
 
 
@@ -39,13 +43,32 @@ def close_btn(parent):
     return other_btn(
         _("Close"), on_press=lambda sender: parent.remove_overlay())
 
+incomplete_text = _("""
+Information is being collected from the system.
+""")
 
 class ErrorReportStretchy(Stretchy):
 
-    def __init__(self, report, parent):
+    def __init__(self, ec, report, parent):
+        self.ec = ec
         self.report = report
         self.parent = parent
-        super().__init__("report", [Text(report.summary)], 0, 0)
+
+        btns = [
+            other_btn(),
+            ]
+
+        if report.status == ErrorReportState.INCOMPLETE:
+            desc = Text(_(incomplete_text))
+        else:
+            desc = "All done."
+
+
+    def opened(self):
+        connect_signal(self.ec, 'report_changed', self._report_changed)
+
+    def closed(self):
+        disconnect_signal(self.ec, 'report_changed', self._report_changed)
 
 
 class ErrorReportListStretchy(Stretchy):
@@ -86,7 +109,7 @@ class ErrorReportListStretchy(Stretchy):
 
     def open_report(self, sender, report):
         self.parent.show_stretchy_overlay(ErrorReportStretchy(
-            report, self))
+            self.ec, report, self.parent))
 
     def row_for_report(self, report):
         icon = ClickableIcon(report.summary, 0)

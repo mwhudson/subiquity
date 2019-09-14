@@ -54,6 +54,7 @@ class ErrorReport:
 
     def add_info(self):
 
+        log.debug("begin adding info for report %s", self.base)
         def _bg_add_info():
             self._attach_hook()
             # Add basic info to report.
@@ -79,6 +80,7 @@ class ErrorReport:
             self.pr.write(self.file)
 
         def added_info(fut):
+            log.debug("done adding info for report %s", self.base)
             try:
                 fut.result()
             except Exception:
@@ -86,7 +88,7 @@ class ErrorReport:
             self.file.close()
             self.file = None
             self._state = None
-        urwid.emit_signal(self.controller, 'report_changed', self)
+            urwid.emit_signal(self.controller, 'report_changed', self)
         self.controller.run_in_bg(
             _bg_add_info, added_info)
 
