@@ -21,6 +21,10 @@ import queue
 import threading
 import time
 
+import apport
+import apport.hookutils
+import apport.fileutils
+
 import attr
 
 import urwid
@@ -43,6 +47,44 @@ class ErrorReportState(enum.Enum):
 class ErrorReport:
     controller = attr.ib()
     base = attr.ib()
+    pr = attr.ib(default=None)
+    file = attr.ib(default=None)
+    _attach_hook = attr.ib(default=None)
+    _state = attr.ib(default=None)
+
+    def add_info(self):
+
+        def _bg_add_info():
+            self._attach_hook()
+            # Add basic info to report.
+            self.pr.add_proc_info()
+            self.pr.add_os_info()
+            self.pr.add_hooks_info(None)
+            apport.hookutils.attach_hardware(self.pr)
+            # Because apport-cli will in general be run on a different
+            # machine, we make some slightly obscure alterations to the report
+            # to make this go better.
+
+            # If ExecutableTimestamp is present, apport-cli will try to check
+            # that ExecutablePath hasn't changed. But it won't be there.
+            del self.pr['ExecutableTimestamp']
+            # apport-cli gets upset at the probert C extensions it sees in
+            # here.  /proc/maps is very unlikely to be interesting for us
+            # anyway.
+            del self.pr['ProcMaps']
+            self.pr.write(self.file)
+
+        def added_info(fut):
+            try:
+                fut.result()
+            except Exception:
+                log.exception("adding info to problem report failed")
+            self.file.close()
+            self.file = None
+            self._state = None
+        urwid.emit_signal(self.controller, 'report_changed', self)
+        self.controller.run_in_bg(
+            _bg_add_info, added_info)
 
     def _path_with_ext(self, ext):
         return os.path.join(
@@ -70,8 +112,8 @@ class ErrorReport:
 
     @property
     def state(self):
-        if os.path.exists(self.progress_path):
-            return ErrorReportState.INCOMPLETE
+        if self._state is not None:
+            return self._state
         elif os.path.exists(self.uploaded_path):
             return ErrorReportState.UPLOADED
         elif os.path.exists(self.upload_path):
@@ -105,6 +147,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
 
     def start(self):
         # start watching self.crash_directory
+        os.makedirs(self.crash_directory, exist_ok=True)
         self._scan_lock = threading.Lock()
         self._seen_files = set()
         self.report_pipe_w = self.app.loop.watch_pipe(
@@ -112,6 +155,40 @@ class ErrorController(BaseController, metaclass=MetaClass):
         t = threading.Thread(target=self._bg_scan_crash_dir)
         t.setDaemon(True)
         t.start()
+
+    def create_report(self, attach_hook):
+        i = 0
+        while 1:
+            base = "installer.{}".format(i)
+            crash_path = os.path.join(self.crash_directory, base + ".crash")
+            try:
+                crash_file = open(crash_path, 'xb')
+            except FileExistsError:
+                i += 1
+                continue
+            else:
+                break
+        pr = apport.Report('Bug')
+
+        pr['Path'] = crash_path
+        # apport-cli gets upset if neither of these are present.
+        pr['Package'] = 'subiquity 0.0'
+        pr['SourcePackage'] = 'subiquity'
+
+        # Report to the subiquity project on Launchpad.
+        crashdb = {
+            'impl': 'launchpad',
+            'project': 'subiquity',
+            }
+
+        if self.app.opts.dry_run:
+            crashdb['launchpad_instance'] = 'staging'
+        pr['CrashDB'] = repr(crashdb)
+
+        r = self.reports[base] = ErrorReport(
+            controller=self, base=base, pr=pr, file=crash_file,
+            attach_hook=attach_hook, state=ErrorReportState.INCOMPLETE)
+        return r
 
     def _report_pipe_callback(self, ignored):
         while True:
