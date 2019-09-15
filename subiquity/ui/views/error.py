@@ -44,39 +44,93 @@ def close_btn(parent):
     return other_btn(
         _("Close"), on_press=lambda sender: parent.remove_overlay())
 
-incomplete_text = _("""
-Information is being collected from the system.
+def rewrap(text):
+    paras = text.split("\n\n")
+    return "\n\n".join([p.replace('\n', ' ') for p in paras]).strip()
+
+error_intro_text = _("""
+Unfortunately the installer encountered an error.
 """)
+
+incomplete_text = _("""
+
+Information is being collected from the system that will assist the
+developers to diagnose the report.
+
+""")
+
+complete_text = _("""
+
+You can view the report (in less), and assuming you have an internet
+connection, submit the report to the error tracker and/or create a bug
+report in Launchpad.
+
+Reporting a bug requires that you have or create a Launchpad account
+and can visit a URL to complete the filing of the report (the URL can
+be displayed as a QR code which might make this easier).
+
+(something here about how to report the bug from another machine)
+
+""")
+
 
 class ErrorReportStretchy(Stretchy):
 
-    def __init__(self, ec, report, parent):
+    def __init__(self, app, ec, report, parent):
+        self.app = app
         self.ec = ec
         self.report = report
         self.parent = parent
 
-        self.view_btn = Toggleable(other_btn(_("View")))
-        self.report_btn = Toggleable(other_btn(_("Report")))
-        self.close_btn = close_btn(parent)
+        self.view_btn = Toggleable(
+                other_btn(
+                    _("View the report"),
+                    on_press=self.view_report))
+        self.submit_btn = Toggleable(
+                other_btn(
+                    _("Submit to the error tracker"),
+                    on_press=self.submit))
+        self.report_btn = Toggleable(
+                other_btn(
+                    _("Report as a bug in Launchpad"),
+                    on_press=self.report_as_bug))
+        self.btns = [
+            self.view_btn, self.submit_btn, self.report_btn,
+            ]
 
         self.desc = Text("")
         self._report_changed(self.report)
         widgets = [
             self.desc,
             Text(""),
-            button_pile([self.view_btn, self.report_btn, self.close_btn]),
+            button_pile(self.btns + [close_btn(parent)]),
             ]
         super().__init__(report.summary, widgets, 0, 0)
 
     def _report_changed(self, report):
         if report is not self.report:
             return
+        text = rewrap(_(error_intro_text)) + "\n\n"
         if report.state == ErrorReportState.INCOMPLETE:
-            self.desc.set_text(_(incomplete_text))
-            self.report_btn.enabled = False
+            text += rewrap(_(incomplete_text))
+            for btn in self.btns:
+                btn.enabled = False
         else:
-            self.desc.set_text("All done.")
-            self.report_btn.enabled = True
+            text += rewrap(_(complete_text))
+            for btn in self.btns:
+                btn.enabled = True
+            if report.state in [ErrorReportState.UPLOADING, ErrorReportState.UPLOADED]:
+                self.submit_btn.enabled = False
+        self.desc.set_text(text)
+
+    def view_report(self, sender):
+        self.app.run_command_in_foreground(["less", self.report.path])
+
+    def submit(self, sender):
+        self.report.mark_for_upload()
+
+    def report_as_bug(self, sender):
+        pass
 
     def opened(self):
         connect_signal(self.ec, 'report_changed', self._report_changed)
@@ -123,7 +177,7 @@ class ErrorReportListStretchy(Stretchy):
 
     def open_report(self, sender, report):
         self.parent.show_stretchy_overlay(ErrorReportStretchy(
-            self.ec, report, self.parent))
+            self.app, self.ec, report, self.parent))
 
     def row_for_report(self, report):
         icon = ClickableIcon(report.summary, 0)

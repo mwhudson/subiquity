@@ -36,6 +36,7 @@ log = logging.getLogger('subiquity.controllers.errros')
 
 
 class ErrorReportState(enum.Enum):
+    LOADING = _("LOADING")
     INCOMPLETE = _("INCOMPLETE")
     NEW = _("NEW")
     SEEN = _("SEEN")
@@ -53,8 +54,8 @@ class ErrorReport:
     _state = attr.ib(default=None)
 
     def add_info(self):
-
         log.debug("begin adding info for report %s", self.base)
+
         def _bg_add_info():
             self._attach_hook()
             # Add basic info to report.
@@ -92,6 +93,11 @@ class ErrorReport:
         self.controller.run_in_bg(
             _bg_add_info, added_info)
 
+    def mark_for_upload(self):
+        with open(self.upload_path, 'w'):
+            pass
+        urwid.emit_signal(self.controller, 'report_changed', self)
+
     def _path_with_ext(self, ext):
         return os.path.join(
             self.controller.crash_directory, self.base + '.' + ext)
@@ -99,10 +105,6 @@ class ErrorReport:
     @property
     def path(self):
         return self._path_with_ext('crash')
-
-    @property
-    def progress_path(self):
-        return self._path_with_ext('uploaded')
 
     @property
     def uploaded_path(self):
@@ -119,7 +121,7 @@ class ErrorReport:
     @property
     def summary(self):
         if self.pr is not None:
-            return self.pr.get("Title")
+            return self.pr.get("Title", "???")
         return '???'
 
     @property
@@ -149,6 +151,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
         self.crash_directory = os.path.join(self.app.root, 'var/crash')
         self.reports = {}
         self.report_queue = queue.Queue()
+        self.reports_to_load_queue = queue.Queue()
 
     def register_signals(self):
         self.signal.connect_signals(('network-proxy-set', 'network_proxy_set'))
@@ -167,6 +170,9 @@ class ErrorController(BaseController, metaclass=MetaClass):
         t = threading.Thread(target=self._bg_scan_crash_dir)
         t.setDaemon(True)
         t.start()
+        t2 = threading.Thread(target=self._bg_load_reports)
+        t2.setDaemon(True)
+        t2.start()
 
     def create_report(self, attach_hook):
         with self._scan_lock:
@@ -209,24 +215,42 @@ class ErrorController(BaseController, metaclass=MetaClass):
 
     def _report_changed(self, act, base):
         if act == "NEW" and base not in self.reports:
-            report = self.reports[base] = ErrorReport(self, base)
+            report = self.reports[base] = ErrorReport(
+                self, base, state=ErrorReportState.LOADING)
             urwid.emit_signal(self, 'new_report', report)
+            self.reports_to_load_queue.put(report)
         elif act == "DEL" and base in self.reports:
             del self.reports[base]
         elif act == "CHANGE" and base in self.reports:
             # Update view of crash report, if showing
             urwid.emit_signal(self, 'report_changed', self.reports[base])
 
+    def _bg_report_action(self, act, name):
+        self.report_queue.put((act, name))
+        os.write(self.report_pipe_w, b'x')
+
     def _bg_scan_crash_dir(self):
-        def _report(act, name):
-            self.report_queue.put((act, name))
-            os.write(self.report_pipe_w, b'x')
         while True:
             try:
-                self._scan_crash_dir(_report)
+                self._scan_crash_dir(self._bg_report_action)
             except Exception:
                 log.exception("_scan_crash_dir failed")
             time.sleep(1)
+
+    def _bg_load_reports(self):
+        while 1:
+            try:
+                report = self.reports_to_load_queue.get()
+                report.pr = apport.Report()
+                log.debug("loading report from %s", report.path)
+                with open(report.path, 'rb') as f:
+                    report.pr.load(f, binary=False)
+                log.debug("loaded report from %s", report.path)
+                report._state = None
+                self._bg_report_action("CHANGE", report.base)
+            except Exception:
+                log.exception("loading error report from %s failed", report.path)
+
 
     def fg_scan_crash_dir(self):
         self._scan_crash_dir(self._report_changed)
@@ -243,7 +267,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
                 next_files.add(filename)
                 if filename in self._seen_files:
                     continue
-                if ext == '.crash' and base + '.lock' not in filenames:
+                if ext == '.crash':
                     log.debug("saw error report %s", base)
                     report_func("NEW", base)
                 if ext in ['.seen', '.upload', '.uploaded']:
@@ -252,10 +276,6 @@ class ErrorController(BaseController, metaclass=MetaClass):
                 base, ext = os.path.splitext(filename)
                 if ext == '.crash':
                     report_func("DEL", base)
-                if ext == '.lock':
-                    if base + '.crash' in filenames and \
-                      base not in self.reports:
-                        report_func("NEW", base)
             self._seen_files = next_files
 
     def mark_seen(self, base):
