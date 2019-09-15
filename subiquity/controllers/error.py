@@ -39,7 +39,7 @@ class ErrorReportState(enum.Enum):
     LOADING = _("LOADING")
     INCOMPLETE = _("INCOMPLETE")
     NEW = _("NEW")
-    SEEN = _("SEEN")
+    VIEWED = _("VIEWED")
     UPLOADING = _("UPLOADING")
     UPLOADED = _("UPLOADED")
 
@@ -98,6 +98,11 @@ class ErrorReport:
             pass
         urwid.emit_signal(self.controller, 'report_changed', self)
 
+    def mark_seen(self):
+        with open(self.seen_path, 'w'):
+            pass
+        urwid.emit_signal(self.controller, 'report_changed', self)
+
     def _path_with_ext(self, ext):
         return os.path.join(
             self.controller.crash_directory, self.base + '.' + ext)
@@ -133,7 +138,7 @@ class ErrorReport:
         elif os.path.exists(self.upload_path):
             return ErrorReportState.UPLOADING
         elif os.path.exists(self.seen_path):
-            return ErrorReportState.SEEN
+            return ErrorReportState.VIEWED
         else:
             return ErrorReportState.NEW
 

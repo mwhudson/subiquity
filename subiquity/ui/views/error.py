@@ -22,6 +22,7 @@ from urwid import (
     )
 
 from subiquitycore.ui.buttons import other_btn
+from subiquitycore.ui.container import Pile
 from subiquitycore.ui.stretchy import Stretchy
 from subiquitycore.ui.table import (
     TablePile,
@@ -54,8 +55,8 @@ Unfortunately the installer encountered an error.
 
 incomplete_text = _("""
 
-Information is being collected from the system that will assist the
-developers to diagnose the report.
+Information is being collected from the system that will help the
+developers diagnose the report.
 
 """)
 
@@ -97,31 +98,50 @@ class ErrorReportStretchy(Stretchy):
         self.btns = [
             self.view_btn, self.submit_btn, self.report_btn,
             ]
-
+        self.table = TablePile(self.rows_for_report())
         self.desc = Text("")
+        pile = Pile([
+            ('pack', Text(rewrap(_(error_intro_text)))),
+            ('pack', Text("")),
+            ('pack', self.table),
+            ('pack', Text("")),
+            ('pack', self.desc),
+            ])
+        self.bp = button_pile(self.btns + [close_btn(parent)])
         self._report_changed(self.report)
         widgets = [
-            self.desc,
+            pile,
             Text(""),
-            button_pile(self.btns + [close_btn(parent)]),
+            self.bp,
             ]
-        super().__init__(report.summary, widgets, 0, 0)
+        super().__init__(report.summary, widgets, 0, 2)
 
     def _report_changed(self, report):
         if report is not self.report:
             return
-        text = rewrap(_(error_intro_text)) + "\n\n"
         if report.state == ErrorReportState.INCOMPLETE:
-            text += rewrap(_(incomplete_text))
+            text = rewrap(_(incomplete_text))
             for btn in self.btns:
                 btn.enabled = False
         else:
-            text += rewrap(_(complete_text))
+            text = rewrap(_(complete_text))
             for btn in self.btns:
                 btn.enabled = True
             if report.state in [ErrorReportState.UPLOADING, ErrorReportState.UPLOADED]:
                 self.submit_btn.enabled = False
+        while not self.bp.base_widget.focus.selectable():
+            self.bp.base_widget.focus_position += 1
         self.desc.set_text(text)
+        self.table.set_contents(self.rows_for_report())
+
+    def rows_for_report(self):
+        rows = [
+            ("Summary:", self.report.summary),
+            ("State:", self.report.state.name),
+            # XXX display relative date here!
+            ("Reported:", self.report.pr.get("Date", "???")),
+            ]
+        return [TableRow(map(Text, r)) for r in rows]
 
     def view_report(self, sender):
         self.app.run_command_in_foreground(["less", self.report.path])
@@ -176,6 +196,7 @@ class ErrorReportListStretchy(Stretchy):
         self.table.focus_position = i
 
     def open_report(self, sender, report):
+        report.mark_seen()
         self.parent.show_stretchy_overlay(ErrorReportStretchy(
             self.app, self.ec, report, self.parent))
 
@@ -205,5 +226,7 @@ class ErrorReportListStretchy(Stretchy):
         r = self.report_to_row.get(report)
         if r is None:
             return
-        r.cells[2][1].set_text(_(report.state.name))
+        for (span, cell), (span2, cell2) in zip(r.cells, self.row_for_report(report).cells):
+            cell.set_text(cell2.text)
         self.table.invalidate()
+
