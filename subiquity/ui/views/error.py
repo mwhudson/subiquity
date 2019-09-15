@@ -45,9 +45,11 @@ def close_btn(parent):
     return other_btn(
         _("Close"), on_press=lambda sender: parent.remove_overlay())
 
+
 def rewrap(text):
     paras = text.split("\n\n")
     return "\n\n".join([p.replace('\n', ' ') for p in paras]).strip()
+
 
 error_intro_text = _("""
 Unfortunately the installer encountered an error.
@@ -127,7 +129,8 @@ class ErrorReportStretchy(Stretchy):
             text = rewrap(_(complete_text))
             for btn in self.btns:
                 btn.enabled = True
-            if report.state in [ErrorReportState.UPLOADING, ErrorReportState.UPLOADED]:
+            if report.state in [
+                    ErrorReportState.UPLOADING, ErrorReportState.UPLOADED]:
                 self.submit_btn.enabled = False
         while not self.bp.base_widget.focus.selectable():
             self.bp.base_widget.focus_position += 1
@@ -226,7 +229,7 @@ class ErrorReportListStretchy(Stretchy):
         r = self.report_to_row.get(report)
         if r is None:
             return
-        for (span, cell), (span2, cell2) in zip(r.cells, self.row_for_report(report).cells):
+        for (span, cell), (span2, cell2) in zip(
+                r.cells, self.row_for_report(report).cells):
             cell.set_text(cell2.text)
         self.table.invalidate()
-

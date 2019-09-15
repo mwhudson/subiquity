@@ -184,7 +184,8 @@ class ErrorController(BaseController, metaclass=MetaClass):
             i = 0
             while 1:
                 base = "installer.{}".format(i)
-                crash_path = os.path.join(self.crash_directory, base + ".crash")
+                crash_path = os.path.join(
+                    self.crash_directory, base + ".crash")
                 try:
                     crash_file = open(crash_path, 'xb')
                 except FileExistsError:
@@ -254,8 +255,8 @@ class ErrorController(BaseController, metaclass=MetaClass):
                 report._state = None
                 self._bg_report_action("CHANGE", report.base)
             except Exception:
-                log.exception("loading error report from %s failed", report.path)
-
+                log.exception(
+                    "loading error report from %s failed", report.path)
 
     def fg_scan_crash_dir(self):
         self._scan_crash_dir(self._report_changed)

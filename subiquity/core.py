@@ -183,7 +183,7 @@ class Subiquity(Application):
         self._apport_data.append((key, value))
 
     def make_apport_report(self, thing, exc_info=None, extra_data=None,
-                               *, interrupt=True):
+                           *, interrupt=True):
         log.debug("generating crash report")
         apport_files = self._apport_files[:]
         apport_data = self._apport_data.copy()
