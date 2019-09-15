@@ -216,11 +216,15 @@ class Subiquity(Application):
             w = self.ui.body._w
             from subiquity.ui.views.error import (
                 ErrorReportListStretchy,
+                ErrorReportStretchy,
                 )
             while isinstance(w, StretchyOverlay):
+                if isinstance(w.stretchy, ErrorReportStretchy):
+                    # Don't shove an error report in the user's face if they
+                    # are already viewing an error report!
+                    return
                 if isinstance(w.stretchy, ErrorReportListStretchy):
                     error_list = w.stretchy
-                    break
                 w = w.bottom_w.original_widget.original_widget
             if error_list is None:
                 error_list = ErrorReportListStretchy(self, self.ui.body)
