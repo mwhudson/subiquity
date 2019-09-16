@@ -67,6 +67,7 @@ class FilesystemController(BaseController):
         self.answers.setdefault('guided-index', 0)
         self.answers.setdefault('manual', [])
         self._probe_state = ProbeState.NOT_STARTED
+        self._probe_error_reports = {}
 
     def start(self):
         block_discover_log.info("starting probe")
@@ -109,22 +110,26 @@ class FilesystemController(BaseController):
                 json.dump(storage, fp, indent=4)
             self.app.note_file_for_apport(apport_key, path)
             self.model.load_probe_data(storage)
+            if not restricted:
+                1/0
         except Exception:
             block_discover_log.exception(
                 "probing failed restricted=%s", restricted)
+            report = self.app.make_apport_report(
+                "block probing", sys.exc_info(), interrupt=False)
+            self._probe_error_reports[restricted] = report
             if not restricted:
                 block_discover_log.info("reprobing for blockdev only")
                 self._reprobe()
             else:
                 self._probe_state = ProbeState.FAILED
                 if self.showing:
-                    self.default()
-            self.app.make_apport_report("block probing", sys.exc_info())
+                    self.start_ui()
         else:
             self._probe_state = ProbeState.DONE
             # Should do something here if probing found no devices.
             if self.showing:
-                self.default()
+                self.start_ui()
 
     def _check_probe_timeout(self):
         log.debug("_check_probe_timeout")
@@ -146,8 +151,17 @@ class FilesystemController(BaseController):
             self.ui.set_body(SlowProbing(self))
         elif self._probe_state == ProbeState.FAILED:
             self.ui.set_body(ProbingFailed(self))
+            log.debug(self._probe_error_reports)
+            r = self._probe_error_reports.get(False)
+            if r is None:
+                r = self._probe_error_reports.get(True)
+            if r is not None:
+                self.app.show_error_report(r)
         else:
             self.ui.set_body(GuidedFilesystemView(self))
+            r = self._probe_error_reports.get(False)
+            if r is not None:
+                self.app.show_error_report(r)
             if self.answers['guided']:
                 self.guided(self.answers.get('guided-method', 'direct'))
             elif self.answers['manual']:

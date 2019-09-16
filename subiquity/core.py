@@ -34,6 +34,10 @@ from subiquity.snapd import (
     SnapdConnection,
     )
 from subiquity.ui.frame import SubiquityUI
+from subiquity.ui.views.error import (
+    ErrorReportListStretchy,
+    ErrorReportStretchy,
+    )
 
 
 log = logging.getLogger('subiquity.core')
@@ -229,14 +233,11 @@ class Subiquity(Application):
         report.add_info()
         if interrupt:
             self.show_error_report(report)
+        return report
 
     def show_error_report(self, report):
         error_list = None
         w = self.ui.body._w
-        from subiquity.ui.views.error import (
-            ErrorReportListStretchy,
-            ErrorReportStretchy,
-            )
         while isinstance(w, StretchyOverlay):
             if isinstance(w.stretchy, ErrorReportStretchy):
                 # Don't shove an error report in the user's face if they
