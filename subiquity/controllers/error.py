@@ -158,6 +158,12 @@ class ErrorController(BaseController, metaclass=MetaClass):
         self.report_queue = queue.Queue()
         self.reports_to_load_queue = queue.Queue()
 
+    def has_new_reports(self):
+        for v in self.reports.values():
+            if v.state in [ErrorReportState.INCOMPLETE, ErrorReportState.NEW]:
+                return True
+        return False
+
     def register_signals(self):
         self.signal.connect_signals(('network-proxy-set', 'network_proxy_set'))
 

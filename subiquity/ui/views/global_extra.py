@@ -139,6 +139,7 @@ class GlobalExtraStretchy(Stretchy):
         self.error_btn = Toggleable(other_btn(
             _("View error reports"),
             on_press=self.view_error_reports))
+        self._set_error_btn_label()
         if not self.app.error_controller.reports:
             self.error_btn.enabled = False
         btns.append(self.error_btn)
@@ -153,14 +154,27 @@ class GlobalExtraStretchy(Stretchy):
 
     def opened(self):
         connect_signal(
+            self.app.error_controller, 'report_changed',
+            self._set_error_btn_label)
+        connect_signal(
             self.app.error_controller, 'new_report', self._new_report)
 
     def closed(self):
         disconnect_signal(
+            self.app.error_controller, 'report_changed',
+            self._set_error_btn_label)
+        disconnect_signal(
             self.app.error_controller, 'new_report', self._new_report)
+
+    def _set_error_btn_label(self, sender=None, report=None):
+        if self.app.error_controller.has_new_reports():
+            self.error_btn.base_widget.set_label(_("* View error reports"))
+        else:
+            self.error_btn.base_widget.set_label(_("View error reports"))
 
     def _new_report(self, report):
         self.error_btn.enabled = True
+        self._set_error_btn_label()
 
     def show_local_help(self, sender):
         title, text = self.parent.local_help()

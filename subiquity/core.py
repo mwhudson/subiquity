@@ -139,12 +139,16 @@ class Subiquity(Application):
         if key == 'ctrl s':
             self.debug_shell()
         elif self.opts.dry_run and key == 'ctrl e':
-            def _bg():
-                try:
-                    1/0
-                except ZeroDivisionError:
-                    self.make_apport_report("example", sys.exc_info())
-            self.run_in_bg(_bg, lambda fut: None)
+            try:
+                1/0
+            except ZeroDivisionError:
+                self.make_apport_report("example", sys.exc_info())
+        elif self.opts.dry_run and key == 'ctrl r':
+            try:
+                1/0
+            except ZeroDivisionError:
+                self.make_apport_report(
+                    "example", sys.exc_info(), interrupt=False)
         elif key in ['ctrl h', 'f1']:
             self.show_global_extra()
         else:
