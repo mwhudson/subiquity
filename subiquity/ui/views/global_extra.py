@@ -52,6 +52,8 @@ GLOBAL_KEYS = (
 
 DRY_RUN_KEYS = (
     (_('Control-X'), _('quit (dry-run only)')),
+    (_('Control-E'), _('generate an interrupting error (dry-run only)')),
+    (_('Control-R'), _('generate a non-interrupting error (dry-run only)')),
     )
 
 
