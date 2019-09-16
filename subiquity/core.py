@@ -119,6 +119,11 @@ class Subiquity(Application):
     def load_controllers(self):
         super().load_controllers()
         self.error_controller = ErrorController(self)
+        urwid.connect_signal(
+            self.error_controller, 'report_changed',
+            self._set_right_icon_label)
+        urwid.connect_signal(
+            self.error_controller, 'new_report', self._set_right_icon_label)
 
     def start_controllers(self):
         super().start_controllers()
@@ -186,6 +191,13 @@ class Subiquity(Application):
     def note_data_for_apport(self, key, value):
         self._apport_data.append((key, value))
 
+    def _set_right_icon_label(self, sender=None, report=None):
+        btn = self.ui.right_icon.base_widget
+        if self.error_controller.has_unseen_reports():
+            btn.set_label(_("* Help"))
+        else:
+            btn.set_label(_("Help"))
+
     def make_apport_report(self, thing, exc_info=None, extra_data=None,
                            *, interrupt=True):
         log.debug("generating crash report")
@@ -216,22 +228,25 @@ class Subiquity(Application):
             report.pr["Title"] = thing
         report.add_info()
         if interrupt:
-            error_list = None
-            w = self.ui.body._w
-            from subiquity.ui.views.error import (
-                ErrorReportListStretchy,
-                ErrorReportStretchy,
-                )
-            while isinstance(w, StretchyOverlay):
-                if isinstance(w.stretchy, ErrorReportStretchy):
-                    # Don't shove an error report in the user's face if they
-                    # are already viewing an error report!
-                    return
-                if isinstance(w.stretchy, ErrorReportListStretchy):
-                    error_list = w.stretchy
-                w = w.bottom_w.original_widget.original_widget
-            if error_list is None:
-                error_list = ErrorReportListStretchy(self, self.ui.body)
-                self.ui.body.show_stretchy_overlay(error_list)
-            error_list.focus_report(report)
-            error_list.open_report(None, report)
+            self.show_error_report(report)
+
+    def show_error_report(self, report):
+        error_list = None
+        w = self.ui.body._w
+        from subiquity.ui.views.error import (
+            ErrorReportListStretchy,
+            ErrorReportStretchy,
+            )
+        while isinstance(w, StretchyOverlay):
+            if isinstance(w.stretchy, ErrorReportStretchy):
+                # Don't shove an error report in the user's face if they
+                # are already viewing an error report!
+                return
+            if isinstance(w.stretchy, ErrorReportListStretchy):
+                error_list = w.stretchy
+            w = w.bottom_w.original_widget.original_widget
+        if error_list is None:
+            error_list = ErrorReportListStretchy(self, self.ui.body)
+            self.ui.body.show_stretchy_overlay(error_list)
+        error_list.focus_report(report)
+        error_list.open_report(None, report)

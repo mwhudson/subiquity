@@ -38,8 +38,8 @@ log = logging.getLogger('subiquity.controllers.errros')
 class ErrorReportState(enum.Enum):
     LOADING = _("LOADING")
     INCOMPLETE = _("INCOMPLETE")
-    NEW = _("NEW")
-    VIEWED = _("VIEWED")
+    UNSEEN = _("UNSEEN")
+    UNREPORTED = _("UNREPORTED")
     UPLOADING = _("UPLOADING")
     UPLOADED = _("UPLOADED")
 
@@ -138,9 +138,9 @@ class ErrorReport:
         elif os.path.exists(self.upload_path):
             return ErrorReportState.UPLOADING
         elif os.path.exists(self.seen_path):
-            return ErrorReportState.VIEWED
+            return ErrorReportState.UNREPORTED
         else:
-            return ErrorReportState.NEW
+            return ErrorReportState.UNSEEN
 
 
 class MetaClass(type(ABC), urwid.MetaSignals):
@@ -158,9 +158,9 @@ class ErrorController(BaseController, metaclass=MetaClass):
         self.report_queue = queue.Queue()
         self.reports_to_load_queue = queue.Queue()
 
-    def has_new_reports(self):
+    def has_unseen_reports(self):
         for v in self.reports.values():
-            if v.state in [ErrorReportState.INCOMPLETE, ErrorReportState.NEW]:
+            if v.state in [ErrorReportState.INCOMPLETE, ErrorReportState.UNSEEN]:
                 return True
         return False
 
@@ -215,6 +215,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
             r = self.reports[base] = ErrorReport(
                 controller=self, base=base, pr=pr, file=crash_file,
                 attach_hook=attach_hook, state=ErrorReportState.INCOMPLETE)
+            urwid.emit_signal(self, 'new_report', r)
             return r
 
     def _report_pipe_callback(self, ignored):

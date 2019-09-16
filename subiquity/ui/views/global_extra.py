@@ -167,7 +167,7 @@ class GlobalExtraStretchy(Stretchy):
             self.app.error_controller, 'new_report', self._new_report)
 
     def _set_error_btn_label(self, sender=None, report=None):
-        if self.app.error_controller.has_new_reports():
+        if self.app.error_controller.has_unseen_reports():
             self.error_btn.base_widget.set_label(_("* View error reports"))
         else:
             self.error_btn.base_widget.set_label(_("View error reports"))
