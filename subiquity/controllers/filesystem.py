@@ -152,9 +152,7 @@ class FilesystemController(BaseController):
         elif self._probe_state == ProbeState.FAILED:
             self.ui.set_body(ProbingFailed(self))
             log.debug(self._probe_error_reports)
-            r = self._probe_error_reports.get(False)
-            if r is None:
-                r = self._probe_error_reports.get(True)
+            r = self._probe_error_reports.get(True)
             if r is not None:
                 self.app.show_error_report(r)
         else:

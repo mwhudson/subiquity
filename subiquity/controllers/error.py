@@ -44,6 +44,14 @@ class ErrorReportState(enum.Enum):
     UPLOADED = _("UPLOADED")
 
 
+class ErrorReportKinds(enum.Enum):
+    FULL_BLOCK_PROBE_FAILED = enum.auto()
+    RESTRICTED_BLOCK_PROBE_FAILED = enum.auto()
+    INSTALL_FAILED = enum.auto()
+    UI_CRASH = enum.auto()
+    UNKNOWN = enum.auto()
+
+
 @attr.s(cmp=False)
 class ErrorReport:
     controller = attr.ib()
@@ -53,7 +61,7 @@ class ErrorReport:
     _attach_hook = attr.ib(default=None)
     _state = attr.ib(default=None)
 
-    def add_info(self):
+    def add_info(self, wait=False):
         log.debug("begin adding info for report %s", self.base)
 
         def _bg_add_info():
@@ -68,7 +76,7 @@ class ErrorReport:
             # to make this go better.
 
             # apport-cli gets upset if neither of these are present.
-            self.pr['Package'] = 'subiquity 0.0'
+            self.pr['Package'] = 'subiquity 0.0' # This should be the snap revision
             self.pr['SourcePackage'] = 'subiquity'
 
             # If ExecutableTimestamp is present, apport-cli will try to check
@@ -90,8 +98,11 @@ class ErrorReport:
             self.file = None
             self._state = None
             urwid.emit_signal(self.controller, 'report_changed', self)
-        self.controller.run_in_bg(
-            _bg_add_info, added_info)
+        if wait:
+            _bg_add_info()
+        else:
+            self.controller.run_in_bg(
+                _bg_add_info, added_info)
 
     def mark_for_upload(self):
         with open(self.upload_path, 'w'):

@@ -117,7 +117,8 @@ class Subiquity(Application):
             super().run()
         except Exception:
             print("generating crash report")
-            self.make_apport_report("Installer UI", sys.exc_info())
+            self.make_apport_report(
+                "Installer UI", sys.exc_info(), wait=True, interrupt=False)
             raise
 
     def load_controllers(self):
@@ -203,7 +204,7 @@ class Subiquity(Application):
             btn.set_label(_("Help"))
 
     def make_apport_report(self, thing, exc_info=None, extra_data=None,
-                           *, interrupt=True):
+                           *, interrupt=True, wait=False):
         log.debug("generating crash report")
         apport_files = self._apport_files[:]
         apport_data = self._apport_data.copy()
@@ -230,9 +231,10 @@ class Subiquity(Application):
                 traceback.format_exception(*exc_info))
         else:
             report.pr["Title"] = thing
-        report.add_info()
+        report.add_info(wait)
         if interrupt:
             self.show_error_report(report)
+        # In the fullness of time we should do the signature thing here.
         return report
 
     def show_error_report(self, report):

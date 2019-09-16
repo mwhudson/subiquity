@@ -89,6 +89,12 @@ class ErrorReportStretchy(Stretchy):
                 other_btn(
                     _("View the report"),
                     on_press=self.view_report))
+
+        # Should here offer view / report / close
+        # close without report should prompt to report to error tracker
+        # reporting a bug should _also_ submit to the error tracker
+        # no point offering any upload/report options if there is no network
+        # should also explain how to report a bug on another machine
         self.submit_btn = Toggleable(
                 other_btn(
                     _("Submit to the error tracker"),
@@ -104,6 +110,8 @@ class ErrorReportStretchy(Stretchy):
         self.desc = Text("")
         pile = Pile([
             ('pack', Text(rewrap(_(error_intro_text)))),
+            ('pack', Text("")),
+            ('pack', Text(_("something about the kind of error here"))),
             ('pack', Text("")),
             ('pack', self.table),
             ('pack', Text("")),
@@ -179,8 +187,6 @@ class ErrorReportListStretchy(Stretchy):
         for report in self.app.error_controller.reports.values():
             r = self.report_to_row[report] = self.row_for_report(report)
             rows.append(r)
-        connect_signal(
-            self.app.error_controller, 'new_report', self._new_report)
         self.table = TablePile(rows)
         widgets = [
             self.table,
@@ -223,7 +229,9 @@ class ErrorReportListStretchy(Stretchy):
         disconnect_signal(self.ec, 'report_changed', self._report_changed)
 
     def _new_report(self, report):
-        pass
+        i = len(self.table.table_rows)
+        r = self.report_to_row[report] = self.row_for_report(report)
+        self.table.insert_rows(i, [r])
 
     def _report_changed(self, report):
         r = self.report_to_row.get(report)
