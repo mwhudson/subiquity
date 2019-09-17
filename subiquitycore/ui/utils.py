@@ -153,6 +153,7 @@ STYLE_NAMES = set([
     'done_button',
     'frame_footer',
     'frame_header',
+    'frame_header_fringe',
     'info_error',
     'info_minor',
     'info_primary',
@@ -245,7 +246,7 @@ def screen(rows, buttons=None, focus_buttons=True, excerpt=None,
     excerpt_rows = []
     if excerpt is not None:
         excerpt_rows = [
-            ('pack', Text("")),
+            #('pack', Text("")),
             ('pack', Text(excerpt)),
             ]
     body = [

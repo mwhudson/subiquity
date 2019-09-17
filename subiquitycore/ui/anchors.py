@@ -16,8 +16,9 @@
 import logging
 
 from urwid import (
-    Text,
     ProgressBar,
+    SolidFill,
+    Text,
     )
 
 from subiquitycore.ui.container import (
@@ -44,9 +45,14 @@ class Header(WidgetWrap):
         if isinstance(title, str):
             title = Text(title)
         title = Padding.center_79(title, min_width=76)
-        super().__init__(Color.frame_header(
-                Pile(
-                    [Text(""), title, Text("")])))
+        super().__init__(
+                Pile([
+                    (1, Color.frame_header_fringe(
+                        SolidFill("\N{lower half block}"))),
+                    Color.frame_header(title),
+                    (1, Color.frame_header_fringe(
+                        SolidFill("\N{upper half block}"))),
+                    ]))
 
 
 class StepsProgressBar(ProgressBar):
