@@ -32,35 +32,6 @@ from subiquitycore.ui.width import widget_width
 log = logging.getLogger('subiquitycore.ui.anchors')
 
 
-class Header(WidgetWrap):
-    """ Header Widget
-
-    This widget uses the style key `frame_header`
-
-    :param str title: Title of Header
-    :returns: Header()
-    """
-
-    def __init__(self, title):
-        if isinstance(title, str):
-            title = Text(title)
-        title = Padding.center_79(title, min_width=76)
-        super().__init__(
-                Pile([
-                    (1, Color.frame_header_fringe(
-                        SolidFill("\N{lower half block}"))),
-                    Color.frame_header(title),
-                    (1, Color.frame_header_fringe(
-                        SolidFill("\N{upper half block}"))),
-                    ]))
-
-
-class StepsProgressBar(ProgressBar):
-
-    def get_text(self):
-        return "{} / {}".format(self.current, self.done)
-
-
 class MyColumns(Columns):
     # The idea is to render output like this:
     #
@@ -91,23 +62,24 @@ class MyColumns(Columns):
         return [lpad, middle, rpad, right]
 
 
-class Footer(WidgetWrap):
-    """ Footer widget
+class Header(WidgetWrap):
+    """ Header Widget
 
-    Style key: `frame_footer`
+    This widget uses the style key `frame_header`
 
+    :param str title: Title of Header
+    :returns: Header()
     """
 
-    def __init__(self, message, right_icon, current, complete):
-        if isinstance(message, str):
-            message = Text(message)
-        progress_bar = Padding.center_60(
-            StepsProgressBar(normal='progress_incomplete',
-                             complete='progress_complete',
-                             current=current, done=complete))
-        status = [
-            progress_bar,
-            Padding.line_break(""),
-            MyColumns([Text(""), message, Text(""), right_icon]),
-        ]
-        super().__init__(Color.frame_footer(Pile(status)))
+    def __init__(self, title):
+        if isinstance(title, str):
+            title = Text(title)
+        title = Padding.center_79(title, min_width=76)
+        super().__init__(
+                Pile([
+                    (1, Color.frame_header_fringe(
+                        SolidFill("\N{lower half block}"))),
+                    Color.frame_header(title),
+                    (1, Color.frame_header_fringe(
+                        SolidFill("\N{upper half block}"))),
+                    ]))

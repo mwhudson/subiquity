@@ -516,15 +516,6 @@ class FilesystemView(BaseView):
         self.lb.base_widget._select_first_selectable()
         can_install = self.model.can_install()
         self.done.enabled = can_install
-        if can_install:
-            self.controller.ui.set_footer(
-                _("Select Done to begin the installation."))
-        else:
-            if self.model.needs_bootloader_partition():
-                self.controller.ui.set_footer(self.footer)
-            elif not self.model.is_root_mounted():
-                self.controller.ui.set_footer(
-                    _("You need to mount a device at / to continue."))
 
     def create_raid(self, button=None):
         self.show_stretchy_overlay(RaidStretchy(self))
