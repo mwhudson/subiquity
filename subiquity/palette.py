@@ -38,6 +38,8 @@ COLORS = [
 STYLES = [
     ('frame_header_fringe', 'orange',  'bg'),
     ('frame_header',        'fg',      'orange'),
+    ('frame_button',        'fg',      'orange'),
+    ('frame_button focus',  'orange',  'fg'),
     ('frame_footer',        'fg',      'brand'),
     ('body',                'fg',      'bg'),
 

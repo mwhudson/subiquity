@@ -16,6 +16,8 @@
 import logging
 
 from subiquitycore.ui.frame import SubiquityCoreUI
+from subiquitycore.ui.selector import Selector
+from subiquitycore.ui.buttons import header_btn
 
 
 log = logging.getLogger('subiquity.ui.frame')
@@ -24,4 +26,5 @@ log = logging.getLogger('subiquity.ui.frame')
 class SubiquityUI(SubiquityCoreUI):
 
     def __init__(self, app):
+        self.right_icon = header_btn('Help')
         super().__init__()

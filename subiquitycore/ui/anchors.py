@@ -16,7 +16,6 @@
 import logging
 
 from urwid import (
-    ProgressBar,
     SolidFill,
     Text,
     )
@@ -35,31 +34,26 @@ log = logging.getLogger('subiquitycore.ui.anchors')
 class MyColumns(Columns):
     # The idea is to render output like this:
     #
-    #                  message                [ help  ]
-    # [ lpad        ][ middle        ][ rpad ][ right ]
+    # [ pad ][ message       ][ btn ][ pad ]
     #
     # The constraints are:
     #
-    # 1. lpad + rpad + right + message = maxcol
+    # 1. pad + message + btn + pad = maxcol
     #
-    # 2. lpad and rpad are at least 1
+    # 2. pad is at least 1
     #
-    # 3. right is fixed
+    # 3. btn is fixed
     #
-    # 4. if possible, lpad = rpad + right and middle is 79% of maxcol
-    #    or 76, whichever is greater.
+    # 4. message + btn is 79% of maxcol or 76, whichever is greater.
 
     def column_widths(self, size, focus=False):
         maxcol = size[0]
-        right = widget_width(self.contents[3][0])
+        btn = widget_width(self.contents[2][0])
 
         center = max(79*maxcol//100, 76)
-        lpad = (maxcol - center)//2
-        rpad = lpad - right
-        if rpad < 1:
-            rpad = 1
-        middle = maxcol - (lpad + rpad + right)
-        return [lpad, middle, rpad, right]
+        message = center - btn
+        pad = (maxcol - center)//2
+        return [pad, message, btn, pad]
 
 
 class Header(WidgetWrap):
@@ -71,10 +65,15 @@ class Header(WidgetWrap):
     :returns: Header()
     """
 
-    def __init__(self, title):
+    def __init__(self, title, right_icon):
         if isinstance(title, str):
             title = Text(title)
-        title = Padding.center_79(title, min_width=76)
+        title = MyColumns([
+            Text(""),
+            title,
+            right_icon,
+            Text(""),
+            ])
         super().__init__(
                 Pile([
                     (1, Color.frame_header_fringe(
