@@ -64,6 +64,7 @@ class Subiquity(Application):
         return SubiquityUI(self)
 
     controllers = [
+            "Error",  # does not actually have a UI
             "Welcome",
             "Refresh",
             "Keyboard",

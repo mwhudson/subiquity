@@ -192,6 +192,9 @@ class HelpMenu(WidgetWrap):
         else:
             local = Text(
                 ('info_minor header', " " + _("Help on this screen") + " "))
+        view_errors = Text(
+            ('info_minor header', " " + _("View error reports") + " "))
+
         for button in buttons:
             connect_signal(button.base_widget, 'click', self._close)
 
@@ -203,6 +206,8 @@ class HelpMenu(WidgetWrap):
             about,
             hline,
             color,
+            hline,
+            view_errors,
             ]
 
         rows = [
