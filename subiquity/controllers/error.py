@@ -142,6 +142,10 @@ class ErrorReport:
         return self._path_with_ext('seen')
 
     @property
+    def summary(self):
+        return self.pr.get("Summary", "???")
+
+    @property
     def reporting_state(self):
         if os.path.exists(self.reported_path):
             return ErrorReportReportingState.REPORTED
