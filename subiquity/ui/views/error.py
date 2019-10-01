@@ -170,9 +170,13 @@ class ErrorReportStretchy(Stretchy):
                 ]
         if self.report.reporting_state in [
                 ErrorReportReportingState.UPLOADING,
-                ErrorReportReportingState.UPLOADED,
                 ]:
             self.submit_btn.base_widget.set_label(_("Submitting..."))
+            self.submit_btn.original_widget.enabled = False
+        elif self.report.reporting_state in [
+                ErrorReportReportingState.UPLOADED,
+                ]:
+            self.submit_btn.base_widget.set_label(_("Submitted"))
             self.submit_btn.original_widget.enabled = False
         else:
             self.submit_btn.original_widget.enabled = True

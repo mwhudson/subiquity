@@ -17,6 +17,9 @@ from abc import ABC
 import enum
 import logging
 import os
+import queue
+import threading
+import time
 
 import apport
 import apport.hookutils
@@ -159,7 +162,7 @@ class ErrorReport:
 
     @property
     def reported_path(self):
-        return self._path_with_ext('uploaded')
+        return self._path_with_ext('reported')
 
     @property
     def uploaded_path(self):
@@ -203,6 +206,9 @@ class ErrorController(BaseController, metaclass=MetaClass):
         super().__init__(app)
         self.crash_directory = os.path.join(self.app.root, 'var/crash')
         self.reports = {}  # maps base to ErrorReport
+        self._report_queue = queue.Queue()
+        self._loading_report = None
+        self._reports_to_load = []
 
     def are_reports_persistent(self):
         cp = run_command(['mountpoint', self.crash_directory])
@@ -222,50 +228,95 @@ class ErrorController(BaseController, metaclass=MetaClass):
         # scan for pre-existing crash reports, send new_report signals
         # for them and start loading them in the background
         os.makedirs(self.crash_directory, exist_ok=True)
-        self.run_in_bg(self._bg_scan_crash_dir, self._scanned)
+        self._scan_lock = threading.Lock()
+        self._seen_files = set()
+        self._report_pipe_w = self.app.loop.watch_pipe(
+            self._report_pipe_callback)
+        t = threading.Thread(target=self._bg_scan_crash_dir)
+        t.setDaemon(True)
+        t.start()
 
-    def _bg_scan_crash_dir(self):
-        reports = []
-        for fname in os.listdir(self.crash_directory):
-            base, ext = os.path.splitext(fname)
-            if ext != '.crash':
-                continue
-            path = os.path.join(self.crash_directory, fname)
-            report = ErrorReport(
-                controller=self, base=base, pr=apport.Report(),
-                file=open(path, 'rb'),
+    def _report_changed(self, act, base):
+        if act == "NEW" and base not in self.reports:
+            report = self.reports[base] = ErrorReport(
+                self, base, pr=apport.Report(),
                 construction_state=ErrorReportConstructionState.LOADING)
+            report._file = open(report.path, 'rb')
             try:
                 fp = open(report.kind_path)
             except FileNotFoundError:
                 pass
             else:
                 with fp:
-                    report.kind = getattr(
-                        ErrorReportKind,
-                        fp.read().strip(),
-                        ErrorReportKind.UNKNOWN)
-            reports.append(report)
-        return reports
+                    kind_str = fp.read().strip()
+                report.kind = getattr(
+                    ErrorReportKind, kind_str, ErrorReportKind.UNKNOWN)
+            urwid.emit_signal(self, 'new_report', report)
+            self._queue_report_load(report)
+        elif act == "DEL" and base in self.reports:
+            del self.reports[base]
+        elif act == "CHANGE" and base in self.reports:
+            urwid.emit_signal(self, 'report_changed', self.reports[base])
+
+    def _queue_report_load(self, report):
+        if self._loading_report is None:
+            self._loading_report = report
+            self._loading_report.load(self._report_loaded)
+        else:
+            self._reports_to_load.append(report)
 
     def _report_loaded(self):
-        for report in self.reports.values():
-            if report.construction_state == \
-              ErrorReportConstructionState.LOADING:
-                report.load(self._report_loaded)
-                return
+        if self._reports_to_load:
+            self._loading_report = self._reports_to_load.pop(0)
+            self._loading_report.load(self._report_loaded)
+        else:
+            self._loading_report = None
 
-    def _scanned(self, fut):
-        try:
-            reports = fut.result()
-        except Exception:
-            logging.exception("scanning for crash reports failed")
-            return
-        for report in reports:
-            if report.base not in self.reports:
-                self.reports[report.base] = report
-                urwid.emit_signal(self, 'new_report', report)
-        self._report_loaded()
+    def _report_pipe_callback(self, ignored):
+        while True:
+            try:
+                (act, base) = self._report_queue.get(block=False)
+            except queue.Empty:
+                return True
+            self._report_changed(act, base)
+
+    def _bg_report_action(self, act, name):
+        self._report_queue.put((act, name))
+        os.write(self._report_pipe_w, b'x')
+
+    def _bg_scan_crash_dir(self):
+        while True:
+            try:
+                self._scan_crash_dir(self._bg_report_action)
+            except Exception:
+                log.exception("_scan_crash_dir failed")
+            time.sleep(1)
+
+    def fg_scan_crash_dir(self):
+        self._scan_crash_dir(self._report_changed)
+
+    def _scan_crash_dir(self, report_func):
+        with self._scan_lock:
+            next_files = set()
+            filenames = os.listdir(self.crash_directory)
+            exts_bases = [
+                os.path.splitext(filename)[::-1] + (filename,)
+                for filename in filenames
+                ]
+            for ext, base, filename in sorted(exts_bases):
+                next_files.add(filename)
+                if filename in self._seen_files:
+                    continue
+                if ext == '.crash':
+                    log.debug("saw error report %s", base)
+                    report_func("NEW", base)
+                if ext in ['.seen', '.upload', '.uploaded']:
+                    report_func("CHANGE", base)
+            for filename in self._seen_files - next_files:
+                base, ext = os.path.splitext(filename)
+                if ext == '.crash':
+                    report_func("DEL", base)
+            self._seen_files = next_files
 
     def create_report(self, kind):
         # create a report, send a new_report signal for it
