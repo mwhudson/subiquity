@@ -103,15 +103,36 @@ class ErrorReport:
             except Exception:
                 self.construction_state = ErrorReportConstructionState.ERROR
                 log.exception("adding info to problem report failed")
+            else:
+                self.construction_state = ErrorReportConstructionState.DONE
             self._file.close()
             self._file = None
-            self.construction_state = ErrorReportConstructionState.DONE
             urwid.emit_signal(self.controller, 'report_changed', self)
         if wait:
             _bg_add_info()
         else:
-            self.controller.run_in_bg(
-                _bg_add_info, added_info)
+            self.controller.run_in_bg(_bg_add_info, added_info)
+
+    def load(self, cb):
+
+        def _bg_load():
+            log.debug("loading report %s", self.base)
+            self.pr.load(self._file)
+
+        def loaded(fut):
+            log.debug("done loading report %s", self.base)
+            try:
+                fut.result()
+            except Exception:
+                self.construction_state = ErrorReportConstructionState.ERROR
+                log.exception("loading problem report failed")
+            else:
+                self.construction_state = ErrorReportConstructionState.DONE
+            self._file.close()
+            self._file = None
+            urwid.emit_signal(self.controller, 'report_changed', self)
+            cb()
+        self.controller.run_in_bg(_bg_load, loaded)
 
     def _path_with_ext(self, ext):
         return os.path.join(
@@ -143,7 +164,7 @@ class ErrorReport:
 
     @property
     def summary(self):
-        return self.pr.get("Summary", "???")
+        return self.pr.get("Title", "???")
 
     @property
     def reporting_state(self):
@@ -186,6 +207,50 @@ class ErrorController(BaseController, metaclass=MetaClass):
         # scan for pre-existing crash reports, send new_report signals
         # for them and start loading them in the background
         os.makedirs(self.crash_directory, exist_ok=True)
+        self.run_in_bg(self._bg_scan_crash_dir, self._scanned)
+
+    def _bg_scan_crash_dir(self):
+        reports = []
+        for fname in os.listdir(self.crash_directory):
+            base, ext = os.path.splitext(fname)
+            if ext != '.crash':
+                continue
+            path = os.path.join(self.crash_directory, fname)
+            report = ErrorReport(
+                controller=self, base=base, pr=apport.Report(),
+                file=open(path, 'rb'),
+                construction_state=ErrorReportConstructionState.LOADING)
+            try:
+                fp = open(report.kind_path)
+            except FileNotFoundError:
+                pass
+            else:
+                with fp:
+                    report.kind = getattr(
+                        ErrorReportKind,
+                        fp.read().strip(),
+                        ErrorReportKind.UNKNOWN)
+            reports.append(report)
+        return reports
+
+    def _report_loaded(self):
+        for report in self.reports.values():
+            if report.construction_state == \
+              ErrorReportConstructionState.LOADING:
+                report.load(self._report_loaded)
+                return
+
+    def _scanned(self, fut):
+        try:
+            reports = fut.result()
+        except Exception:
+            logging.exception("scanning for crash reports failed")
+            return
+        for report in reports:
+            if report.base not in self.reports:
+                self.reports[report.base] = report
+                urwid.emit_signal(self, 'new_report', report)
+        self._report_loaded()
 
     def create_report(self, kind):
         # create a report, send a new_report signal for it
