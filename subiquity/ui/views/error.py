@@ -18,6 +18,7 @@ import logging
 from urwid import (
     connect_signal,
     disconnect_signal,
+    Padding,
     Text,
     )
 
@@ -40,11 +41,13 @@ from subiquitycore.ui.utils import (
     Color,
     rewrap,
     )
+from subiquitycore.ui.width import (
+    widget_width,
+    )
 
 from subiquity.controllers.error import (
     ErrorReportKind,
     ErrorReportConstructionState,
-    ErrorReportReportingState,
     )
 
 
@@ -75,24 +78,29 @@ Sorry, an unknown error occurred.
 }
 
 incomplete_text = _("""
-
 Information is being collected from the system that will help the
 developers diagnose the report.
-
 """)
 
-complete_text = _("""
+submit_text = _("""
+If you want to help improve the installer, you can send an error report.
+""")
 
-You can view the report (in less), and assuming you have an internet
-connection, submit the report to the error tracker and/or create a bug
-report in Launchpad.
+report_text = _("""
+If you’re happy to be contacted to diagnose and test a fix for this
+problem, you can report a bug with a Launchpad account.
+""")
 
-Reporting a bug requires that you have or create a Launchpad account
-and can visit a URL to complete the filing of the report (the URL can
-be displayed as a QR code which might make this easier).
+retry_text = _("""
+Do you want to try starting the installation again?
+""")
 
-(something here about how to report the bug from another machine)
+all_probing_failed_text = _("""
+XXX
+""")
 
+full_block_probe_failed = _("""
+XXX
 """)
 
 
@@ -106,7 +114,7 @@ class ErrorReportStretchy(Stretchy):
 
         self.view_btn = Toggleable(
                 other_btn(
-                    _("View the report"),
+                    _("View Error Report"),
                     on_press=self.view_report))
 
         # Should here offer view / report / close
@@ -116,60 +124,86 @@ class ErrorReportStretchy(Stretchy):
         # should also explain how to report a bug on another machine
         self.submit_btn = Toggleable(
                 other_btn(
-                    _("Submit to the error tracker"),
+                    _("Send to Canonical"),
                     on_press=self.submit))
         self.report_btn = Toggleable(
                 other_btn(
-                    _("Report as a bug in Launchpad"),
+                    _("Report a bug..."),
                     on_press=self.report_as_bug))
-        self.btns = [
-            self.view_btn, self.submit_btn, self.report_btn,
-            ]
+        self.close_btn = close_btn(parent)
+        btns = {
+            self.view_btn,
+            self.submit_btn,
+            self.report_btn,
+            self.close_btn,
+            }
+        w = max(map(widget_width, btns))
+        for a in 'view_btn', 'submit_btn', 'report_btn', 'close_btn':
+            setattr(
+                self,
+                a,
+                Padding(getattr(self, a), width=w, align='center'))
         self.table = TablePile(self.rows_for_report())
         self.desc = Text("")
-        pile = Pile([
-            ('pack', Text(rewrap(_(error_report_intros[report.kind])))),
-            ('pack', Text("")),
-            ('pack', self.table),
-            ('pack', Text("")),
-            ('pack', self.desc),
-            ])
-        self.bp = button_pile(self.btns + [close_btn(parent)])
+        self.pile = Pile([])
         self._report_changed(self.report)
         widgets = [
-            pile,
-            Text(""),
-            self.bp,
+            self.pile,
             ]
-        super().__init__(report.summary, widgets, 0, 2)
+        super().__init__(report.summary, widgets, 0, 0)
+
+    def _pile_elements(self):
+        INCOMPLETE = ErrorReportConstructionState.INCOMPLETE
+        if self.report.construction_state == INCOMPLETE:
+            return [Text(rewrap(_(incomplete_text)))]
+        widgets = [
+            Text(rewrap(_(error_report_intros[self.report.kind]))),
+            Text(""),
+            TablePile(self.rows_for_report()),
+            Text(""),
+            Text(rewrap(_(submit_text))),
+            Text(""),
+            self.view_btn,
+            self.submit_btn,
+            Text(""),
+            Text(rewrap(_(report_text))),
+            Text(""),
+            self.report_btn,
+            Text(""),
+            ]
+        if self.report.kind == ErrorReportKind.INSTALL_FAILED:
+            widgets.extend([
+                Text(rewrap(_(retry_text))),
+                Text(""),
+                ])
+        elif self.report.kind == ErrorReportKind.FULL_BLOCK_PROBE_FAILED:
+            widgets.extend([
+                Text(rewrap(_(full_block_probe_failed))),
+                Text(""),
+                ])
+        elif self.report.kind == ErrorReportKind.RESTRICTED_BLOCK_PROBE_FAILED:
+            widgets.extend([
+                Text(rewrap(_(all_probing_failed_text))),
+                Text(""),
+                ])
+        else:
+            widgets.extend([
+                self.close_btn,
+                ])
+        return widgets
 
     def _report_changed(self, report):
         if report is not self.report:
             return
-        INCOMPLETE = ErrorReportConstructionState.INCOMPLETE
-        if report.construction_state == INCOMPLETE:
-            text = rewrap(_(incomplete_text))
-            for btn in self.btns:
-                btn.enabled = False
-        else:
-            text = rewrap(_(complete_text))
-            for btn in self.btns:
-                btn.enabled = True
-            if report.reporting_state in [
-                    ErrorReportReportingState.UPLOADING,
-                    ErrorReportReportingState.UPLOADED]:
-                self.submit_btn.enabled = False
-        while not self.bp.base_widget.focus.selectable():
-            self.bp.base_widget.focus_position += 1
-        self.desc.set_text(text)
-        self.table.set_contents(self.rows_for_report())
+        self.pile.contents[:] = [
+            (w, self.pile.options('pack')) for w in self._pile_elements()]
 
     def rows_for_report(self):
         rows = [
             ("Summary:", self.report.summary),
             ("State:", self.report.reporting_state.name),
             # XXX display relative date here!
-            ("Reported:", self.report.pr.get("Date", "???")),
+            ("Date:", self.report.pr.get("Date", "???")),
             ]
         return [TableRow(map(Text, r)) for r in rows]
 
