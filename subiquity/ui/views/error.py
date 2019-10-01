@@ -16,6 +16,8 @@
 import logging
 
 from urwid import (
+    connect_signal,
+    disconnect_signal,
     Text,
     )
 
@@ -70,13 +72,39 @@ class ErrorReportListStretchy(Stretchy):
     def open_report(self, sender, report):
         pass
 
-    def row_for_report(self, report):
+    def cells_for_report(self, report):
         icon = ClickableIcon(report.summary, 0)
-        cells = [
+        return [
             Text("["),
             icon,
             Text(_(report.kind.value)),
             Text(_(report.reporting_state.name)),
             Text("]"),
             ]
-        return Color.menu_button(TableRow(cells))
+
+    def row_for_report(self, report):
+        return Color.menu_button(
+            TableRow(self.cells_for_report(report)))
+
+    def opened(self):
+        connect_signal(self.ec, 'new_report', self._new_report)
+        connect_signal(self.ec, 'report_changed', self._report_changed)
+
+    def closed(self):
+        disconnect_signal(self.ec, 'new_report', self._new_report)
+        disconnect_signal(self.ec, 'report_changed', self._report_changed)
+
+    def _new_report(self, report):
+        i = len(self.table.table_rows)
+        r = self.report_to_row[report] = self.row_for_report(report)
+        self.table.insert_rows(i, [r])
+
+    def _report_changed(self, report):
+        old_r = self.report_to_row.get(report)
+        if old_r is None:
+            return
+        old_r = old_r.base_widget
+        new_cells = self.cells_for_report(report)
+        for (s1, old_c), new_c in zip(old_r.cells, new_cells):
+            old_c.set_text(new_c.text)
+        self.table.invalidate()
