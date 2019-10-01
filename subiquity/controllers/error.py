@@ -134,6 +134,14 @@ class ErrorReport:
             cb()
         self.controller.run_in_bg(_bg_load, loaded)
 
+    def mark_seen(self):
+        with open(self.seen_path, 'w'):
+            pass
+
+    def mark_for_upload(self):
+        with open(self.upload_path, 'w'):
+            pass
+
     def _path_with_ext(self, ext):
         return os.path.join(
             self.controller.crash_directory, self.base + '.' + ext)
