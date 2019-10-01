@@ -27,6 +27,7 @@ import urwid
 
 from subiquitycore.controller import BaseController
 from subiquitycore.core import Skip
+from subiquitycore.utils import run_command
 
 
 log = logging.getLogger('subiquity.controllers.error')
@@ -200,6 +201,10 @@ class ErrorController(BaseController, metaclass=MetaClass):
         super().__init__(app)
         self.crash_directory = os.path.join(self.app.root, 'var/crash')
         self.reports = {}  # maps base to ErrorReport
+
+    def are_reports_persistent(self):
+        cp = run_command(['mountpoint', self.crash_directory])
+        return cp.returncode == 0
 
     def register_signals(self):
         # BaseController.register_signals uses the signals class
