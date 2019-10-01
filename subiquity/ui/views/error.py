@@ -48,6 +48,7 @@ from subiquitycore.ui.width import (
 from subiquity.controllers.error import (
     ErrorReportKind,
     ErrorReportConstructionState,
+    ErrorReportReportingState,
     )
 
 
@@ -154,8 +155,27 @@ class ErrorReportStretchy(Stretchy):
 
     def _pile_elements(self):
         INCOMPLETE = ErrorReportConstructionState.INCOMPLETE
+        LOADING = ErrorReportConstructionState.LOADING
         if self.report.construction_state == INCOMPLETE:
-            return [Text(rewrap(_(incomplete_text)))]
+            return [
+                Text(rewrap(_(incomplete_text))),
+                Text(""),
+                self.close_btn,
+                ]
+        elif self.report.construction_state == LOADING:
+            return [
+                Text(rewrap(_("Loading"))),
+                Text(""),
+                self.close_btn,
+                ]
+        if self.report.reporting_state in [
+                ErrorReportReportingState.UPLOADING,
+                ErrorReportReportingState.UPLOADED,
+                ]:
+            self.submit_btn.base_widget.set_label(_("Submitting..."))
+            self.submit_btn.original_widget.enabled = False
+        else:
+            self.submit_btn.original_widget.enabled = True
         widgets = [
             Text(rewrap(_(error_report_intros[self.report.kind]))),
             Text(""),
@@ -197,6 +217,8 @@ class ErrorReportStretchy(Stretchy):
             return
         self.pile.contents[:] = [
             (w, self.pile.options('pack')) for w in self._pile_elements()]
+        while not self.pile.focus.selectable():
+            self.pile.focus_position += 1
 
     def rows_for_report(self):
         rows = [

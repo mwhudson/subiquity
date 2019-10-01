@@ -138,10 +138,12 @@ class ErrorReport:
     def mark_seen(self):
         with open(self.seen_path, 'w'):
             pass
+        urwid.emit_signal(self.controller, 'report_changed', self)
 
     def mark_for_upload(self):
         with open(self.upload_path, 'w'):
             pass
+        urwid.emit_signal(self.controller, 'report_changed', self)
 
     def _path_with_ext(self, ext):
         return os.path.join(
