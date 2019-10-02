@@ -19,6 +19,7 @@ from urwid import (
     connect_signal,
     disconnect_signal,
     Padding,
+    ProgressBar,
     Text,
     )
 
@@ -127,6 +128,9 @@ class ErrorReportStretchy(Stretchy):
                 other_btn(
                     _("Send to Canonical"),
                     on_press=self.submit))
+        self.report_pb = ProgressBar(
+            normal='progress_incomplete',
+            complete='progress_complete')
         self.report_btn = Toggleable(
                 other_btn(
                     _("Report a bug..."),
@@ -192,9 +196,21 @@ class ErrorReportStretchy(Stretchy):
             Text(""),
             Text(rewrap(_(report_text))),
             Text(""),
-            self.report_btn,
-            Text(""),
             ]
+
+        if self.report.reporting_state in [
+                ErrorReportReportingState.REPORTING,
+                ]:
+            widgets.append(self.report_pb)
+        elif self.report.reporting_state in [
+                ErrorReportReportingState.REPORTING,
+                ]:
+            pass
+        else:
+            widgets.append(self.report_btn)
+
+        widgets.append(Text(""))
+
         if self.report.kind == ErrorReportKind.INSTALL_FAILED:
             widgets.extend([
                 Text(rewrap(_(retry_text))),
@@ -223,6 +239,15 @@ class ErrorReportStretchy(Stretchy):
             (w, self.pile.options('pack')) for w in self._pile_elements()]
         while not self.pile.focus.selectable():
             self.pile.focus_position += 1
+        self.title = report.summary
+
+    def _reporting_progress(self, report):
+        if report is not self.report:
+            return
+        if report.bytes_to_send is None or report.bytes_sent is None:
+            return
+        self.report_pb.done = report.bytes_to_send
+        self.report_pb.current = report.bytes_sent
 
     def rows_for_report(self):
         rows = [
@@ -240,13 +265,18 @@ class ErrorReportStretchy(Stretchy):
         self.report.mark_for_upload()
 
     def report_as_bug(self, sender):
-        pass
+        self.report.report()
 
     def opened(self):
+        self.report.mark_seen()
         connect_signal(self.ec, 'report_changed', self._report_changed)
+        connect_signal(
+            self.ec, 'reporting_progress', self._reporting_progress)
 
     def closed(self):
         disconnect_signal(self.ec, 'report_changed', self._report_changed)
+        disconnect_signal(
+            self.ec, 'reporting_progress', self._reporting_progress)
 
 
 class ErrorReportListStretchy(Stretchy):
@@ -276,7 +306,6 @@ class ErrorReportListStretchy(Stretchy):
         super().__init__(_("Error Reports"), widgets, 0, 0)
 
     def open_report(self, sender, report):
-        report.mark_seen()
         self.parent.show_stretchy_overlay(ErrorReportStretchy(
             self.app, self.ec, report, self.parent))
 

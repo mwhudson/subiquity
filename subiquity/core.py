@@ -25,13 +25,17 @@ import apport.hookutils
 
 from subiquitycore.core import Application
 
-from subiquity.controllers.error import ErrorReportKind
+from subiquity.controllers.error import (
+    ErrorReportKind,
+    ErrorReportReportingState,
+    )
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.snapd import (
     FakeSnapdConnection,
     SnapdConnection,
     )
 from subiquity.ui.frame import SubiquityUI
+from subiquity.ui.views.error import ErrorReportStretchy
 
 
 log = logging.getLogger('subiquity.core')
@@ -117,6 +121,16 @@ class Subiquity(Application):
                 wait=True, interrupt=False)
             raise
 
+    def select_initial_screen(self, index):
+        super().select_initial_screen(index)
+        for report in self.error_controller.reports.values():
+            if report.kind == ErrorReportKind.UI_CRASH:
+                UNVIEWED = ErrorReportReportingState.UNVIEWED
+                if report.reporting_state == UNVIEWED:
+                    log.debug("showing new error %r", report.base)
+                    self.show_error_report(report)
+                    return
+
     @property
     def error_controller(self):
         return self.controller_instances["Error"]
@@ -198,3 +212,16 @@ class Subiquity(Application):
             self.show_error_report(report)
         # In the fullness of time we should do the signature thing here.
         return report
+
+    def show_error_report(self, report):
+        log.debug("show_error_report %r", report.base)
+        w = getattr(self.ui.body._w, 'top_w', None)
+        if isinstance(w, ErrorReportStretchy):
+            # Don't show an error if already looking at one.
+            return
+        self.ui.body.show_stretchy_overlay(
+            ErrorReportStretchy(
+                self,
+                self.error_controller,
+                report,
+                self.ui.body))

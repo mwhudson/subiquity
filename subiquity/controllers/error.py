@@ -155,7 +155,7 @@ class ErrorReport:
         def _cb(data):
             urwid.emit_signal(self.controller, 'reporting_progress', self)
 
-        pipe_w = self.app.loop.watch_pipe(_cb)
+        pipe_w = self.controller.loop.watch_pipe(_cb)
 
         def _bg_progress(bytes_sent, bytes_to_send):
             self.bytes_sent = bytes_sent
@@ -163,7 +163,7 @@ class ErrorReport:
             os.write(pipe_w, b'x')
 
         def _bg_report():
-            return self.controller.crashdb.upload(self.path)
+            return self.controller.crashdb.upload(self.pr)
 
         def _reported(fut):
             self.bytes_sent = self.bytes_to_send = None
@@ -174,10 +174,12 @@ class ErrorReport:
             except Exception:
                 logging.exception("reporting bug on Launchpad failed")
                 return
+            url = self.controller.crashdb.get_comment_url(self.pr, ticket)
             with open(self.reported_path, 'w') as fp:
-                fp.write(self.crashdb.get_comment_url(self.pr, ticket) + "\n")
+                fp.write(url + "\n")
             urwid.emit_signal(self.controller, 'report_changed', self)
 
+        urwid.emit_signal(self.controller, 'report_changed', self)
         self.controller.run_in_bg(_bg_report, _reported)
 
     def mark_for_upload(self):
@@ -286,10 +288,11 @@ class ErrorController(BaseController, metaclass=MetaClass):
         os.makedirs(self.crash_directory, exist_ok=True)
         self._scan_lock = threading.Lock()
         self._seen_files = set()
-        self._report_pipe_w = self.app.loop.watch_pipe(
+        self._report_pipe_w = self.loop.watch_pipe(
             self._report_pipe_callback)
         t = threading.Thread(target=self._bg_scan_crash_dir)
         t.setDaemon(True)
+        self.fg_scan_crash_dir()
         t.start()
 
     def _report_changed(self, act, base):
