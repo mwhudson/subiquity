@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import shlex
 
 from urwid import (
     connect_signal,
@@ -89,7 +90,7 @@ If you want to help improve the installer, you can send an error report.
 """)
 
 report_text = _("""
-If you’re happy to be contacted to diagnose and test a fix for this
+If you're happy to be contacted to diagnose and test a fix for this
 problem, you can report a bug with a Launchpad account.
 """)
 
@@ -135,15 +136,20 @@ class ErrorReportStretchy(Stretchy):
                 other_btn(
                     _("Report a bug..."),
                     on_press=self.report_as_bug))
+        self.complete_btn = other_btn(
+                    _("Complete bug report"),
+                    on_press=self.complete_reporting)
         self.close_btn = close_btn(parent)
         btns = {
+            self.complete_btn,
             self.view_btn,
             self.submit_btn,
             self.report_btn,
             self.close_btn,
             }
         w = max(map(widget_width, btns))
-        for a in 'view_btn', 'submit_btn', 'report_btn', 'close_btn':
+        for a in ('view_btn', 'submit_btn', 'report_btn', 'close_btn',
+                  'complete_btn'):
             setattr(
                 self,
                 a,
@@ -203,9 +209,9 @@ class ErrorReportStretchy(Stretchy):
                 ]:
             widgets.append(self.report_pb)
         elif self.report.reporting_state in [
-                ErrorReportReportingState.REPORTING,
+                ErrorReportReportingState.REPORTED,
                 ]:
-            pass
+            widgets.append(self.complete_btn)
         else:
             widgets.append(self.report_btn)
 
@@ -249,6 +255,11 @@ class ErrorReportStretchy(Stretchy):
         self.report_pb.done = report.bytes_to_send
         self.report_pb.current = report.bytes_sent
 
+    def _reporting_completed(self, report):
+        if report is not self.report:
+            return
+        self.complete_reporting()
+
     def rows_for_report(self):
         rows = [
             ("Summary:", self.report.summary),
@@ -265,18 +276,98 @@ class ErrorReportStretchy(Stretchy):
         self.report.mark_for_upload()
 
     def report_as_bug(self, sender):
-        self.report.report()
+        self.parent.show_stretchy_overlay(
+            ErrorReportBugReportStretchy(self.ec, self.report, self.parent))
+
+    def complete_reporting(self, sender=None):
+        self.parent.show_stretchy_overlay(
+            ErrorReportCompleteBugReportStretchy(
+                self.ec, self.report, self.parent))
 
     def opened(self):
         self.report.mark_seen()
         connect_signal(self.ec, 'report_changed', self._report_changed)
         connect_signal(
             self.ec, 'reporting_progress', self._reporting_progress)
+        connect_signal(
+            self.ec, 'reporting_completed', self._reporting_completed)
 
     def closed(self):
         disconnect_signal(self.ec, 'report_changed', self._report_changed)
         disconnect_signal(
             self.ec, 'reporting_progress', self._reporting_progress)
+        connect_signal(
+            self.ec, 'reporting_completed', self._reporting_completed)
+
+
+error_report_help = _("""
+Reporting a bug in Launchpad involves uploading the crash report and
+then visting a URL in a browser that is logged in as your account. If
+the report is uploaded now (which requires an internet connection),
+the URL to be visited can be displayed as a QR code, which may be
+easier to use than a printed URL.
+""")
+
+persisted_help = _("""
+The crash report has been saved to the install media (as
+"crash/{base}.crash" on the filesystem with label "{label}"). This
+report can be filed as a bug on another Ubuntu system by running
+"apport-cli $crash_file".
+""")
+
+
+class ErrorReportBugReportStretchy(Stretchy):
+    def __init__(self, ec, report, parent):
+        self.ec = ec
+        self.report = report
+        self.parent = parent
+        bp = button_pile([
+            other_btn(_("Upload now"), on_press=self._report),
+            close_btn(parent),
+            ])
+        widgets = [
+            Text(rewrap(_(error_report_help))),
+            Text(""),
+            ]
+        if self.ec.are_reports_persistent():
+            t = _(persisted_help).format(
+                base=self.report.base, label='casper-rw')
+            widgets.extend([
+                Text(rewrap(t)),
+                Text(""),
+                ])
+        widgets.append(bp)
+        super().__init__(_("Report as bug"), widgets, 0, len(widgets) - 1)
+
+    def _report(self, sender):
+        self.report.report()
+        self.parent.remove_overlay()
+
+
+class ErrorReportCompleteBugReportStretchy(Stretchy):
+    def __init__(self, ec, report, parent):
+        self.ec = ec
+        self.report = report
+        self.parent = parent
+        bp = button_pile([
+            other_btn(_("View as QR code"), on_press=self._qr),
+            Text(""),
+            close_btn(parent),
+            ])
+        widgets = [
+            Text(_("XXX")),
+            Text(""),
+            Text(self.report.reported_url),
+            Text(""),
+            ]
+        widgets.append(bp)
+        super().__init__(
+            _("Complete bug report"), widgets, 0, len(widgets) - 1)
+
+    def _qr(self, sender):
+        self.ec.app.run_command_in_foreground(
+            "qrencode -t UTF8 {} | less -R".format(
+                shlex.quote(self.report.reported_url)), shell=True)
 
 
 class ErrorReportListStretchy(Stretchy):

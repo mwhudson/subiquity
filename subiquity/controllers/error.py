@@ -178,6 +178,7 @@ class ErrorReport:
             with open(self.reported_path, 'w') as fp:
                 fp.write(url + "\n")
             urwid.emit_signal(self.controller, 'report_changed', self)
+            urwid.emit_signal(self.controller, 'reporting_completed', self)
 
         urwid.emit_signal(self.controller, 'report_changed', self)
         self.controller.run_in_bg(_bg_report, _reported)
@@ -250,7 +251,12 @@ class MetaClass(type(ABC), urwid.MetaSignals):
 
 class ErrorController(BaseController, metaclass=MetaClass):
 
-    signals = ['new_report', 'report_changed', 'reporting_progress']
+    signals = [
+        'new_report',
+        'report_changed',
+        'reporting_progress',
+        'reporting_completed',
+        ]
 
     def __init__(self, app):
         super().__init__(app)
@@ -269,8 +275,11 @@ class ErrorController(BaseController, metaclass=MetaClass):
         self._reports_to_load = []
 
     def are_reports_persistent(self):
-        cp = run_command(['mountpoint', self.crash_directory])
-        return cp.returncode == 0
+        if self.opts.dry_run:
+            return True
+        else:
+            cp = run_command(['mountpoint', self.crash_directory])
+            return cp.returncode == 0
 
     def register_signals(self):
         # BaseController.register_signals uses the signals class
