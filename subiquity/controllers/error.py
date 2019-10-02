@@ -22,6 +22,7 @@ import threading
 import time
 
 import apport
+import apport.crashdb
 import apport.hookutils
 
 import attr
@@ -41,6 +42,7 @@ class ErrorReportReportingState(enum.Enum):
     UNREPORTED = _("UNREPORTED")
     UPLOADING = _("UPLOADING")
     UPLOADED = _("UPLOADED")
+    REPORTING = _("REPORTING")
     REPORTED = _("REPORTED")
 
 
@@ -68,6 +70,8 @@ class ErrorReport:
     kind = attr.ib(default=ErrorReportKind.UNKNOWN)
     construction_state = attr.ib(default=ErrorReportConstructionState.NEW)
     _file = attr.ib(default=None)
+    bytes_sent = attr.ib(default=None)
+    bytes_to_send = attr.ib(default=None)
 
     def add_info(self, _bg_attach_hook, wait=False):
         log.debug("begin adding info for report %s", self.base)
@@ -143,6 +147,39 @@ class ErrorReport:
             pass
         urwid.emit_signal(self.controller, 'report_changed', self)
 
+    def report(self):
+
+        self.bytes_sent = 0
+        self.bytes_to_send = os.stat(self.path).st_size
+
+        def _cb(data):
+            urwid.emit_signal(self.controller, 'reporting_progress', self)
+
+        pipe_w = self.app.loop.watch_pipe(_cb)
+
+        def _bg_progress(bytes_sent, bytes_to_send):
+            self.bytes_sent = bytes_sent
+            self.bytes_to_send = bytes_to_send
+            os.write(pipe_w, b'x')
+
+        def _bg_report():
+            return self.controller.crashdb.upload(self.path)
+
+        def _reported(fut):
+            self.bytes_sent = self.bytes_to_send = None
+            self.controller.loop.remove_watch_pipe(pipe_w)
+            os.close(pipe_w)
+            try:
+                ticket = fut.result()
+            except Exception:
+                logging.exception("reporting bug on Launchpad failed")
+                return
+            with open(self.reported_path, 'w') as fp:
+                fp.write(self.crashdb.get_comment_url(self.pr, ticket) + "\n")
+            urwid.emit_signal(self.controller, 'report_changed', self)
+
+        self.controller.run_in_bg(_bg_report, _reported)
+
     def mark_for_upload(self):
         with open(self.upload_path, 'w'):
             pass
@@ -181,7 +218,18 @@ class ErrorReport:
         return self.pr.get("Title", "???")
 
     @property
+    def reported_url(self):
+        try:
+            fp = open(self.reported_path)
+        except FileNotFoundError:
+            return None
+        with fp:
+            return fp.read().strip()
+
+    @property
     def reporting_state(self):
+        if self.bytes_sent is not None:
+            return ErrorReportReportingState.REPORTING
         if os.path.exists(self.reported_path):
             return ErrorReportReportingState.REPORTED
         elif os.path.exists(self.uploaded_path):
@@ -200,11 +248,19 @@ class MetaClass(type(ABC), urwid.MetaSignals):
 
 class ErrorController(BaseController, metaclass=MetaClass):
 
-    signals = ['new_report', 'report_changed']
+    signals = ['new_report', 'report_changed', 'reporting_progress']
 
     def __init__(self, app):
         super().__init__(app)
         self.crash_directory = os.path.join(self.app.root, 'var/crash')
+        self.crashdb_spec = {
+            'impl': 'launchpad',
+            'project': 'subiquity',
+            }
+        self.crashdb = apport.crashdb.load_crashdb(
+            None, self.crashdb_spec)
+        if self.app.opts.dry_run:
+            self.crashdb_spec['launchpad_instance'] = 'staging'
         self.reports = {}  # maps base to ErrorReport
         self._report_queue = queue.Queue()
         self._loading_report = None
@@ -334,13 +390,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
         pr = apport.Report('Bug')
 
         # Report to the subiquity project on Launchpad.
-        crashdb = {
-            'impl': 'launchpad',
-            'project': 'subiquity',
-            }
-        if self.app.opts.dry_run:
-            crashdb['launchpad_instance'] = 'staging'
-        pr['CrashDB'] = repr(crashdb)
+        pr['CrashDB'] = repr(self.crashdb_spec)
 
         r = self.reports[base] = ErrorReport(
             controller=self, base=base, pr=pr, file=crash_file,
