@@ -56,9 +56,10 @@ from subiquity.controllers.error import (
 log = logging.getLogger('subiquity.ui.error')
 
 
-def close_btn(parent):
-    return other_btn(
-        _("Close"), on_press=lambda sender: parent.remove_overlay())
+def close_btn(parent, label=None):
+    if label is None:
+        label = _("Close")
+    return other_btn(label, on_press=lambda sender: parent.remove_overlay())
 
 
 error_report_intros = {
@@ -98,11 +99,14 @@ Do you want to try starting the installation again?
 """)
 
 all_probing_failed_text = _("""
-XXX
+You may be able to fix the issue by switching to a shell and
+reconfiguring the system's block devices.
 """)
 
 full_block_probe_failed = _("""
-XXX
+You may be able to fix the issue by switching to a shell and
+reconfiguring the system's block devices or you can continue by just
+probing for the disks in the system, not other block devices.
 """)
 
 
