@@ -18,7 +18,6 @@ import shlex
 
 from urwid import (
     connect_signal,
-    disconnect_signal,
     Padding,
     ProgressBar,
     Text,
@@ -162,6 +161,12 @@ class ErrorReportStretchy(Stretchy):
             self.pile,
             ]
         super().__init__(report.summary, widgets, 0, 0)
+        self.add_connection(
+            self.ec, 'report_changed', self._report_changed)
+        self.add_connection(
+            self.ec, 'reporting_progress', self._reporting_progress)
+        self.add_connection(
+            self.ec, 'reporting_completed', self._reporting_completed)
 
     def _pile_elements(self):
         INCOMPLETE = ErrorReportConstructionState.INCOMPLETE
@@ -286,18 +291,6 @@ class ErrorReportStretchy(Stretchy):
 
     def opened(self):
         self.report.mark_seen()
-        connect_signal(self.ec, 'report_changed', self._report_changed)
-        connect_signal(
-            self.ec, 'reporting_progress', self._reporting_progress)
-        connect_signal(
-            self.ec, 'reporting_completed', self._reporting_completed)
-
-    def closed(self):
-        disconnect_signal(self.ec, 'report_changed', self._report_changed)
-        disconnect_signal(
-            self.ec, 'reporting_progress', self._reporting_progress)
-        connect_signal(
-            self.ec, 'reporting_completed', self._reporting_completed)
 
 
 error_report_help = _("""
@@ -395,6 +388,8 @@ class ErrorReportListStretchy(Stretchy):
             button_pile([close_btn(parent)]),
             ]
         super().__init__(_("Error Reports"), widgets, 0, 0)
+        self.add_connection(self.ec, 'new_report', self._new_report)
+        self.add_connection(self.ec, 'report_changed', self._report_changed)
 
     def open_report(self, sender, report):
         self.parent.show_stretchy_overlay(ErrorReportStretchy(
@@ -414,14 +409,6 @@ class ErrorReportListStretchy(Stretchy):
     def row_for_report(self, report):
         return Color.menu_button(
             TableRow(self.cells_for_report(report)))
-
-    def opened(self):
-        connect_signal(self.ec, 'new_report', self._new_report)
-        connect_signal(self.ec, 'report_changed', self._report_changed)
-
-    def closed(self):
-        disconnect_signal(self.ec, 'new_report', self._new_report)
-        disconnect_signal(self.ec, 'report_changed', self._report_changed)
 
     def _new_report(self, report):
         i = len(self.table.table_rows)
