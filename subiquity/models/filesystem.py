@@ -1171,7 +1171,6 @@ class FilesystemModel(object):
         seen_multipaths = set()
         for action in config:
             if action['type'] == 'mount':
-                1/0
                 exclusions.add(byid[action['device']])
                 continue
             c = _type_to_cls.get(action['type'], None)

@@ -104,9 +104,8 @@ reconfiguring the system's block devices.
 """)
 
 full_block_probe_failed = _("""
-You may be able to fix the issue by switching to a shell and
-reconfiguring the system's block devices or you can continue by just
-probing for the disks in the system, not other block devices.
+You can continue but the installer will just present the disks present
+in the system, not other block devices.
 """)
 
 
@@ -142,6 +141,9 @@ class ErrorReportStretchy(Stretchy):
         self.complete_btn = other_btn(
                     _("Complete bug report"),
                     on_press=self.complete_reporting)
+        self.shell_btn = other_btn(
+                    _("Switch to a shell"),
+                    on_press=self.debug_shell)
         self.close_btn = close_btn(parent)
         btns = {
             self.complete_btn,
@@ -149,10 +151,11 @@ class ErrorReportStretchy(Stretchy):
             self.submit_btn,
             self.report_btn,
             self.close_btn,
+            self.shell_btn,
             }
         w = max(map(widget_width, btns))
         for a in ('view_btn', 'submit_btn', 'report_btn', 'close_btn',
-                  'complete_btn'):
+                  'complete_btn', 'shell_btn'):
             setattr(
                 self,
                 a,
@@ -244,6 +247,7 @@ class ErrorReportStretchy(Stretchy):
             widgets.extend([
                 Text(rewrap(_(all_probing_failed_text))),
                 Text(""),
+                self.shell_btn,
                 self.close_btn,
                 ])
         else:
@@ -297,6 +301,9 @@ class ErrorReportStretchy(Stretchy):
         self.parent.show_stretchy_overlay(
             ErrorReportCompleteBugReportStretchy(
                 self.ec, self.report, self.parent))
+
+    def debug_shell(self, sender=None):
+        self.app.debug_shell()
 
     def opened(self):
         self.report.mark_seen()
