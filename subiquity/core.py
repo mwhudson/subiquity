@@ -25,6 +25,7 @@ import apport.hookutils
 
 from subiquitycore.core import Application
 
+from subiquity.controllers.error import ErrorReportKind
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.snapd import (
     FakeSnapdConnection,
@@ -106,6 +107,16 @@ class Subiquity(Application):
         self._apport_data = []
         self._apport_files = []
 
+    def run(self):
+        try:
+            super().run()
+        except Exception:
+            print("generating crash report")
+            self.make_apport_report(
+                ErrorReportKind.UI_CRASH, "Installer UI",
+                wait=True, interrupt=False)
+            raise
+
     @property
     def error_controller(self):
         return self.controller_instances["Error"]
@@ -125,6 +136,15 @@ class Subiquity(Application):
         if key == 'f1':
             if not self.ui.right_icon.showing_something:
                 self.ui.right_icon.open_pop_up()
+        elif self.opts.dry_run and key in ['ctrl e', 'ctrl r']:
+            interrupt = key == 'ctrl e'
+            try:
+                1/0
+            except ZeroDivisionError:
+                self.make_apport_report(
+                    ErrorReportKind.UNKNOWN, "example", interrupt=interrupt)
+        elif key == 'ctrl u':
+            1/0
         elif key in ['ctrl z', 'f2']:
             self.debug_shell()
         else:

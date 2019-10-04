@@ -22,6 +22,7 @@ import urwid
 
 from subiquitycore.controller import BaseController
 
+from subiquity.controllers.error import ErrorReportKind
 from subiquity.models.filesystem import (
     align_up,
     Bootloader,
@@ -64,6 +65,10 @@ class Probe:
         self.cb = cb
         self.state = ProbeState.NOT_STARTED
         self.result = None
+        if restricted:
+            self.kind = ErrorReportKind.RESTRICTED_BLOCK_PROBE_FAILED
+        else:
+            self.kind = ErrorReportKind.FULL_BLOCK_PROBE_FAILED
 
     def start(self):
         block_discover_log.debug(
@@ -91,7 +96,8 @@ class Probe:
         except Exception:
             block_discover_log.exception(
                 "probing failed restricted=%s", self.restricted)
-            # Should make a crash report here!
+            self.app.make_apport_report(
+                self.kind, "block probing", interrupt=False)
             self.state = ProbeState.FAILED
         else:
             block_discover_log.exception(
@@ -102,7 +108,8 @@ class Probe:
     def _check_timeout(self, loop, ud):
         if self.state != ProbeState.PROBING:
             return
-        # Should make a crash report here!
+        self.app.make_apport_report(
+            self.kind, "block probing timed out", interrupt=False)
         block_discover_log.exception(
             "probing timed out restricted=%s", self.restricted)
         self.state = ProbeState.FAILED
@@ -159,7 +166,8 @@ class FilesystemController(BaseController):
         except Exception:
             block_discover_log.exception(
                 "load_probe_data failed restricted=%s", probe.restricted)
-            # Should make a crash report here!
+            self.app.make_apport_report(
+                probe.kind, "loading probe data", interrupt=False)
             if not probe.restricted:
                 self._start_probe(restricted=True)
             else:
