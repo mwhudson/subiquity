@@ -162,7 +162,7 @@ class StateMachine:
             raise
         except Exception:
             log.debug("%s failed", name)
-            self.controller.curtin_error(traceback.format_exc())
+            self.controller.curtin_error()
         else:
             log.debug("%s completed", name)
             if 'success' in self._transitions[name]:
@@ -367,7 +367,10 @@ class InstallProgressController(BaseController):
     def curtin_install_completed(self, fut):
         cp = fut.result()
         log.debug('curtin_install completed: %s', cp.returncode)
-        if cp.returncode != 0:
+        flags = ()
+        if self.opts.dry_run:
+            flags = os.environ.get('SUBIQUITY_DEBUG', '').split(',')
+        if cp.returncode != 0 or 'install-fail' in flags:
             self.curtin_error()
             return
         self.install_state = InstallState.DONE
@@ -510,6 +513,9 @@ class InstallProgressController(BaseController):
           transitions={'reboot': 'reboot'})
     def _bg_copy_logs_to_target(self):
         if self.opts.dry_run:
+            flags = os.environ.get('SUBIQUITY_DEBUG', '').split(',')
+            if 'copy-logs-fail' in flags:
+                raise PermissionError()
             return
         target_logs = self.tpath('var/log/installer')
         utils.run_command(['cp', '-aT', '/var/log/installer', target_logs])

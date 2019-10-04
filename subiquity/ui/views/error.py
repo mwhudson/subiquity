@@ -144,6 +144,9 @@ class ErrorReportStretchy(Stretchy):
         self.shell_btn = other_btn(
                     _("Switch to a shell"),
                     on_press=self.debug_shell)
+        self.restart_btn = other_btn(
+                    _("Restart installer"),
+                    on_press=self.restart)
         self.close_btn = close_btn(parent)
         btns = {
             self.complete_btn,
@@ -152,10 +155,11 @@ class ErrorReportStretchy(Stretchy):
             self.report_btn,
             self.close_btn,
             self.shell_btn,
+            self.restart_btn,
             }
         w = max(map(widget_width, btns))
         for a in ('view_btn', 'submit_btn', 'report_btn', 'close_btn',
-                  'complete_btn', 'shell_btn'):
+                  'complete_btn', 'shell_btn', 'restart_btn'):
             setattr(
                 self,
                 a,
@@ -235,6 +239,7 @@ class ErrorReportStretchy(Stretchy):
             widgets.extend([
                 Text(rewrap(_(retry_text))),
                 Text(""),
+                self.restart_btn,
                 self.close_btn,
                 ])
         elif self.report.kind == ErrorReportKind.FULL_BLOCK_PROBE_FAILED:
@@ -304,6 +309,9 @@ class ErrorReportStretchy(Stretchy):
 
     def debug_shell(self, sender=None):
         self.app.debug_shell()
+
+    def restart(self, sender=None):
+        self.app.exit()
 
     def opened(self):
         self.report.mark_seen()
