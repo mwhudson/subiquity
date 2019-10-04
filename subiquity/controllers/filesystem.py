@@ -17,6 +17,7 @@ import enum
 import json
 import logging
 import os
+import time
 
 import urwid
 
@@ -69,6 +70,7 @@ class Probe:
             self.kind = ErrorReportKind.RESTRICTED_BLOCK_PROBE_FAILED
         else:
             self.kind = ErrorReportKind.FULL_BLOCK_PROBE_FAILED
+        self.crash_report = None
 
     def start(self):
         block_discover_log.debug(
@@ -86,9 +88,11 @@ class Probe:
             flags = os.environ.get('SUBIQUITY_DEBUG', '').split(',')
             if 'bpfail-full' in flags:
                 if not self.restricted:
+                    time.sleep(2)
                     1/0
             if 'bpfail-restricted' in flags:
                 if self.restricted:
+                    time.sleep(2)
                     1/0
         # Should consider invoking probert in a subprocess here (so we
         # can kill it if it gets stuck).
@@ -104,7 +108,7 @@ class Probe:
         except Exception:
             block_discover_log.exception(
                 "probing failed restricted=%s", self.restricted)
-            self.controller.app.make_apport_report(
+            self.crash_report = self.controller.app.make_apport_report(
                 self.kind, "block probing", interrupt=False)
             self.state = ProbeState.FAILED
         else:
@@ -116,7 +120,7 @@ class Probe:
     def _check_timeout(self, loop, ud):
         if self.state != ProbeState.PROBING:
             return
-        self.controller.app.make_apport_report(
+        self.crash_report = self.controller.app.make_apport_report(
             self.kind, "block probing timed out", interrupt=False)
         block_discover_log.exception(
             "probing timed out restricted=%s", self.restricted)
@@ -136,6 +140,7 @@ class FilesystemController(BaseController):
         self.answers.setdefault('guided-index', 0)
         self.answers.setdefault('manual', [])
         self._cur_probe = None
+        self._probes = {}
         self.ui_shown = False
 
     def start(self):
@@ -146,10 +151,13 @@ class FilesystemController(BaseController):
     def _maybe_reprobe_block(self):
         if not self.ui_shown:
             self._start_probe(restricted=False)
+            if self.showing:
+                self.start_ui()
 
     def _start_probe(self, *, restricted=False):
-        self._cur_probe = Probe(self, restricted, 5.0, self._probe_done)
-        self._cur_probe.start()
+        p = Probe(self, restricted, 5.0, self._probe_done)
+        self._cur_probe = self._probes[restricted] = p
+        p.start()
 
     def _probe_done(self, probe):
         if probe is not self._cur_probe:
@@ -174,7 +182,7 @@ class FilesystemController(BaseController):
         except Exception:
             block_discover_log.exception(
                 "load_probe_data failed restricted=%s", probe.restricted)
-            self.app.make_apport_report(
+            probe.crash_report = self.app.make_apport_report(
                 probe.kind, "loading probe data", interrupt=False)
             if not probe.restricted:
                 self._start_probe(restricted=True)
@@ -193,11 +201,14 @@ class FilesystemController(BaseController):
             self.ui.set_body(SlowProbing(self))
         elif self._cur_probe.state == ProbeState.FAILED:
             self.ui.set_body(ProbingFailed(self))
+            self.ui.body.show_error()
         else:
             self.ui_shown = True
-            # Should display a message if self._cur_probe.restricted,
-            # i.e. full device probing failed.
             self.ui.set_body(GuidedFilesystemView(self))
+            if self._cur_probe.restricted:
+                pr = self._probes[False].crash_report
+                if pr is not None:
+                    self.app.show_error_report(pr)
             if self.answers['guided']:
                 self.guided(self.answers.get('guided-method', 'direct'))
             elif self.answers['manual']:
