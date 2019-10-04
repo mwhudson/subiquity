@@ -372,7 +372,8 @@ class ErrorReportCompleteBugReportStretchy(Stretchy):
             close_btn(parent),
             ])
         widgets = [
-            Text(_("XXX")),
+            Text(_("You need to visit the below URL to complete the bug "
+                   "report.")),
             Text(""),
             Text(self.report.reported_url),
             Text(""),
