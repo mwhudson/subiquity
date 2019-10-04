@@ -82,6 +82,14 @@ class Probe:
             probe_types = {'blockdev'}
         else:
             probe_types = None
+        if self.controller.opts.dry_run:
+            flags = os.environ.get('SUBIQUITY_DEBUG', '').split(',')
+            if 'bpfail-full' in flags:
+                if not self.restricted:
+                    1/0
+            if 'bpfail-restricted' in flags:
+                if self.restricted:
+                    1/0
         # Should consider invoking probert in a subprocess here (so we
         # can kill it if it gets stuck).
         return self.controller.app.prober.get_storage(probe_types=probe_types)
@@ -96,7 +104,7 @@ class Probe:
         except Exception:
             block_discover_log.exception(
                 "probing failed restricted=%s", self.restricted)
-            self.app.make_apport_report(
+            self.controller.app.make_apport_report(
                 self.kind, "block probing", interrupt=False)
             self.state = ProbeState.FAILED
         else:
@@ -108,7 +116,7 @@ class Probe:
     def _check_timeout(self, loop, ud):
         if self.state != ProbeState.PROBING:
             return
-        self.app.make_apport_report(
+        self.controller.app.make_apport_report(
             self.kind, "block probing timed out", interrupt=False)
         block_discover_log.exception(
             "probing timed out restricted=%s", self.restricted)

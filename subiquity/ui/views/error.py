@@ -175,6 +175,7 @@ class ErrorReportStretchy(Stretchy):
     def _pile_elements(self):
         INCOMPLETE = ErrorReportConstructionState.INCOMPLETE
         LOADING = ErrorReportConstructionState.LOADING
+
         if self.report.construction_state == INCOMPLETE:
             return [
                 Text(rewrap(_(incomplete_text))),
@@ -187,6 +188,7 @@ class ErrorReportStretchy(Stretchy):
                 Text(""),
                 self.close_btn,
                 ]
+
         if self.report.reporting_state in [
                 ErrorReportReportingState.UPLOADING,
                 ]:
@@ -230,16 +232,19 @@ class ErrorReportStretchy(Stretchy):
             widgets.extend([
                 Text(rewrap(_(retry_text))),
                 Text(""),
+                self.close_btn,
                 ])
         elif self.report.kind == ErrorReportKind.FULL_BLOCK_PROBE_FAILED:
             widgets.extend([
                 Text(rewrap(_(full_block_probe_failed))),
                 Text(""),
+                self.close_btn,
                 ])
         elif self.report.kind == ErrorReportKind.RESTRICTED_BLOCK_PROBE_FAILED:
             widgets.extend([
                 Text(rewrap(_(all_probing_failed_text))),
                 Text(""),
+                self.close_btn,
                 ])
         else:
             widgets.extend([
