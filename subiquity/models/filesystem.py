@@ -1157,6 +1157,10 @@ class FilesystemModel(object):
         subiquity is mounted from, so this might be a bit excessive but
         hey it works.
 
+        We only create a disk action for the fist member we see of any
+        multipathed disk and convert any reference to any subsequent
+        member into a reference to the first device.
+
         Perhaps surprisingly the order of the returned actions matters.
         The devices are presented in the filesystem view in the reverse
         of the order they appear in _actions, which means that e.g. a
@@ -1168,7 +1172,7 @@ class FilesystemModel(object):
         byid = {}
         objs = []
         exclusions = set()
-        seen_multipaths = set()
+        multipath_to_member = {}
         for action in config:
             if action['type'] == 'mount':
                 exclusions.add(byid[action['device']])
@@ -1200,13 +1204,13 @@ class FilesystemModel(object):
                 path = kw['path']
                 kw['info'] = StorageInfo({path: blockdevs[path]})
             kw['preserve'] = True
-            obj = byid[action['id']] = c(m=self, **kw)
             multipath = kw.get('multipath')
+            if multipath in multipath_to_member:
+                byid[action['id']] = multipath_to_member[multipath]
+                continue
+            obj = byid[action['id']] = c(m=self, **kw)
             if multipath:
-                if multipath in seen_multipaths:
-                    exclusions.add(obj)
-                else:
-                    seen_multipaths.add(multipath)
+                multipath_to_member[multipath] = obj
             if action['type'] == "format":
                 obj.volume._original_fs = obj
             objs.append(obj)
