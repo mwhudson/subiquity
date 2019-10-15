@@ -94,7 +94,7 @@ class ErrorReport:
             pass
         else:
             with fp:
-                self.meta = json.load(fp)
+                report.meta = json.load(fp)
         controller._queue_report_load(report)
         return report
 
@@ -193,6 +193,7 @@ class ErrorReport:
 
     def report(self):
 
+        self.reporting = True
         self.bytes_sent = 0
         self.bytes_to_send = os.stat(self.path).st_size
 
@@ -210,6 +211,7 @@ class ErrorReport:
             return self.controller.crashdb.upload(self.pr)
 
         def _reported(fut):
+            self.reporting = False
             self.bytes_sent = self.bytes_to_send = None
             self.controller.loop.remove_watch_pipe(pipe_w)
             os.close(pipe_w)
@@ -228,6 +230,7 @@ class ErrorReport:
 
     def upload(self):
         log.debug("starting upload for %s", self.base)
+        self.uploading = True
         url = "https://daisy.ubuntu.com"
         if self.controller.opts.dry_run:
             url = "https://daisy.staging.ubuntu.com"
@@ -249,6 +252,7 @@ class ErrorReport:
             return requests.post(url, data=data)
 
         def uploaded(fut):
+            self.uploading = False
             try:
                 response = fut.result()
                 response.raise_for_status()
@@ -259,6 +263,7 @@ class ErrorReport:
             self.set_meta("oops-id", response.text.split()[0])
             urwid.emit_signal(self.controller, 'report_changed', self)
 
+        urwid.emit_signal(self.controller, 'report_changed', self)
         self.controller.run_in_bg(_bg_upload, uploaded)
 
     def _path_with_ext(self, ext):
