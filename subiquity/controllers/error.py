@@ -27,6 +27,9 @@ import apport.hookutils
 
 import attr
 
+import bson
+
+import requests
 import urwid
 
 from subiquitycore.controller import BaseController
@@ -183,10 +186,31 @@ class ErrorReport:
         urwid.emit_signal(self.controller, 'report_changed', self)
         self.controller.run_in_bg(_bg_report, _reported)
 
-    def mark_for_upload(self):
-        with open(self.upload_path, 'w'):
-            pass
-        urwid.emit_signal(self.controller, 'report_changed', self)
+    def upload(self):
+        log.debug("starting upload for %s", self.base)
+        url = "https://daisy.ubuntu.com"
+        if self.controller.opts.dry_run:
+            url = "https://daisy.staging.ubuntu.com"
+
+        def _bg_upload():
+            for_upload = {}
+            for k, v in self.pr.items():
+                if len(v) < 1024:
+                    for_upload[k] = v
+            data = bson.BSON().encode(for_upload)
+            return requests.post(url, data=data)
+
+        def uploaded(fut):
+            try:
+                response = fut.result()
+                response.raise_for_status()
+            except requests.exceptions.RequestException:
+                log.exception("upload for %s failed", self.base)
+                return
+            log.debug("finished upload for %s, %r", self.base, response.text)
+            urwid.emit_signal(self.controller, 'report_changed', self)
+
+        self.controller.run_in_bg(_bg_upload, uploaded)
 
     def _path_with_ext(self, ext):
         return os.path.join(

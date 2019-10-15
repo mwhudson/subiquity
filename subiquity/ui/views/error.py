@@ -296,7 +296,7 @@ class ErrorReportStretchy(Stretchy):
         self.app.run_command_in_foreground(["less", self.report.path])
 
     def submit(self, sender):
-        self.report.mark_for_upload()
+        self.report.upload()
 
     def report_as_bug(self, sender):
         self.parent.show_stretchy_overlay(
