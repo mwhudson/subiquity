@@ -195,8 +195,16 @@ class ErrorReport:
         def _bg_upload():
             for_upload = {}
             for k, v in self.pr.items():
-                if len(v) < 1024:
+                if len(v) < 1024 or k in {"Traceback", "ProcCpuinfoMinimal"}:
                     for_upload[k] = v
+                else:
+                    log.debug("dropping %s of length %s", k, len(v))
+                #logtail = []
+                #for line in self.pr["InstallerLog"].splitlines():
+                #    logtail.append(line.strip())
+                #    while sum(map(len, logtail)) > 2048:
+                #        logtail.pop(0)
+                #for_upload["InstallerLogTail"] = "\n".join(logtail)
             data = bson.BSON().encode(for_upload)
             return requests.post(url, data=data)
 
