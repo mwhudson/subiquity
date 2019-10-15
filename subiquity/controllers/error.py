@@ -15,6 +15,7 @@
 
 from abc import ABC
 import enum
+import json
 import logging
 import os
 import queue
@@ -73,7 +74,7 @@ class ErrorReport:
     controller = attr.ib()
     base = attr.ib()
     pr = attr.ib(default=None)
-    meta = attr.ib(default=attr.Factory(problem_report.ProblemReport))
+    meta = attr.ib(default=attr.Factory(dict))
     construction_state = attr.ib(default=ErrorReportConstructionState.NEW)
     _file = attr.ib(default=None)
 
@@ -88,12 +89,12 @@ class ErrorReport:
             construction_state=ErrorReportConstructionState.LOADING,
             file=open(fpath, 'rb'))
         try:
-            fp = open(report.meta_path, 'rb')
+            fp = open(report.meta_path, 'r')
         except FileNotFoundError:
             pass
         else:
             with fp:
-                report.meta.load(fp)
+                self.meta = json.load(fp)
         controller._queue_report_load(report)
         return report
 
@@ -117,7 +118,7 @@ class ErrorReport:
         r = cls(
             controller=controller, base=base, pr=pr, file=crash_file,
             construction_state=ErrorReportConstructionState.INCOMPLETE)
-        r.set_meta("Kind", kind.name)
+        r.set_meta("kind", kind.name)
         return r
 
     def add_info(self, _bg_attach_hook, wait=False):
@@ -187,7 +188,7 @@ class ErrorReport:
         self.controller.run_in_bg(_bg_load, loaded)
 
     def mark_seen(self):
-        self.set_meta("Seen", "1")
+        self.set_meta("seen", True)
         urwid.emit_signal(self.controller, 'report_changed', self)
 
     def report(self):
@@ -218,7 +219,7 @@ class ErrorReport:
                 logging.exception("reporting bug on Launchpad failed")
                 return
             url = self.controller.crashdb.get_comment_url(self.pr, ticket)
-            self.set_meta("ReportedURL", url)
+            self.set_meta("reported-url", url)
             urwid.emit_signal(self.controller, 'report_changed', self)
             urwid.emit_signal(self.controller, 'reporting_completed', self)
 
@@ -255,7 +256,7 @@ class ErrorReport:
                 log.exception("upload for %s failed", self.base)
                 return
             log.debug("finished upload for %s, %r", self.base, response.text)
-            self.set_meta("OopsID", response.text.split()[0])
+            self.set_meta("oops-id", response.text.split()[0])
             urwid.emit_signal(self.controller, 'report_changed', self)
 
         self.controller.run_in_bg(_bg_upload, uploaded)
@@ -278,25 +279,25 @@ class ErrorReport:
 
     def set_meta(self, key, value):
         self.meta[key] = value
-        with open(self.meta_path, 'wb') as fp:
-            self.meta.write(fp)
+        with open(self.meta_path, 'w') as fp:
+            json.dump(self.meta, fp, indent=4)
 
     @property
     def kind(self):
-        k = self.meta.get("Kind", "UNKNOWN")
+        k = self.meta.get("kind", "UNKNOWN")
         return getattr(ErrorReportKind, k, ErrorReportKind.UNKNOWN)
 
     @property
     def reported_url(self):
-        return self.meta.get("ReportedURL")
+        return self.meta.get("reported-url")
 
     @property
     def oops_id(self):
-        return self.meta.get("OopsID")
+        return self.meta.get("oops-id")
 
     @property
     def seen(self):
-        return self.meta.get("Seen")
+        return self.meta.get("seen")
 
     @property
     def reporting_state(self):
