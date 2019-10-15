@@ -123,7 +123,7 @@ class Subiquity(Application):
 
     def select_initial_screen(self, index):
         super().select_initial_screen(index)
-        for report in self.error_controller.reports.values():
+        for report in self.error_controller.reports:
             if report.kind == ErrorReportKind.UI_CRASH:
                 UNVIEWED = ErrorReportReportingState.UNVIEWED
                 if report.reporting_state == UNVIEWED:

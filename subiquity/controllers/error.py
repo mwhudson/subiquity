@@ -29,7 +29,10 @@ import attr
 
 import bson
 
+import problem_report
+
 import requests
+
 import urwid
 
 from subiquitycore.controller import BaseController
@@ -70,11 +73,52 @@ class ErrorReport:
     controller = attr.ib()
     base = attr.ib()
     pr = attr.ib(default=None)
-    kind = attr.ib(default=ErrorReportKind.UNKNOWN)
+    meta = attr.ib(default=attr.Factory(problem_report.ProblemReport))
     construction_state = attr.ib(default=ErrorReportConstructionState.NEW)
     _file = attr.ib(default=None)
-    bytes_sent = attr.ib(default=None)
-    bytes_to_send = attr.ib(default=None)
+
+    reporting = attr.ib(default=False)
+    uploading = attr.ib(default=False)
+
+    @classmethod
+    def from_file(cls, controller, fpath):
+        base = os.path.splitext(os.path.basename(fpath))[0]
+        report = cls(
+            controller, base, pr=apport.Report(),
+            construction_state=ErrorReportConstructionState.LOADING,
+            file=open(fpath, 'rb'))
+        try:
+            fp = open(report.meta_path, 'rb')
+        except FileNotFoundError:
+            pass
+        else:
+            with fp:
+                report.meta.load(fp)
+        controller._queue_report_load(report)
+        return report
+
+    @classmethod
+    def new(cls, controller, kind):
+        i = 0
+        while 1:
+            base = "installer.{}".format(i)
+            crash_path = os.path.join(
+                controller.crash_directory, base + ".crash")
+            try:
+                crash_file = open(crash_path, 'xb')
+            except FileExistsError:
+                i += 1
+                continue
+            else:
+                break
+        pr = apport.Report('Bug')
+        pr['CrashDB'] = repr(controller.crashdb_spec)
+
+        r = cls(
+            controller=controller, base=base, pr=pr, file=crash_file,
+            construction_state=ErrorReportConstructionState.INCOMPLETE)
+        r.set_meta("Kind", kind.name)
+        return r
 
     def add_info(self, _bg_attach_hook, wait=False):
         log.debug("begin adding info for report %s", self.base)
@@ -103,9 +147,6 @@ class ErrorReport:
             # anyway.
             del self.pr['ProcMaps']
             self.pr.write(self._file)
-            if self.kind != ErrorReportKind.UNKNOWN:
-                with open(self.kind_path, 'w') as fp:
-                    fp.write(self.kind.name+"\n")
 
         def added_info(fut):
             log.debug("done adding info for report %s", self.base)
@@ -146,8 +187,7 @@ class ErrorReport:
         self.controller.run_in_bg(_bg_load, loaded)
 
     def mark_seen(self):
-        with open(self.seen_path, 'w'):
-            pass
+        self.set_meta("Seen", "1")
         urwid.emit_signal(self.controller, 'report_changed', self)
 
     def report(self):
@@ -178,8 +218,7 @@ class ErrorReport:
                 logging.exception("reporting bug on Launchpad failed")
                 return
             url = self.controller.crashdb.get_comment_url(self.pr, ticket)
-            with open(self.reported_path, 'w') as fp:
-                fp.write(url + "\n")
+            self.set_meta("ReportedURL", url)
             urwid.emit_signal(self.controller, 'report_changed', self)
             urwid.emit_signal(self.controller, 'reporting_completed', self)
 
@@ -216,6 +255,7 @@ class ErrorReport:
                 log.exception("upload for %s failed", self.base)
                 return
             log.debug("finished upload for %s, %r", self.base, response.text)
+            self.set_meta("OopsID", response.text.split()[0])
             urwid.emit_signal(self.controller, 'report_changed', self)
 
         self.controller.run_in_bg(_bg_upload, uploaded)
@@ -225,56 +265,52 @@ class ErrorReport:
             self.controller.crash_directory, self.base + '.' + ext)
 
     @property
-    def kind_path(self):
-        return self._path_with_ext('kind')
+    def meta_path(self):
+        return self._path_with_ext('meta')
 
     @property
     def path(self):
         return self._path_with_ext('crash')
 
     @property
-    def reported_path(self):
-        return self._path_with_ext('reported')
-
-    @property
-    def uploaded_path(self):
-        return self._path_with_ext('uploaded')
-
-    @property
-    def upload_path(self):
-        return self._path_with_ext('upload')
-
-    @property
-    def seen_path(self):
-        return self._path_with_ext('seen')
-
-    @property
     def summary(self):
         return self.pr.get("Title", "???")
 
+    def set_meta(self, key, value):
+        self.meta[key] = value
+        with open(self.meta_path, 'wb') as fp:
+            self.meta.write(fp)
+
+    @property
+    def kind(self):
+        k = self.meta.get("Kind", "UNKNOWN")
+        return getattr(ErrorReportKind, k, ErrorReportKind.UNKNOWN)
+
     @property
     def reported_url(self):
-        try:
-            fp = open(self.reported_path)
-        except FileNotFoundError:
-            return None
-        with fp:
-            return fp.read().strip()
+        return self.meta.get("ReportedURL")
+
+    @property
+    def oops_id(self):
+        return self.meta.get("OopsID")
+
+    @property
+    def seen(self):
+        return self.meta.get("Seen")
 
     @property
     def reporting_state(self):
-        if self.bytes_sent is not None:
-            return ErrorReportReportingState.REPORTING
-        if os.path.exists(self.reported_path):
+        if self.reported_url is not None:
             return ErrorReportReportingState.REPORTED
-        elif os.path.exists(self.uploaded_path):
+        if self.reporting:
+            return ErrorReportReportingState.REPORTING
+        if self.oops_id is not None:
             return ErrorReportReportingState.UPLOADED
-        elif os.path.exists(self.upload_path):
+        if self.uploading:
             return ErrorReportReportingState.UPLOADING
-        elif os.path.exists(self.seen_path):
+        if self.seen:
             return ErrorReportReportingState.UNREPORTED
-        else:
-            return ErrorReportReportingState.UNVIEWED
+        return ErrorReportReportingState.UNVIEWED
 
 
 class MetaClass(type(ABC), urwid.MetaSignals):
@@ -301,8 +337,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
             None, self.crashdb_spec)
         if self.app.opts.dry_run:
             self.crashdb_spec['launchpad_instance'] = 'staging'
-        self.reports = {}  # maps base to ErrorReport
-        self._report_queue = queue.Queue()
+        self.reports = []  # maps base to ErrorReport
         self._loading_report = None
         self._reports_to_load = []
 
@@ -316,47 +351,13 @@ class ErrorController(BaseController, metaclass=MetaClass):
     def register_signals(self):
         # BaseController.register_signals uses the signals class
         # attribute, but that's also used by MetaSignals...
-        self.signal.connect_signals(
-            [('network-proxy-set', 'network_proxy_set')])
-
-    def network_proxy_set(self):
-        # configure proxy for whoopsie
         pass
 
     def start(self):
-        # scan for pre-existing crash reports, send new_report signals
-        # for them and start loading them in the background
         os.makedirs(self.crash_directory, exist_ok=True)
-        self._scan_lock = threading.Lock()
-        self._seen_files = set()
-        self._report_pipe_w = self.loop.watch_pipe(
-            self._report_pipe_callback)
-        t = threading.Thread(target=self._bg_scan_crash_dir)
-        t.setDaemon(True)
-        self.fg_scan_crash_dir()
-        t.start()
-
-    def _report_changed(self, act, base):
-        if act == "NEW" and base not in self.reports:
-            report = self.reports[base] = ErrorReport(
-                self, base, pr=apport.Report(),
-                construction_state=ErrorReportConstructionState.LOADING)
-            report._file = open(report.path, 'rb')
-            try:
-                fp = open(report.kind_path)
-            except FileNotFoundError:
-                pass
-            else:
-                with fp:
-                    kind_str = fp.read().strip()
-                report.kind = getattr(
-                    ErrorReportKind, kind_str, ErrorReportKind.UNKNOWN)
-            urwid.emit_signal(self, 'new_report', report)
-            self._queue_report_load(report)
-        elif act == "DEL" and base in self.reports:
-            del self.reports[base]
-        elif act == "CHANGE" and base in self.reports:
-            urwid.emit_signal(self, 'report_changed', self.reports[base])
+        # scan for pre-existing crash reports and start loading them
+        # in the background
+        self.scan_crash_dir()
 
     def _queue_report_load(self, report):
         if self._loading_report is None:
@@ -372,74 +373,18 @@ class ErrorController(BaseController, metaclass=MetaClass):
         else:
             self._loading_report = None
 
-    def _report_pipe_callback(self, ignored):
-        while True:
-            try:
-                (act, base) = self._report_queue.get(block=False)
-            except queue.Empty:
-                return True
-            self._report_changed(act, base)
-
-    def _bg_report_action(self, act, name):
-        self._report_queue.put((act, name))
-        os.write(self._report_pipe_w, b'x')
-
-    def _bg_scan_crash_dir(self):
-        while True:
-            try:
-                self._scan_crash_dir(self._bg_report_action)
-            except Exception:
-                log.exception("_scan_crash_dir failed")
-            time.sleep(1)
-
-    def fg_scan_crash_dir(self):
-        self._scan_crash_dir(self._report_changed)
-
-    def _scan_crash_dir(self, report_func):
-        with self._scan_lock:
-            next_files = set()
-            filenames = os.listdir(self.crash_directory)
-            exts_bases = [
-                os.path.splitext(filename)[::-1] + (filename,)
-                for filename in filenames
-                ]
-            for ext, base, filename in sorted(exts_bases):
-                next_files.add(filename)
-                if filename in self._seen_files:
-                    continue
-                if ext == '.crash':
-                    log.debug("saw error report %s", base)
-                    report_func("NEW", base)
-                if ext in ['.seen', '.upload', '.uploaded']:
-                    report_func("CHANGE", base)
-            for filename in self._seen_files - next_files:
-                base, ext = os.path.splitext(filename)
-                if ext == '.crash':
-                    report_func("DEL", base)
-            self._seen_files = next_files
+    def scan_crash_dir(self):
+        filenames = os.listdir(self.crash_directory)
+        for filename in filenames:
+            base, ext = os.path.splitext(filename)
+            if ext != ".crash":
+                continue
+            path = os.path.join(self.crash_directory, filename)
+            self.reports.append(ErrorReport.from_file(self, path))
 
     def create_report(self, kind):
-        # create a report, send a new_report signal for it
-        i = 0
-        while 1:
-            base = "installer.{}".format(i)
-            crash_path = os.path.join(self.crash_directory, base + ".crash")
-            try:
-                crash_file = open(crash_path, 'xb')
-            except FileExistsError:
-                i += 1
-                continue
-            else:
-                break
-        pr = apport.Report('Bug')
-
-        # Report to the subiquity project on Launchpad.
-        pr['CrashDB'] = repr(self.crashdb_spec)
-
-        r = self.reports[base] = ErrorReport(
-            controller=self, base=base, pr=pr, file=crash_file,
-            construction_state=ErrorReportConstructionState.INCOMPLETE,
-            kind=kind)
+        r = ErrorReport.new(self, kind)
+        self.reports.append(r)
         urwid.emit_signal(self, 'new_report', r)
         return r
 

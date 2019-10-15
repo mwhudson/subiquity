@@ -194,8 +194,6 @@ class HelpMenu(WidgetWrap):
         else:
             local = Text(
                 ('info_minor header', " " + _("Help on this screen") + " "))
-        view_errors = Text(
-            ('info_minor header', " " + _("View error reports") + " "))
 
         if self.parent.app.error_controller.reports:
             view_errors = menu_item(
@@ -203,8 +201,7 @@ class HelpMenu(WidgetWrap):
                 on_press=self._show_errors)
             buttons.add(view_errors)
         else:
-            view_errors = Text(('info_minor header', _("View error reports")))
-
+            view_errors = Text(('info_minor header', " " + _("View error reports") + " "))
 
         for button in buttons:
             connect_signal(button.base_widget, 'click', self._close)

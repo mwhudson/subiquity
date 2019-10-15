@@ -403,7 +403,7 @@ class ErrorReportListStretchy(Stretchy):
                 Text(""),
             ])]
         self.report_to_row = {}
-        for report in self.app.error_controller.reports.values():
+        for report in self.app.error_controller.reports:
             r = self.report_to_row[report] = self.row_for_report(report)
             rows.append(r)
         self.table = TablePile(rows, colspecs={1: ColSpec(can_shrink=True)})
