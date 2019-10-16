@@ -163,10 +163,10 @@ class ErrorReport:
             try:
                 fut.result()
             except Exception:
-                self.construction_state = ErrorReportConstructionState.ERROR
+                self.state = ErrorReportState.ERROR
                 log.exception("adding info to problem report failed")
             else:
-                self.construction_state = ErrorReportConstructionState.DONE
+                self.state = ErrorReportState.DONE
             self._file.close()
             self._file = None
             urwid.emit_signal(self.controller, 'report_changed', self)
@@ -186,10 +186,10 @@ class ErrorReport:
             try:
                 fut.result()
             except Exception:
-                self.construction_state = ErrorReportConstructionState.ERROR
+                self.state = ErrorReportState.ERROR
                 log.exception("loading problem report failed")
             else:
-                self.construction_state = ErrorReportConstructionState.DONE
+                self.state = ErrorReportState.DONE
             self._file.close()
             self._file = None
             urwid.emit_signal(self.controller, 'report_changed', self)
@@ -368,7 +368,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
     def scan_crash_dir(self):
         filenames = os.listdir(self.crash_directory)
         to_load = []
-        for filename in filenames:
+        for filename in sorted(filenames, reverse=True):
             base, ext = os.path.splitext(filename)
             if ext != ".crash":
                 continue
@@ -380,7 +380,7 @@ class ErrorController(BaseController, metaclass=MetaClass):
 
     def create_report(self, kind):
         r = ErrorReport.new(self, kind)
-        self.reports.append(r)
+        self.reports.insert(0, r)
         urwid.emit_signal(self, 'new_report', r)
         return r
 

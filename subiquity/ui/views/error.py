@@ -30,6 +30,7 @@ from subiquitycore.ui.container import (
 from subiquitycore.ui.form import (
     Toggleable,
     )
+from subiquitycore.ui.spinner import Spinner
 from subiquitycore.ui.stretchy import Stretchy
 from subiquitycore.ui.table import (
     ColSpec,
@@ -157,8 +158,8 @@ class ErrorReportStretchy(Stretchy):
                 self,
                 a,
                 Padding(getattr(self, a), width=w, align='center'))
-        self.desc = Text("")
         self.pile = Pile([])
+        self.spinner = Spinner(app.loop, style='dots')
         widgets = [
             self.pile,
             ]
@@ -166,6 +167,7 @@ class ErrorReportStretchy(Stretchy):
         self._report_changed(self.report)
         self.add_connection(
             self.ec, 'report_changed', self._report_changed)
+        connect_signal(self, 'closed', self.spinner.stop)
 
     def pb(self, upload):
         pb = ProgressBar(
@@ -183,17 +185,25 @@ class ErrorReportStretchy(Stretchy):
 
     def _pile_elements(self):
         if self.report.state == ErrorReportState.INCOMPLETE:
+            self.spinner.start()
             return [
                 Text(rewrap(_(incomplete_text))),
+                Text(""),
+                self.spinner,
                 Text(""),
                 self.close_btn,
                 ]
         elif self.report.state == ErrorReportState.LOADING:
+            self.spinner.start()
             return [
                 Text(rewrap(_("Loading"))),
                 Text(""),
+                self.spinner,
+                Text(""),
                 self.close_btn,
                 ]
+
+        self.spinner.stop()
 
         # XXX display relative date here!
         date = self.report.pr.get("Date", "???")

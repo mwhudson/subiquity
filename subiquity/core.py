@@ -27,7 +27,6 @@ from subiquitycore.core import Application
 
 from subiquity.controllers.error import (
     ErrorReportKind,
-    ErrorReportReportingState,
     )
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.snapd import (
@@ -124,11 +123,10 @@ class Subiquity(Application):
     def select_initial_screen(self, index):
         super().select_initial_screen(index)
         for report in self.error_controller.reports:
-            if report.kind == ErrorReportKind.UI_CRASH:
-                if not report.seen:
-                    log.debug("showing new error %r", report.base)
-                    self.show_error_report(report)
-                    return
+            if report.kind == ErrorReportKind.UI_CRASH and not report.seen:
+                log.debug("showing new error %r", report.base)
+                self.show_error_report(report)
+                return
 
     @property
     def error_controller(self):
