@@ -193,7 +193,7 @@ class ErrorReportStretchy(Stretchy):
         elif self.report.state == ErrorReportState.LOADING:
             self.spinner.start()
             return [
-                Text(rewrap(_("Loading"))),
+                Text(rewrap(_("Loading error report..."))),
                 Text(""),
                 self.spinner,
                 Text(""),
@@ -220,7 +220,7 @@ class ErrorReportStretchy(Stretchy):
                 self.upload_pb = self.pb(self.report.uploader)
             widgets.append(self.upload_pb)
         else:
-            if self.upload_pb and self.report.oops_id:
+            if self.report.oops_id:
                 self.submit_btn.base_widget.set_label(_("Sent to Canonical"))
                 self.submit_btn.original_widget.enabled = False
             self.upload_pb = None
@@ -390,7 +390,7 @@ class ErrorReportListStretchy(Stretchy):
                 Text(""),
             ])]
         self.report_to_row = {}
-        for report in self.app.error_controller.reports:
+        for report in self.ec.reports:
             r = self.report_to_row[report] = self.row_for_report(report)
             rows.append(r)
         self.table = TablePile(rows, colspecs={1: ColSpec(can_shrink=True)})
