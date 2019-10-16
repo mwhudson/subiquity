@@ -122,11 +122,6 @@ class ErrorReportStretchy(Stretchy):
                     _("View Error Report"),
                     on_press=self.view_report))
 
-        # Should here offer view / report / close
-        # close without report should prompt to report to error tracker
-        # reporting a bug should _also_ submit to the error tracker
-        # no point offering any upload/report options if there is no network
-        # should also explain how to report a bug on another machine
         self.submit_btn = Toggleable(
                 other_btn(
                     _("Send to Canonical"),

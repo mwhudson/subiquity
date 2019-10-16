@@ -67,9 +67,29 @@ class ErrorReportKind(enum.Enum):
 class Upload(metaclass=urwid.MetaSignals):
     signals = ['progress', 'complete']
 
+    controller = attr.ib()
     bytes_to_send = attr.ib()
     bytes_sent = attr.ib(default=0)
+    pipe_w = attr.ib(default=None)
 
+    def start(self):
+        log.debug("Upload.start")
+        self.pipe_w = self.controller.loop.watch_pipe(self._progress)
+
+    def _progress(self, x):
+        urwid.emit_signal(self, 'progress')
+
+    def _bg_update(self, sent, to_send=None):
+        log.debug("Upload._bg_update")
+        self.bytes_sent = sent
+        if to_send is not None:
+            self.bytes_to_send = to_send
+        os.write(self.pipe_w, b'x')
+
+    def stop(self):
+        log.debug("Upload.stop")
+        self.controller.loop.remove_watch_pipe(self.pipe_w)
+        os.close(self.pipe_w)
 
 @attr.s(cmp=False)
 class ErrorReport:
@@ -196,26 +216,16 @@ class ErrorReport:
         log.debug("starting report for %s", self.base)
 
         reporter = self.reporter = Upload(
+            controller=self.controller,
             bytes_to_send=os.stat(self.path).st_size)
 
-        def _cb(data):
-            urwid.emit_signal(reporter, 'progress')
-
-        pipe_w = self.controller.loop.watch_pipe(_cb)
-
-        def _bg_progress(bytes_sent, bytes_to_send):
-            reporter.bytes_sent = bytes_sent
-            reporter.bytes_to_send = bytes_to_send
-            os.write(pipe_w, b'x')
-
         def _bg_report():
-            return self.controller.crashdb.upload(self.pr, _bg_progress)
+            return self.controller.crashdb.upload(self.pr, reporter._bg_update)
 
         def _reported(fut):
             log.debug("completed report for %s", self.base)
             self.reporter = None
-            self.controller.loop.remove_watch_pipe(pipe_w)
-            os.close(pipe_w)
+            reporter.stop()
             try:
                 ticket = fut.result()
             except Exception:
@@ -227,28 +237,24 @@ class ErrorReport:
             urwid.emit_signal(self.controller, 'report_changed', self)
 
         urwid.emit_signal(self.controller, 'report_changed', self)
+        reporter.start()
         self.controller.run_in_bg(_bg_report, _reported)
 
     def upload(self):
         log.debug("starting upload for %s", self.base)
-        uploader = self.uploader = Upload(bytes_to_send=1)
+        uploader = self.uploader = Upload(
+            controller=self.controller, bytes_to_send=1)
+
         url = "https://daisy.ubuntu.com"
         if self.controller.opts.dry_run:
             url = "https://daisy.staging.ubuntu.com"
 
         chunk_size = 1024
 
-        def _cb(data):
-            urwid.emit_signal(uploader, 'progress')
-
-        pipe_w = self.controller.loop.watch_pipe(_cb)
-
         def chunk(data):
             for i in range(0, len(data), chunk_size):
-                log.debug("chunk")
                 yield data[i:i+chunk_size]
-                self.uploader.bytes_sent += chunk_size
-                os.write(pipe_w, b'x')
+                uploader._bg_update(uploader.bytes_sent + chunk_size)
 
         def _bg_upload():
             for_upload = {}
@@ -264,23 +270,26 @@ class ErrorReport:
                 #        logtail.pop(0)
                 #for_upload["InstallerLogTail"] = "\n".join(logtail)
             data = bson.BSON().encode(for_upload)
-            self.uploader.bytes_to_send = len(data)
-            return requests.post(url, data=chunk(data))
+            self.uploader._bg_update(0, len(data))
+            response = requests.post(url, data=chunk(data))
+            response.raise_for_status()
+            return response.text.split()[0]
 
         def uploaded(fut):
-            self.uploader = None
             try:
-                response = fut.result()
-                response.raise_for_status()
+                oops_id = fut.result()
             except requests.exceptions.RequestException:
                 log.exception("upload for %s failed", self.base)
             else:
-                log.debug("finished upload for %s, %r", self.base, response.text)
-                self.set_meta("oops-id", response.text.split()[0])
+                log.debug("finished upload for %s, %r", self.base, oops_id)
+                self.set_meta("oops-id", oops_id)
                 urwid.emit_signal(uploader, 'complete')
+            uploader.stop()
+            self.uploader = None
             urwid.emit_signal(self.controller, 'report_changed', self)
 
         urwid.emit_signal(self.controller, 'report_changed', self)
+        uploader.start()
         self.controller.run_in_bg(_bg_upload, uploaded)
 
     def _path_with_ext(self, ext):
