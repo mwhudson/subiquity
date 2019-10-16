@@ -49,7 +49,6 @@ from subiquitycore.ui.width import (
 from subiquity.controllers.error import (
     ErrorReportKind,
     ErrorReportConstructionState,
-    ErrorReportReportingState,
     )
 
 
@@ -161,13 +160,27 @@ class ErrorReportStretchy(Stretchy):
         self.table = TablePile(self.rows_for_report())
         self.desc = Text("")
         self.pile = Pile([])
-        self._report_changed(self.report)
         widgets = [
             self.pile,
             ]
         super().__init__(report.summary, widgets, 0, 0)
+        self._report_changed(self.report)
         self.add_connection(
             self.ec, 'report_changed', self._report_changed)
+
+    def pb(self, upload):
+        pb = ProgressBar(
+            normal='progress_incomplete',
+            complete='progress_complete',
+            current=upload.bytes_sent,
+            done=upload.bytes_to_send)
+
+        def _progress():
+            pb.done = upload.bytes_to_send
+            pb.current = upload.bytes_sent
+        self.add_connection(upload, 'progress', _progress)
+
+        return pb
 
     def _pile_elements(self):
         INCOMPLETE = ErrorReportConstructionState.INCOMPLETE
@@ -202,12 +215,7 @@ class ErrorReportStretchy(Stretchy):
 
         if self.report.uploader:
             if self.upload_pb is None:
-                self.upload_pb = ProgressBar(
-                    normal='progress_incomplete',
-                    complete='progress_complete')
-                self.add_connection(
-                    self.report.uploader, 'progress', self._progress,
-                    user_args=[self.report.uploader, self.upload_pb])
+                self.upload_pb = self.pb(self.report.uploader)
             widgets.append(self.upload_pb)
         else:
             self.upload_pb = None
@@ -221,16 +229,11 @@ class ErrorReportStretchy(Stretchy):
 
         if self.report.reporter:
             if self.report_pb is None:
-                self.report_pb = ProgressBar(
-                    normal='progress_incomplete',
-                    complete='progress_complete')
-                self.add_connection(
-                    self.report.reporter, 'progress', self._progress,
-                    user_args=[self.report.reporter, self.report_pb])
-                self.add_connection(
-                    self.report.reporter, 'complete', self.complete_reporting)
+                self.report_pb = self.pb(self.report.reporter)
             widgets.append(self.report_pb)
         elif self.report.reported_url:
+            if self.report_pb:
+                self.complete_reporting()
             self.report_pb = None
             widgets.append(self.complete_btn)
         else:
@@ -268,10 +271,6 @@ class ErrorReportStretchy(Stretchy):
         while not self.pile.focus.selectable():
             self.pile.focus_position += 1
         self.title = report.summary
-
-    def _progress(self, reporter, pb):
-        pb.done = reporter.bytes_to_send
-        pb.current = reporter.bytes_sent
 
     def rows_for_report(self):
         rows = [

@@ -91,6 +91,7 @@ class Upload(metaclass=urwid.MetaSignals):
         self.controller.loop.remove_watch_pipe(self.pipe_w)
         os.close(self.pipe_w)
 
+
 @attr.s(cmp=False)
 class ErrorReport:
     controller = attr.ib()
