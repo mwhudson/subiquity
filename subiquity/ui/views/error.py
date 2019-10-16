@@ -131,9 +131,8 @@ class ErrorReportStretchy(Stretchy):
                 other_btn(
                     _("Send to Canonical"),
                     on_press=self.submit))
-        self.report_pb = ProgressBar(
-            normal='progress_incomplete',
-            complete='progress_complete')
+        self.upload_pb = None
+        self.report_pb = None
         self.report_btn = Toggleable(
                 other_btn(
                     _("Report a bug..."),
@@ -174,10 +173,6 @@ class ErrorReportStretchy(Stretchy):
         super().__init__(report.summary, widgets, 0, 0)
         self.add_connection(
             self.ec, 'report_changed', self._report_changed)
-        self.add_connection(
-            self.ec, 'reporting_progress', self._reporting_progress)
-        self.add_connection(
-            self.ec, 'reporting_completed', self._reporting_completed)
 
     def _pile_elements(self):
         INCOMPLETE = ErrorReportConstructionState.INCOMPLETE
@@ -196,18 +191,10 @@ class ErrorReportStretchy(Stretchy):
                 self.close_btn,
                 ]
 
-        if self.report.reporting_state in [
-                ErrorReportReportingState.UPLOADING,
-                ]:
-            self.submit_btn.base_widget.set_label(_("Submitting..."))
+        if self.report.oops_id:
+            self.submit_btn.base_widget.set_label(_("Sent to Canonical"))
             self.submit_btn.original_widget.enabled = False
-        elif self.report.reporting_state in [
-                ErrorReportReportingState.UPLOADED,
-                ]:
-            self.submit_btn.base_widget.set_label(_("Submitted"))
-            self.submit_btn.original_widget.enabled = False
-        else:
-            self.submit_btn.original_widget.enabled = True
+
         widgets = [
             Text(rewrap(_(error_report_intros[self.report.kind]))),
             Text(""),
@@ -216,21 +203,43 @@ class ErrorReportStretchy(Stretchy):
             Text(rewrap(_(submit_text))),
             Text(""),
             self.view_btn,
-            self.submit_btn,
+        ]
+
+        if self.report.uploader:
+            if self.upload_pb is None:
+                self.upload_pb = ProgressBar(
+                    normal='progress_incomplete',
+                    complete='progress_complete')
+                self.add_connection(
+                    self.report.uploader, 'progress', self._progress,
+                    user_args=[self.report.uploader, self.upload_pb])
+            widgets.append(self.upload_pb)
+        else:
+            self.upload_pb = None
+            widgets.append(self.submit_btn)
+
+        widgets.extend([
             Text(""),
             Text(rewrap(_(report_text))),
             Text(""),
-            ]
+            ])
 
-        if self.report.reporting_state in [
-                ErrorReportReportingState.REPORTING,
-                ]:
+        if self.report.reporter:
+            if self.report_pb is None:
+                self.report_pb = ProgressBar(
+                    normal='progress_incomplete',
+                    complete='progress_complete')
+                self.add_connection(
+                    self.report.reporter, 'progress', self._progress,
+                    user_args=[self.report.reporter, self.report_pb])
+                self.add_connection(
+                    self.report.reporter, 'complete', self.complete_reporting)
             widgets.append(self.report_pb)
-        elif self.report.reporting_state in [
-                ErrorReportReportingState.REPORTED,
-                ]:
+        elif self.report.reported_url:
+            self.report_pb = None
             widgets.append(self.complete_btn)
         else:
+            self.report_pb = None
             widgets.append(self.report_btn)
 
         widgets.append(Text(""))
@@ -240,25 +249,20 @@ class ErrorReportStretchy(Stretchy):
                 Text(rewrap(_(retry_text))),
                 Text(""),
                 self.restart_btn,
-                self.close_btn,
                 ])
         elif self.report.kind == ErrorReportKind.FULL_BLOCK_PROBE_FAILED:
             widgets.extend([
                 Text(rewrap(_(full_block_probe_failed))),
                 Text(""),
-                self.close_btn,
                 ])
         elif self.report.kind == ErrorReportKind.RESTRICTED_BLOCK_PROBE_FAILED:
             widgets.extend([
                 Text(rewrap(_(all_probing_failed_text))),
                 Text(""),
                 self.shell_btn,
-                self.close_btn,
                 ])
-        else:
-            widgets.extend([
-                self.close_btn,
-                ])
+
+        widgets.append(self.close_btn)
         return widgets
 
     def _report_changed(self, report):
@@ -270,18 +274,9 @@ class ErrorReportStretchy(Stretchy):
             self.pile.focus_position += 1
         self.title = report.summary
 
-    def _reporting_progress(self, report):
-        if report is not self.report:
-            return
-        if report.bytes_to_send is None or report.bytes_sent is None:
-            return
-        self.report_pb.done = report.bytes_to_send
-        self.report_pb.current = report.bytes_sent
-
-    def _reporting_completed(self, report):
-        if report is not self.report:
-            return
-        self.complete_reporting()
+    def _progress(self, reporter, pb):
+        pb.done = reporter.bytes_to_send
+        pb.current = reporter.bytes_sent
 
     def rows_for_report(self):
         rows = [
@@ -303,6 +298,7 @@ class ErrorReportStretchy(Stretchy):
             ErrorReportBugReportStretchy(self.ec, self.report, self.parent))
 
     def complete_reporting(self, sender=None):
+        log.debug("complete_reporting")
         self.parent.show_stretchy_overlay(
             ErrorReportCompleteBugReportStretchy(
                 self.ec, self.report, self.parent))

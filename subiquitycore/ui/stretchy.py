@@ -68,6 +68,7 @@ class Stretchy(metaclass=urwid.MetaSignals):
         self.focus_index = focus_index
         urwid.connect_signal(self, 'opened', self.opened)
         urwid.connect_signal(self, 'closed', self.closed)
+        self._showing = False
         self._connections = []
         urwid.connect_signal(self, 'opened', self._connect)
         urwid.connect_signal(self, 'closed', self._disconnect)
@@ -81,12 +82,16 @@ class Stretchy(metaclass=urwid.MetaSignals):
     def add_connection(self, obj, signal, cb, *args, **kw):
         """Subscribe to a signal on obj while the stretchy is on-screen."""
         self._connections.append((obj, signal, cb, args, kw))
+        if self._showing:
+            urwid.connect_signal(obj, signal, cb, *args, **kw)
 
     def _connect(self):
+        self._showing = True
         for obj, signal, cb, args, kw in self._connections:
             urwid.connect_signal(obj, signal, cb, *args, **kw)
 
     def _disconnect(self):
+        self._showing = False
         for obj, signal, cb, args, kw in self._connections:
             urwid.disconnect_signal(obj, signal, cb, *args, **kw)
 
