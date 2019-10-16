@@ -157,7 +157,7 @@ class Subiquity(Application):
             except ZeroDivisionError:
                 self.make_apport_report(
                     ErrorReportKind.UNKNOWN, "example", interrupt=interrupt)
-        elif key == 'ctrl u':
+        elif self.opts.dry_run and key == 'ctrl u':
             1/0
         elif key in ['ctrl z', 'f2']:
             self.debug_shell()

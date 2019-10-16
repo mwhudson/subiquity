@@ -18,9 +18,6 @@ import enum
 import json
 import logging
 import os
-import queue
-import threading
-import time
 
 import apport
 import apport.crashdb
@@ -29,8 +26,6 @@ import apport.hookutils
 import attr
 
 import bson
-
-import problem_report
 
 import requests
 
@@ -54,7 +49,6 @@ class ErrorReportReportingState(enum.Enum):
 
 
 class ErrorReportConstructionState(enum.Enum):
-    NEW = _("NEW")
     LOADING = _("LOADING")
     INCOMPLETE = _("INCOMPLETE")
     DONE = _("DONE")
@@ -73,11 +67,11 @@ class ErrorReportKind(enum.Enum):
 class ErrorReport:
     controller = attr.ib()
     base = attr.ib()
-    pr = attr.ib(default=None)
-    meta = attr.ib(default=attr.Factory(dict))
-    construction_state = attr.ib(default=ErrorReportConstructionState.NEW)
-    _file = attr.ib(default=None)
+    pr = attr.ib()
+    construction_state = attr.ib()
+    _file = attr.ib()
 
+    meta = attr.ib(default=attr.Factory(dict))
     reporting = attr.ib(default=False)
     uploading = attr.ib(default=False)
 
@@ -95,7 +89,6 @@ class ErrorReport:
         else:
             with fp:
                 report.meta = json.load(fp)
-        controller._queue_report_load(report)
         return report
 
     @classmethod
@@ -208,7 +201,7 @@ class ErrorReport:
             os.write(pipe_w, b'x')
 
         def _bg_report():
-            return self.controller.crashdb.upload(self.pr)
+            return self.controller.crashdb.upload(self.pr, _bg_progress)
 
         def _reported(fut):
             self.reporting = False
@@ -339,13 +332,11 @@ class ErrorController(BaseController, metaclass=MetaClass):
             'impl': 'launchpad',
             'project': 'subiquity',
             }
-        self.crashdb = apport.crashdb.load_crashdb(
-            None, self.crashdb_spec)
         if self.app.opts.dry_run:
             self.crashdb_spec['launchpad_instance'] = 'staging'
-        self.reports = []  # maps base to ErrorReport
-        self._loading_report = None
-        self._reports_to_load = []
+        self.crashdb = apport.crashdb.load_crashdb(
+            None, self.crashdb_spec)
+        self.reports = []
 
     def are_reports_persistent(self):
         if self.opts.dry_run:
@@ -365,28 +356,23 @@ class ErrorController(BaseController, metaclass=MetaClass):
         # in the background
         self.scan_crash_dir()
 
-    def _queue_report_load(self, report):
-        if self._loading_report is None:
-            self._loading_report = report
-            self._loading_report.load(self._report_loaded)
-        else:
-            self._reports_to_load.append(report)
-
-    def _report_loaded(self):
-        if self._reports_to_load:
-            self._loading_report = self._reports_to_load.pop(0)
-            self._loading_report.load(self._report_loaded)
-        else:
-            self._loading_report = None
+    def _report_loaded(self, to_load):
+        if to_load:
+            to_load[0].load(
+                lambda: self._report_loaded(to_load[1:]))
 
     def scan_crash_dir(self):
         filenames = os.listdir(self.crash_directory)
+        to_load = []
         for filename in filenames:
             base, ext = os.path.splitext(filename)
             if ext != ".crash":
                 continue
             path = os.path.join(self.crash_directory, filename)
-            self.reports.append(ErrorReport.from_file(self, path))
+            r = ErrorReport.from_file(self, path)
+            self.reports.append(r)
+            to_load.append(r)
+        self._report_loaded(to_load)
 
     def create_report(self, kind):
         r = ErrorReport.new(self, kind)
