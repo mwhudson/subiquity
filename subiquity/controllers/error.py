@@ -65,7 +65,7 @@ class ErrorReportKind(enum.Enum):
 
 @attr.s(cmp=False)
 class Upload(metaclass=urwid.MetaSignals):
-    signals = ['progress', 'complete']
+    signals = ['progress']
 
     controller = attr.ib()
     bytes_to_send = attr.ib()
@@ -73,21 +73,18 @@ class Upload(metaclass=urwid.MetaSignals):
     pipe_w = attr.ib(default=None)
 
     def start(self):
-        log.debug("Upload.start")
         self.pipe_w = self.controller.loop.watch_pipe(self._progress)
 
     def _progress(self, x):
         urwid.emit_signal(self, 'progress')
 
     def _bg_update(self, sent, to_send=None):
-        log.debug("Upload._bg_update")
         self.bytes_sent = sent
         if to_send is not None:
             self.bytes_to_send = to_send
         os.write(self.pipe_w, b'x')
 
     def stop(self):
-        log.debug("Upload.stop")
         self.controller.loop.remove_watch_pipe(self.pipe_w)
         os.close(self.pipe_w)
 
@@ -234,7 +231,6 @@ class ErrorReport:
             else:
                 url = self.controller.crashdb.get_comment_url(self.pr, ticket)
                 self.set_meta("reported-url", url)
-                urwid.emit_signal(reporter, 'complete')
             urwid.emit_signal(self.controller, 'report_changed', self)
 
         urwid.emit_signal(self.controller, 'report_changed', self)
@@ -284,7 +280,6 @@ class ErrorReport:
             else:
                 log.debug("finished upload for %s, %r", self.base, oops_id)
                 self.set_meta("oops-id", oops_id)
-                urwid.emit_signal(uploader, 'complete')
             uploader.stop()
             self.uploader = None
             urwid.emit_signal(self.controller, 'report_changed', self)
