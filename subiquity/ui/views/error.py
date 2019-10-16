@@ -160,10 +160,7 @@ class ErrorReportStretchy(Stretchy):
                 Padding(getattr(self, a), width=w, align='center'))
         self.pile = Pile([])
         self.spinner = Spinner(app.loop, style='dots')
-        widgets = [
-            self.pile,
-            ]
-        super().__init__(report.summary, widgets, 0, 0)
+        super().__init__(report.summary, [self.pile], 0, 0)
         self._report_changed(self.report)
         self.add_connection(
             self.ec, 'report_changed', self._report_changed)
@@ -291,7 +288,6 @@ class ErrorReportStretchy(Stretchy):
             ErrorReportBugReportStretchy(self.ec, self.report, self.parent))
 
     def complete_reporting(self, sender=None):
-        log.debug("complete_reporting")
         self.parent.show_stretchy_overlay(
             ErrorReportCompleteBugReportStretchy(
                 self.ec, self.report, self.parent))
@@ -300,6 +296,8 @@ class ErrorReportStretchy(Stretchy):
         self.app.debug_shell()
 
     def restart(self, sender=None):
+        # Should unmount and delete /target.
+        # We rely on systemd restarting us.
         self.app.exit()
 
     def opened(self):
