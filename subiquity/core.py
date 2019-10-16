@@ -125,8 +125,7 @@ class Subiquity(Application):
         super().select_initial_screen(index)
         for report in self.error_controller.reports:
             if report.kind == ErrorReportKind.UI_CRASH:
-                UNVIEWED = ErrorReportReportingState.UNVIEWED
-                if report.reporting_state == UNVIEWED:
+                if not report.seen:
                     log.debug("showing new error %r", report.base)
                     self.show_error_report(report)
                     return

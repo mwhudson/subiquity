@@ -48,7 +48,7 @@ from subiquitycore.ui.width import (
 
 from subiquity.controllers.error import (
     ErrorReportKind,
-    ErrorReportConstructionState,
+    ErrorReportState,
     )
 
 
@@ -157,7 +157,6 @@ class ErrorReportStretchy(Stretchy):
                 self,
                 a,
                 Padding(getattr(self, a), width=w, align='center'))
-        self.table = TablePile(self.rows_for_report())
         self.desc = Text("")
         self.pile = Pile([])
         widgets = [
@@ -183,30 +182,26 @@ class ErrorReportStretchy(Stretchy):
         return pb
 
     def _pile_elements(self):
-        INCOMPLETE = ErrorReportConstructionState.INCOMPLETE
-        LOADING = ErrorReportConstructionState.LOADING
-
-        if self.report.construction_state == INCOMPLETE:
+        if self.report.state == ErrorReportState.INCOMPLETE:
             return [
                 Text(rewrap(_(incomplete_text))),
                 Text(""),
                 self.close_btn,
                 ]
-        elif self.report.construction_state == LOADING:
+        elif self.report.state == ErrorReportState.LOADING:
             return [
                 Text(rewrap(_("Loading"))),
                 Text(""),
                 self.close_btn,
                 ]
 
-        if self.report.oops_id:
-            self.submit_btn.base_widget.set_label(_("Sent to Canonical"))
-            self.submit_btn.original_widget.enabled = False
+        # XXX display relative date here!
+        date = self.report.pr.get("Date", "???")
 
         widgets = [
             Text(rewrap(_(error_report_intros[self.report.kind]))),
             Text(""),
-            TablePile(self.rows_for_report()),
+            Text(_("Reported at {}.").format(date)),
             Text(""),
             Text(rewrap(_(submit_text))),
             Text(""),
@@ -218,6 +213,9 @@ class ErrorReportStretchy(Stretchy):
                 self.upload_pb = self.pb(self.report.uploader)
             widgets.append(self.upload_pb)
         else:
+            if self.upload_pb and self.report.oops_id:
+                self.submit_btn.base_widget.set_label(_("Sent to Canonical"))
+                self.submit_btn.original_widget.enabled = False
             self.upload_pb = None
             widgets.append(self.submit_btn)
 
@@ -271,15 +269,6 @@ class ErrorReportStretchy(Stretchy):
         while not self.pile.focus.selectable():
             self.pile.focus_position += 1
         self.title = report.summary
-
-    def rows_for_report(self):
-        rows = [
-            ("Summary:", self.report.summary),
-            ("State:", self.report.reporting_state.name),
-            # XXX display relative date here!
-            ("Date:", self.report.pr.get("Date", "???")),
-            ]
-        return [TableRow(map(Text, r)) for r in rows]
 
     def view_report(self, sender):
         self.app.run_command_in_foreground(["less", self.report.path])
@@ -410,6 +399,19 @@ class ErrorReportListStretchy(Stretchy):
         self.parent.show_stretchy_overlay(ErrorReportStretchy(
             self.app, self.ec, report, self.parent))
 
+    def state_for_report(self, report):
+        if report.reported_url is not None:
+            return _("REPORTED")
+        if report.reporter:
+            return _("REPORTING")
+        if report.oops_id is not None:
+            return _("UPLOADED")
+        if report.uploader:
+            return _("UPLOADING")
+        if report.seen:
+            return _("UNREPORTED")
+        return _("UNVIEWED")
+
     def cells_for_report(self, report):
         icon = ClickableIcon(report.summary, 0)
         connect_signal(icon, 'click', self.open_report, report)
@@ -417,7 +419,7 @@ class ErrorReportListStretchy(Stretchy):
             Text("["),
             icon,
             Text(_(report.kind.value)),
-            Text(_(report.reporting_state.name)),
+            Text(_(self.state_for_report(report))),
             Text("]"),
             ]
 
@@ -426,9 +428,8 @@ class ErrorReportListStretchy(Stretchy):
             TableRow(self.cells_for_report(report)))
 
     def _new_report(self, report):
-        i = len(self.table.table_rows)
         r = self.report_to_row[report] = self.row_for_report(report)
-        self.table.insert_rows(i, [r])
+        self.table.insert_rows(1, [r])
 
     def _report_changed(self, report):
         old_r = self.report_to_row.get(report)

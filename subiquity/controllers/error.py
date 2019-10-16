@@ -39,16 +39,7 @@ from subiquitycore.utils import run_command
 log = logging.getLogger('subiquity.controllers.error')
 
 
-class ErrorReportReportingState(enum.Enum):
-    UNVIEWED = _("UNVIEWED")
-    UNREPORTED = _("UNREPORTED")
-    UPLOADING = _("UPLOADING")
-    UPLOADED = _("UPLOADED")
-    REPORTING = _("REPORTING")
-    REPORTED = _("REPORTED")
-
-
-class ErrorReportConstructionState(enum.Enum):
+class ErrorReportState(enum.Enum):
     LOADING = _("LOADING")
     INCOMPLETE = _("INCOMPLETE")
     DONE = _("DONE")
@@ -94,7 +85,7 @@ class ErrorReport:
     controller = attr.ib()
     base = attr.ib()
     pr = attr.ib()
-    construction_state = attr.ib()
+    state = attr.ib()
     _file = attr.ib()
 
     meta = attr.ib(default=attr.Factory(dict))
@@ -106,8 +97,7 @@ class ErrorReport:
         base = os.path.splitext(os.path.basename(fpath))[0]
         report = cls(
             controller, base, pr=apport.Report(),
-            construction_state=ErrorReportConstructionState.LOADING,
-            file=open(fpath, 'rb'))
+            state=ErrorReportState.LOADING, file=open(fpath, 'rb'))
         try:
             fp = open(report.meta_path, 'r')
         except FileNotFoundError:
@@ -136,7 +126,7 @@ class ErrorReport:
 
         r = cls(
             controller=controller, base=base, pr=pr, file=crash_file,
-            construction_state=ErrorReportConstructionState.INCOMPLETE)
+            state=ErrorReportState.INCOMPLETE)
         r.set_meta("kind", kind.name)
         return r
 
@@ -326,19 +316,6 @@ class ErrorReport:
     def seen(self):
         return self.meta.get("seen")
 
-    @property
-    def reporting_state(self):
-        if self.reported_url is not None:
-            return ErrorReportReportingState.REPORTED
-        if self.reporter:
-            return ErrorReportReportingState.REPORTING
-        if self.oops_id is not None:
-            return ErrorReportReportingState.UPLOADED
-        if self.uploader:
-            return ErrorReportReportingState.UPLOADING
-        if self.seen:
-            return ErrorReportReportingState.UNREPORTED
-        return ErrorReportReportingState.UNVIEWED
 
 
 class MetaClass(type(ABC), urwid.MetaSignals):
