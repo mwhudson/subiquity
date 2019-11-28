@@ -13,16 +13,22 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import fcntl
 import logging
 import os
 import platform
 import sys
 import traceback
+import yaml
 
 import apport.hookutils
 
 from subiquitycore.core import Application
 
+from subiquity.autoinstall import (
+    merge_autoinstall_configs,
+    run_early_commands,
+    )
 from subiquity.controllers.error import (
     ErrorController,
     ErrorReportKind,
@@ -107,7 +113,37 @@ class Subiquity(Application):
         self._apport_data = []
         self._apport_files = []
 
+    def _state_file(self, name):
+        return os.path.join(self.state_dir, name)
+
+    def flock(self, name, flags=fcntl.LOCK_EX):
+        path = self._state_file(name + '.lock')
+        fp = open(path, 'w')
+        try:
+            fcntl.flock(fp, fcntl.LOCK_EX)
+        except OSError:
+            fp.close()
+            return None
+        else:
+            return fp
+
     def run(self):
+        if self.opts.autoinstall:
+            merge_stamp_path = self._state_file('autoinstall-merged.stamp')
+            merged_path = os.path.join(self.root, 'autoinstall.yaml')
+            with self.flock('autoinstall-merge'):
+                if not os.path.exists(merge_stamp_path):
+                    merge_autoinstall_configs(
+                        self.opts.autoinstall, merged_path)
+                    open(merge_stamp_path, 'w').close()
+            with open(merged_path) as fp:
+                config = yaml.safe_load(fp)
+            if 'early-commands' in config:
+                lock_path = self._state_file('early-commands.lock')
+                stamp_path = self._state_file('early-commands.stamp')
+                run_early_commands(config, lock_path, stamp_path)
+                with open(merged_path) as fp:
+                    config = yaml.safe_load(fp)
         try:
             super().run()
         except Exception:
