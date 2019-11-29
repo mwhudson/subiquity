@@ -146,37 +146,6 @@ def make_palette(colors, styles, ascii):
     return urwid_palette
 
 
-def make_screen(colors, is_linux_tty, ascii_mode):
-    """Return a screen to be passed to MainLoop.
-
-    colors is a list of exactly 8 tuples (name, (r, g, b)), the same as
-    passed to make_palette.
-    """
-    # On the linux console, we overwrite the first 8 colors to be those
-    # defined by colors. Otherwise, we return a screen that uses ISO
-    # 8613-3ish codes to display the colors.
-    if len(colors) != 8:
-        raise Exception(
-            "make_screen must be passed a list of exactly 8 colors")
-    if is_linux_tty:
-        # Perhaps we ought to return a screen subclass that does this
-        # ioctl-ing in .start() and undoes it in .stop() but well.
-        curpal = bytearray(16*3)
-        fcntl.ioctl(sys.stdout.fileno(), GIO_CMAP, curpal)
-        for i in range(8):
-            for j in range(3):
-                curpal[i*3+j] = colors[i][1][j]
-        fcntl.ioctl(sys.stdout.fileno(), PIO_CMAP, curpal)
-        return urwid.raw_display.Screen()
-    elif ascii_mode:
-        return urwid.raw_display.Screen()
-    else:
-        _urwid_name_to_rgb = {}
-        for i, n in enumerate(urwid_8_names):
-            _urwid_name_to_rgb[n] = colors[i][1]
-        return TwentyFourBitScreen(_urwid_name_to_rgb)
-
-
 def extend_dec_special_charmap():
     urwid.escape.DEC_SPECIAL_CHARMAP.update({
         ord('\N{BLACK RIGHT-POINTING SMALL TRIANGLE}'): '>',
@@ -205,26 +174,28 @@ class KeyCodesFilter:
     Much of this is cribbed from the source of the "showkeys" utility.
     """
 
-    def __init__(self):
-        self._fd = os.open("/proc/self/fd/0", os.O_RDWR)
+    def __init__(self, app):
+        self.app = app
         self.filtering = False
 
     def enter_keycodes_mode(self):
+        fd = self.app.loop.screen._term_input_file.fileno()
         log.debug("enter_keycodes_mode")
         self.filtering = True
         # Read the old keyboard mode (it will proably always be K_UNICODE but
         # well).
         o = bytearray(4)
-        fcntl.ioctl(self._fd, KDGKBMODE, o)
+        fcntl.ioctl(fd, KDGKBMODE, o)
         self._old_mode = struct.unpack('i', o)[0]
         # Set the keyboard mode to K_MEDIUMRAW, which causes the keyboard
         # driver in the kernel to pass us keycodes.
-        fcntl.ioctl(self._fd, KDSKBMODE, K_MEDIUMRAW)
+        fcntl.ioctl(fd, KDSKBMODE, K_MEDIUMRAW)
 
     def exit_keycodes_mode(self):
+        fd = self.app.loop.screen._term_input_file.fileno()
         log.debug("exit_keycodes_mode")
         self.filtering = False
-        fcntl.ioctl(self._fd, KDSKBMODE, self._old_mode)
+        fcntl.ioctl(fd, KDSKBMODE, self._old_mode)
 
     def filter(self, keys, codes):
         # Luckily urwid passes us the raw results from read() we can
@@ -312,7 +283,7 @@ class Application:
         self.is_linux_tty = is_linux_tty()
 
         if self.is_linux_tty:
-            self.input_filter = KeyCodesFilter()
+            self.input_filter = KeyCodesFilter(self)
         else:
             self.input_filter = DummyKeycodesFilter()
 
@@ -602,12 +573,41 @@ class Application:
         except Skip:
             self.next_screen()
 
+    def make_screen(self):
+        """Return a screen to be passed to MainLoop.
+
+        colors is a list of exactly 8 tuples (name, (r, g, b)), the same as
+        passed to make_palette.
+        """
+        # On the linux console, we overwrite the first 8 colors to be those
+        # defined by colors. Otherwise, we return a screen that uses ISO
+        # 8613-3ish codes to display the colors.
+        if len(self.COLORS) != 8:
+            raise Exception(
+                "make_screen must be passed a list of exactly 8 colors")
+        if is_linux_tty:
+            # Perhaps we ought to return a screen subclass that does this
+            # ioctl-ing in .start() and undoes it in .stop() but well.
+            curpal = bytearray(16*3)
+            fcntl.ioctl(sys.stdout.fileno(), GIO_CMAP, curpal)
+            for i in range(8):
+                for j in range(3):
+                    curpal[i*3+j] = self.COLORS[i][1][j]
+            fcntl.ioctl(sys.stdout.fileno(), PIO_CMAP, curpal)
+            return urwid.raw_display.Screen()
+        elif self.opts.ascii:
+            return urwid.raw_display.Screen()
+        else:
+            _urwid_name_to_rgb = {}
+            for i, n in enumerate(urwid_8_names):
+                _urwid_name_to_rgb[n] = self.COLORS[i][1]
+            return TwentyFourBitScreen(_urwid_name_to_rgb)
+
     def run(self):
         log.debug("Application.run")
-        screen = make_screen(self.COLORS, self.is_linux_tty, self.opts.ascii)
 
         self.loop = urwid.MainLoop(
-            self.ui, palette=self.color_palette, screen=screen,
+            self.ui, palette=self.color_palette, screen=self.make_screen(),
             handle_mouse=False, pop_ups=True,
             input_filter=self.input_filter.filter,
             unhandled_input=self.unhandled_input,
@@ -632,8 +632,13 @@ class Application:
             if self.updated:
                 initial_controller_index = self.load_serialized_state()
 
-            self.loop.set_alarm_in(
-                0.00, lambda loop, ud: tty.setraw(0))
+
+            def setraw(loop, ud):
+                fd = self.loop.screen._term_input_file.fileno()
+                if os.isatty(fd):
+                    tty.setraw(fd)
+
+            self.loop.set_alarm_in(0.00, setraw)
             self.loop.set_alarm_in(
                 0.05, lambda loop, ud: self.select_initial_screen(
                     initial_controller_index))

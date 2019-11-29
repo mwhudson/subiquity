@@ -23,6 +23,8 @@ import yaml
 
 import apport.hookutils
 
+import urwid
+
 from subiquitycore.core import Application
 
 from subiquity.autoinstall import (
@@ -96,6 +98,7 @@ class Subiquity(Application):
             self.controllers.remove("Zdev")
 
         super().__init__(opts)
+        self.autoinstall_config = None
         self.block_log_dir = block_log_dir
         if opts.snaps_from_examples:
             connection = FakeSnapdConnection(
@@ -127,6 +130,20 @@ class Subiquity(Application):
         else:
             return fp
 
+    @property
+    def interactive(self):
+        if not self.autoinstall_config:
+            return True
+        return bool(self.autoinstall_config.get('interactive-sections'))
+
+    def make_screen(self):
+        if self.interactive:
+            return super().make_screen()
+        else:
+            r, w = os.pipe()
+            return urwid.raw_display.Screen(
+                input=os.fdopen(r), output=open('/dev/null', 'w'))
+
     def run(self):
         if self.opts.autoinstall:
             merge_stamp_path = self._state_file('autoinstall-merged.stamp')
@@ -144,6 +161,7 @@ class Subiquity(Application):
                 run_early_commands(config, lock_path, stamp_path)
                 with open(merged_path) as fp:
                     config = yaml.safe_load(fp)
+            self.autoinstall_config = config
         try:
             super().run()
         except Exception:
@@ -154,6 +172,9 @@ class Subiquity(Application):
             raise
 
     def select_initial_screen(self, index):
+        if not self.interactive:
+            print("hello")
+            self.exit()
         super().select_initial_screen(index)
         for report in self.error_controller.reports:
             if report.kind == ErrorReportKind.UI and not report.seen:
