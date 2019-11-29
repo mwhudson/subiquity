@@ -141,8 +141,10 @@ class Subiquity(Application):
             return super().make_screen()
         else:
             r, w = os.pipe()
-            return urwid.raw_display.Screen(
+            s = urwid.raw_display.Screen(
                 input=os.fdopen(r), output=open('/dev/null', 'w'))
+            s.get_cols_rows = lambda : (80, 24)
+            return s
 
     def run(self):
         if self.opts.autoinstall:
@@ -173,8 +175,17 @@ class Subiquity(Application):
 
     def select_initial_screen(self, index):
         if not self.interactive:
-            print("hello")
-            self.exit()
+            def run_next(l, fut=None):
+                if fut is not None:
+                    fut.result()
+                if l:
+                    run_one(l[0], l[1:])
+                else:
+                    self.exit()
+            def run_one(c, rest):
+                print("running autoinstall for", c)
+                self.run_in_bg(c.apply_autoinstall_config, lambda fut: run_next(rest, fut))
+            run_next(self.controllers.instances)
         super().select_initial_screen(index)
         for report in self.controllers.Error.reports:
             if report.kind == ErrorReportKind.UI and not report.seen:

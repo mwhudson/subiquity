@@ -17,6 +17,7 @@
 from abc import ABC, abstractmethod
 import logging
 import os
+import time
 
 log = logging.getLogger("subiquitycore.controller")
 
@@ -93,6 +94,9 @@ class BaseController(ABC):
     def deserialize(self, data):
         if data is not None:
             raise Exception("missing deserialize method on {}".format(self))
+
+    def apply_autoinstall_config(self):
+        time.sleep(1)
 
     # Stuff for fine grained actions, used by filesystem and network
     # controller at time of writing this comment.
