@@ -604,7 +604,7 @@ class Application:
         if len(self.COLORS) != 8:
             raise Exception(
                 "make_screen must be passed a list of exactly 8 colors")
-        if is_linux_tty:
+        if self.is_linux_tty:
             # Perhaps we ought to return a screen subclass that does this
             # ioctl-ing in .start() and undoes it in .stop() but well.
             curpal = bytearray(16*3)
