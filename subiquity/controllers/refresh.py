@@ -44,6 +44,8 @@ class CheckState(enum.IntEnum):
 
 class RefreshController(BaseController):
 
+    autoinstall_key = 'refresh-installer'
+
     signals = [
         ('snapd-network-change', 'snapd_network_changed'),
     ]
@@ -57,6 +59,24 @@ class RefreshController(BaseController):
         self.new_snap_version = ""
 
         self.offered_first_time = False
+        self.enabled = True
+
+    def load_autoinstall(self):
+        self.enabled = self.autoinstall_data
+
+    async def apply_autoinstall_config(self, index=0):
+        if not self.enabled:
+            return
+        if self.check_state.is_definite():
+            return
+        if not self.app.controllers.Network.has_network:
+            return
+        await self.configure_snapd_task
+        await asyncio.wait_for(60, self.check_for_update())
+        if self.check_state == CheckState.AVAILABLE:
+            await self.app.snapd.post_and_wait(
+                'v2/snaps/{}'.format(self.snap_name),
+                {'action': 'refresh'})
 
     def start(self):
         if self.app.updated:
@@ -156,7 +176,7 @@ class RefreshController(BaseController):
     def start_update(self, callback):
         update_marker = os.path.join(self.app.state_dir, 'updating')
         open(update_marker, 'w').close()
-        schedule_task(self._start_update(callback))
+        return schedule_task(self._start_update(callback))
 
     async def _start_update(self, callback):
         try:

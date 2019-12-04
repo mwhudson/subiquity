@@ -98,7 +98,7 @@ class Subiquity(Application):
             self.controllers.remove("Zdev")
 
         super().__init__(opts)
-        self.autoinstall_config = None
+        self.autoinstall_config = {}
         self.block_log_dir = block_log_dir
         if opts.snaps_from_examples:
             connection = FakeSnapdConnection(

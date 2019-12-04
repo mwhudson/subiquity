@@ -128,7 +128,7 @@ class SubiquityModel:
             'growpart': {
                 'mode': 'off',
                 },
-            'locale': self.locale.selected_language + '.UTF-8',
+            'locale': self.locale.locale,
             'preserve_hostname': True,
             'resize_rootfs': False,
             'users': [user_info],

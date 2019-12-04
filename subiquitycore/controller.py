@@ -27,6 +27,8 @@ class BaseController(ABC):
 
     signals = []
 
+    autoinstall_key = None
+
     def __init__(self, app):
         self.name = type(self).__name__[:-len("Controller")]
         self.ui = app.ui
@@ -46,6 +48,18 @@ class BaseController(ABC):
         self.run_in_bg = app.run_in_bg
         self.app = app
         self.answers = app.answers.get(self.name, {})
+        self.autoinstall_data = self.app.autoinstall.get(self.autoinstall_key)
+        if self.autoinstall_data is not None:
+            self.load_autoinstall()
+
+    def interactive(self):
+        if not self.app.autoinstall_config:
+            return True
+        i_sections = self.app.autoinstall_config.get(
+            'interactive-sections', [])
+        if '*' in i_sections or self.autoinstall_key in i_sections:
+            return True
+        return False
 
     def register_signals(self):
         """Defines signals associated with controller from model."""

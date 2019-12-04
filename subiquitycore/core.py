@@ -31,6 +31,8 @@ from subiquitycore.signals import Signal
 from subiquitycore.prober import Prober
 from subiquitycore.ui.frame import SubiquityCoreUI
 
+from subiquity.async_helpers import schedule_task
+
 log = logging.getLogger('subiquitycore.core')
 
 
@@ -262,6 +264,8 @@ class ControllerSet:
                 name = inst.name
             else:
                 inst = klass(self.app)
+                if inst.autoinstall_key in self.app.autoinstall_config:
+                    inst.load_autoinstall()
             setattr(self, name, inst)
             self.instances.append(inst)
 
@@ -432,14 +436,17 @@ class Application:
         with open(state_path, 'w') as fp:
             json.dump(cur.serialize(), fp)
 
-    def start_screen(self, new):
-        old = self.controllers.cur
+    def start_screen(self, old, new):
         if old is not None:
             old.end_ui()
         log.debug("moving to screen %s", new.name)
         if self.opts.screens and new.name not in self.opts.screens:
             raise Skip
-        new.start_ui()
+        if new.interactive():
+            new.start_ui()
+        else:
+            task = schedule_task(new.apply_autoinstall_config())
+            task.add_done_callback(self.next_screen)
         state_path = os.path.join(self.state_dir, 'last-screen')
         with open(state_path, 'w') as fp:
             fp.write(new.name)
@@ -449,14 +456,21 @@ class Application:
         while True:
             if self.controllers.at_end:
                 self.exit()
-            controller = self.controllers.advance()
-            try:
-                self.start_screen(controller)
-            except Skip:
-                log.debug("skipping screen %s", controller.name)
-                continue
+            old = self.controllers.cur
+            if old is not None:
+                old.end_ui()
+            new = self.controllers.advance()
+            if new.interactive():
+                try:
+                    self.start_screen(old, new)
+                except Skip:
+                    log.debug("skipping screen %s", new.name)
+                    continue
+                else:
+                    break
             else:
-                break
+                task = schedule_task(new.apply_autoinstall_config())
+                task.add_done_callback(self.next_screen)
 
     def prev_screen(self, *args):
         self.save_state()
