@@ -65,6 +65,8 @@ class RefreshController(BaseController):
         self.enabled = self.autoinstall_data
 
     async def apply_autoinstall_config(self, index=0):
+        if self.app.updated:
+            return
         if not self.enabled:
             return
         if self.check_state.is_definite():
@@ -74,6 +76,8 @@ class RefreshController(BaseController):
         await self.configure_snapd_task
         await asyncio.wait_for(60, self.check_for_update())
         if self.check_state == CheckState.AVAILABLE:
+            update_marker = os.path.join(self.app.state_dir, 'updating')
+            open(update_marker, 'w').close()
             await self.app.snapd.post_and_wait(
                 'v2/snaps/{}'.format(self.snap_name),
                 {'action': 'refresh'})
