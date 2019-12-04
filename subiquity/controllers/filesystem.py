@@ -130,6 +130,8 @@ class Probe:
 
 class FilesystemController(BaseController):
 
+    autoinstall_key = 'storage'
+
     def __init__(self, app):
         super().__init__(app)
         self.model = app.base_model.filesystem
@@ -143,6 +145,12 @@ class FilesystemController(BaseController):
         self._monitor = None
         self._udev_listen_handle = None
         self._probes = {}
+
+    def load_autoinstall(self):
+        pass
+
+    async def apply_autoinstall_config(self):
+        await self._probe_task
 
     def start(self):
         self._start_probe(restricted=False, start=False)
@@ -225,7 +233,7 @@ class FilesystemController(BaseController):
             json.dump(probe.result, fp, indent=4)
         self.app.note_file_for_apport(key, fpath)
         try:
-            self.model.load_probe_data(probe.result)
+            self.model.load_probe_data(probe.result, self.autoinstall_data)
         except Exception:
             block_discover_log.exception(
                 "load_probe_data failed restricted=%s", probe.restricted)

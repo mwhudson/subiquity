@@ -26,13 +26,21 @@ log = logging.getLogger('subiquity.controllers.keyboard')
 
 class KeyboardController(BaseController):
 
+    autoinstall_key = 'keyboard'
+
     signals = [
         ('l10n:language-selected', 'language_selected'),
         ]
 
     def __init__(self, app):
-        super().__init__(app)
         self.model = app.base_model.keyboard
+        super().__init__(app)
+
+    def load_autoinstall(self):
+        self.model.setting = KeyboardSetting(**self.autoinstall_data)
+
+    async def apply_autoinstall_config(self):
+        await self.model.set_keyboard(self.model.setting)
 
     def language_selected(self, code):
         log.debug("language_selected %s", code)

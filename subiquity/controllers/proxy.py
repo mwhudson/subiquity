@@ -25,9 +25,18 @@ log = logging.getLogger('subiquity.controllers.proxy')
 
 class ProxyController(BaseController):
 
+    autoinstall_key = 'proxy'
+
     def __init__(self, app):
-        super().__init__(app)
         self.model = app.base_model.proxy
+        super().__init__(app)
+
+    def load_autoinstall(self):
+        self.mode.proxy = self.autoinstall_data
+
+    async def apply_autoinstall_config(self):
+        # need to signal that proxy has changed *and wait for subscribers to that to complete*
+        pass
 
     def start_ui(self):
         self.ui.set_body(ProxyView(self.model, self))

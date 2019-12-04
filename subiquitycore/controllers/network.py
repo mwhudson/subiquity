@@ -122,14 +122,22 @@ network:
 
 class NetworkController(BaseController):
 
+    autoinstall_key = 'network'
+
     root = "/"
 
     def __init__(self, app):
-        super().__init__(app)
         self.model = app.base_model.network
+        super().__init__(app)
         self.view = None
         self.view_shown = False
         self.apply_config_task = None
+
+        self._watching = False
+        self.network_event_receiver = SubiquityNetworkEventReceiver(self.model)
+        self.network_event_receiver.add_default_route_watcher(
+            self.route_watcher)
+
         if self.opts.dry_run:
             self.root = os.path.abspath(".subiquity")
             netplan_path = self.netplan_path
@@ -140,12 +148,19 @@ class NetworkController(BaseController):
             os.makedirs(netplan_dir)
             with open(netplan_path, 'w') as fp:
                 fp.write(default_netplan)
-        self.model.parse_netplan_configs(self.root)
 
-        self._watching = False
-        self.network_event_receiver = SubiquityNetworkEventReceiver(self.model)
-        self.network_event_receiver.add_default_route_watcher(
-            self.route_watcher)
+        if not self.autoinstall_data:
+            self.model.parse_netplan_configs(self.root)
+        else:
+            self.model.load_autoinstall(self.autoinstall_data)
+
+    def load_autoinstall(self):
+        pass
+
+    async def apply_autoinstall_config(self):
+        # oh boy
+        # await self.apply_config(silent=True)
+        pass
 
     def route_watcher(self, routes):
         if routes:

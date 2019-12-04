@@ -62,7 +62,7 @@ class RefreshController(BaseController):
         self.enabled = True
 
     def load_autoinstall(self):
-        self.enabled = self.autoinstall_data
+        self.enabled = self.autoinstall_data['update']
 
     async def apply_autoinstall_config(self, index=0):
         if self.app.updated:
@@ -116,6 +116,8 @@ class RefreshController(BaseController):
 
     def get_refresh_channel(self):
         """Return the channel we should refresh subiquity to."""
+        if self.autoinstall_data and 'channel' in self.autoinstall_data:
+            return self.autoinstall_data['channel']
         if 'channel' in self.answers:
             return self.answers['channel']
         with open('/proc/cmdline') as fp:

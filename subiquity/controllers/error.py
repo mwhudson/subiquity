@@ -170,6 +170,7 @@ class ErrorReport(metaclass=urwid.MetaSignals):
                 self.state = ErrorReportState.DONE
             self._file.close()
             self._file = None
+            # check self.controller.error_commands here!
             urwid.emit_signal(self, "changed")
         if wait:
             _bg_add_info()
@@ -318,6 +319,8 @@ class ErrorReport(metaclass=urwid.MetaSignals):
 
 class ErrorController(BaseController):
 
+    autoinstall_key = 'error-commands'
+
     def __init__(self, app):
         super().__init__(app)
         self.crash_directory = os.path.join(self.app.root, 'var/crash')
@@ -328,6 +331,10 @@ class ErrorController(BaseController):
         if self.app.opts.dry_run:
             self.crashdb_spec['launchpad_instance'] = 'staging'
         self.reports = []
+        self.error_commands = []
+
+    def load_autoinstall(self):
+        self.error_commands = self.autoinstall_data
 
     def start(self):
         os.makedirs(self.crash_directory, exist_ok=True)

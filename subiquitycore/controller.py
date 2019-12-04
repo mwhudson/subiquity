@@ -163,6 +163,9 @@ class RepeatedController(BaseController):
     def register_signals(self):
         pass
 
+    async def apply_autoinstall_config(self):
+        return self.orig.apply_autoinstall_config(self.index)
+
     def start_ui(self):
         self.orig.start_ui(self.index)
 

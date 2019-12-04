@@ -270,6 +270,19 @@ class NetworkModel(object):
                 # XXX What to do if types don't match??
                 dev.config = config
 
+    def load_autoinstall(self, autoinstall_data):
+        self.config = netplan.Config()
+        self.config.parse_netplan_config(autoinstall_data)
+        for typ, key in ('vlan', 'vlans'), ('bond', 'bonds'):
+            network = self.config.config.get('network', {})
+            for name, config in network.get(key, {}).items():
+                dev = self.devices_by_name.get(name)
+                if dev is None:
+                    dev = self.devices_by_name[name] = NetworkDev(
+                        self, name, typ)
+                # XXX What to do if types don't match??
+                dev.config = config
+
     def new_link(self, ifindex, link):
         log.debug("new_link %s %s %s", ifindex, link.name, link.type)
         if link.type in NETDEV_IGNORED_IFACE_TYPES:

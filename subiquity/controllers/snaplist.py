@@ -102,6 +102,8 @@ class SnapdSnapInfoLoader:
 
 class SnapListController(BaseController):
 
+    autoinstall_key = 'snaps'
+
     signals = [
         ('snapd-network-change', 'snapd_network_changed'),
     ]
@@ -112,9 +114,17 @@ class SnapListController(BaseController):
             self.opts.snap_section)
 
     def __init__(self, app):
-        super().__init__(app)
         self.model = app.base_model.snaplist
+        super().__init__(app)
         self.loader = self._make_loader()
+
+    def load_autoinstall(self):
+        # OK this is a bit interesting! Need to 'pre-seed' view, which
+        # is not something that is supported currently.
+        pass
+
+    async def apply_autoinstall_config(self):
+        pass
 
     def snapd_network_changed(self):
         # If the loader managed to load the list of snaps, the

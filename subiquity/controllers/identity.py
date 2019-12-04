@@ -24,9 +24,17 @@ log = logging.getLogger('subiquity.controllers.identity')
 
 class IdentityController(BaseController):
 
+    autoinstall_key = 'identity'
+
     def __init__(self, app):
         super().__init__(app)
         self.model = app.base_model.identity
+
+    def load_autoinstall(self):
+        self.model.add_user(self.autoinstall_data)
+
+    async def apply_autoinstall_config(self):
+        self.signal.emit_signal('installprogress:identity-config-done')
 
     def start_ui(self):
         self.ui.set_body(IdentityView(self.model, self))
