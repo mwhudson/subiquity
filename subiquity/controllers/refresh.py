@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import enum
 import logging
 import os
@@ -41,12 +42,6 @@ class CheckState(enum.IntEnum):
         return self in [self.AVAILABLE, self.UNAVAILABLE]
 
 
-class SwitchState(enum.IntEnum):
-    NOT_STARTED = enum.auto()
-    SWITCHING = enum.auto()
-    SWITCHED = enum.auto()
-
-
 class RefreshController(BaseController):
 
     signals = [
@@ -57,8 +52,6 @@ class RefreshController(BaseController):
         super().__init__(app)
         self.snap_name = os.environ.get("SNAP_NAME", "subiquity")
         self.check_state = CheckState.NOT_STARTED
-        self.switch_state = SwitchState.NOT_STARTED
-        self.network_state = "down"
 
         self.current_snap_version = "unknown"
         self.new_snap_version = ""
@@ -66,8 +59,11 @@ class RefreshController(BaseController):
         self.offered_first_time = False
 
     def start(self):
-        self.switch_state = SwitchState.SWITCHING
-        schedule_task(self.configure_snapd())
+        if self.app.updated:
+            return
+        self.check_state = CheckState.CHECKING
+        self.configure_snapd_task = schedule_task(self.configure_snapd())
+        self.check_task = None
 
     async def configure_snapd(self):
         try:
@@ -93,8 +89,6 @@ class RefreshController(BaseController):
             log.exception("switching channels")
             return
         log.debug("snap switching completed")
-        self.switch_state = SwitchState.SWITCHED
-        self._maybe_check_for_update()
 
     def get_refresh_channel(self):
         """Return the channel we should refresh subiquity to."""
@@ -128,37 +122,22 @@ class RefreshController(BaseController):
         return 'stable/ubuntu-' + release
 
     def snapd_network_changed(self):
-        self.network_state = "up"
-        self._maybe_check_for_update()
-
-    def _maybe_check_for_update(self):
-        # If we have not yet switched to the right channel, wait.
-        if self.switch_state != SwitchState.SWITCHED:
-            return
-        # If the network is not yet up, wait.
-        if self.network_state == "down":
-            return
-        # If we restarted into this version, don't check for a new version.
-        if self.app.updated:
-            return
-        # If we got an answer, don't check again.
         if self.check_state.is_definite():
             return
-        self.check_state = CheckState.CHECKING
-        schedule_task(self.check_for_update())
+        if self.check_task and not self.check_task.done():
+            log.debug("cancelling check")
+            self.check_task.cancel()
+        self.check_task = schedule_task(self.check_for_update())
 
     async def check_for_update(self):
+        await self.configure_snapd_task
+        log.debug("hitting v2/find")
         try:
             result = await self.app.snapd.get('v2/find', select='refresh')
         except requests.exceptions.RequestException as e:
             log.exception("checking for update")
             self.check_error = e
             self.check_state = CheckState.FAILED
-            return
-        # If we managed to send concurrent requests and one has
-        # already provided an answer, just forget all about the other
-        # ones!
-        if self.check_state.is_definite():
             return
         log.debug("_check_result %s", result)
         for snap in result["result"]:
@@ -169,10 +148,10 @@ class RefreshController(BaseController):
                     "new version of snap available: %r",
                     self.new_snap_version)
                 break
-        else:
-            self.check_state = CheckState.UNAVAILABLE
-        if self.showing:
-            self.ui.body.update_check_state()
+            else:
+                self.check_state = CheckState.UNAVAILABLE
+                if self.showing:
+                    self.ui.body.update_check_state()
 
     def start_update(self, callback):
         update_marker = os.path.join(self.app.state_dir, 'updating')
