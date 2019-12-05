@@ -174,8 +174,6 @@ class Subiquity(Application):
             raise
 
     def select_initial_screen(self, index):
-        if not self.interactive:
-            pass
         super().select_initial_screen(index)
         for report in self.controllers.Error.reports:
             if report.kind == ErrorReportKind.UI and not report.seen:

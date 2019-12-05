@@ -71,7 +71,7 @@ class RefreshController(BaseController):
             return
         if self.check_state.is_definite():
             return
-        if not self.app.controllers.Network.has_network:
+        if not self.app.base_model.network.has_network:
             return
         await self.configure_snapd_task
         await asyncio.wait_for(60, self.check_for_update())

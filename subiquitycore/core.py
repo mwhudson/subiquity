@@ -15,6 +15,7 @@
 
 from concurrent import futures
 import fcntl
+from functools import partial
 import json
 import logging
 import os
@@ -284,6 +285,10 @@ class ControllerSet:
         return self.index == len(self.instances) - 1
 
     @property
+    def out_of_bounds(self):
+        return self.index < 0 or self.index >= len(self.instances)
+
+    @property
     def at_start(self):
         return self.index == 0
 
@@ -442,49 +447,45 @@ class Application:
         log.debug("moving to screen %s", new.name)
         if self.opts.screens and new.name not in self.opts.screens:
             raise Skip
-        if new.interactive():
-            new.start_ui()
-        else:
-            task = schedule_task(new.apply_autoinstall_config())
-            task.add_done_callback(self.next_screen)
+        new.start_ui()
         state_path = os.path.join(self.state_dir, 'last-screen')
         with open(state_path, 'w') as fp:
             fp.write(new.name)
 
-    def next_screen(self, *args):
+    def _move_screen(self, increment):
         self.save_state()
+        old = self.controllers.cur
+        if old is not None and old.interactive():
+            old.end_ui()
         while True:
-            if self.controllers.at_end:
+            self.controllers.index += increment
+            if self.controllers.out_of_bounds:
                 self.exit()
-            old = self.controllers.cur
-            if old is not None:
-                old.end_ui()
-            new = self.controllers.advance()
+            new = self.controllers.cur
             if new.interactive():
                 try:
-                    self.start_screen(old, new)
+                    new.start_ui()
                 except Skip:
                     log.debug("skipping screen %s", new.name)
                     continue
                 else:
-                    break
+                    state_path = os.path.join(self.state_dir, 'last-screen')
+                    with open(state_path, 'w') as fp:
+                        fp.write(new.name)
+                    return
             else:
-                task = schedule_task(new.apply_autoinstall_config())
-                task.add_done_callback(self.next_screen)
+                print("applying config for new", new)
+                coro = new.apply_autoinstall_config()
+                if coro is not None:
+                    task = schedule_task(coro)
+                    task.add_done_callback(lambda fut: self._move_screen(increment))
+                    return
+
+    def next_screen(self, *args):
+        self._move_screen(1)
 
     def prev_screen(self, *args):
-        self.save_state()
-        while True:
-            if self.controllers.at_start:
-                self.exit()
-            controller = self.controllers.back_up()
-            try:
-                self.start_screen(controller)
-            except Skip:
-                log.debug("skipping screen %s", controller.name)
-                continue
-            else:
-                break
+        self._move_screen(-1)
 
 # EventLoop -------------------------------------------------------------------
 
@@ -600,11 +601,8 @@ class Application:
         return controller_index
 
     def select_initial_screen(self, controller_index):
-        self.controllers.index = controller_index
-        try:
-            self.start_screen(None, self.controllers.cur)
-        except Skip:
-            self.next_screen()
+        self.controllers.index = controller_index - 1
+        self.next_screen()
 
     def make_screen(self):
         """Return a screen to be passed to MainLoop.

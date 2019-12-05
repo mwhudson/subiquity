@@ -20,6 +20,8 @@ def schedule_task(coro):
     loop = asyncio.get_event_loop()
     if asyncio.iscoroutine(coro):
         task = asyncio.Task(coro)
+    else:
+        task = coro
     loop.call_soon(asyncio.ensure_future, task)
     return task
 
