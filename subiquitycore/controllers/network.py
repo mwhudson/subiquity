@@ -277,13 +277,6 @@ class NetworkController(BaseController):
                 log.debug("disabling %s", dev.name)
                 dev.disabled_reason = _("autoconfiguration failed")
 
-    def check_dchp_results(self, device_versions):
-        log.debug('check_dchp_results for %s', device_versions)
-        for dev, v in device_versions:
-            if not dev.dhcp_addresses()[v]:
-                dev.set_dhcp_state(v, "TIMEDOUT")
-                self.network_event_receiver.update_link(dev.ifindex)
-
     def start_ui(self):
         if not self.view_shown:
             self.update_initial_configs()
