@@ -61,6 +61,7 @@ class LocaleModel(object):
         return languages
 
     def switch_language(self, code):
+        self.locale = code + '.UTF-8'
         self.selected_language = code
         i18n.switch_language(code)
 
