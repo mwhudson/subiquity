@@ -48,7 +48,7 @@ class BaseController(ABC):
         self.run_in_bg = app.run_in_bg
         self.app = app
         self.answers = app.answers.get(self.name, {})
-        self.autoinstall_data = self.app.autoinstall.get(self.autoinstall_key)
+        self.autoinstall_data = self.app.autoinstall_config.get(self.autoinstall_key)
         if self.autoinstall_data is not None:
             self.load_autoinstall()
 

@@ -602,7 +602,7 @@ class Application:
     def select_initial_screen(self, controller_index):
         self.controllers.index = controller_index
         try:
-            self.start_screen(self.controllers.cur)
+            self.start_screen(None, self.controllers.cur)
         except Skip:
             self.next_screen()
 
