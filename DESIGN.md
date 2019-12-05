@@ -160,9 +160,9 @@ function, which takes two functions: one that takes no arguments and is called
 in a background thread and a callback that takes one argument, and is called
 in the main/UI thread with a `concurrent.futures.Future` representing the
 result of calling the first function. I tried a few abstractions to try to
-make things clearer -- `subiquity.tasksequence.TaskSequence` and
-`subiquity.controllers.installprogress.StateMachine` being two -- but they
-didn't really help all that much in the end.
+make things clearer -- `subiquity.controllers.installprogress.StateMachine`
+being one that is still in the code -- but they didn't really help all that
+much in the end.
 
 A cast-iron rule: Only touch the UI from the main thread.
 
