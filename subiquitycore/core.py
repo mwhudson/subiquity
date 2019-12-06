@@ -441,17 +441,6 @@ class Application:
         with open(state_path, 'w') as fp:
             json.dump(cur.serialize(), fp)
 
-    def start_screen(self, old, new):
-        if old is not None:
-            old.end_ui()
-        log.debug("moving to screen %s", new.name)
-        if self.opts.screens and new.name not in self.opts.screens:
-            raise Skip
-        new.start_ui()
-        state_path = os.path.join(self.state_dir, 'last-screen')
-        with open(state_path, 'w') as fp:
-            fp.write(new.name)
-
     def _move_screen(self, increment):
         self.save_state()
         old = self.controllers.cur
