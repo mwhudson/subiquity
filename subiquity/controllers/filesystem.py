@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import enum
 import json
 import logging
@@ -26,6 +27,10 @@ import pyudev
 from subiquitycore.controller import BaseController
 from subiquitycore.utils import run_command
 
+from subiquity.async_helpers import (
+    run_in_thread,
+    SingleInstanceTask,
+    )
 from subiquity.controllers.error import ErrorReportKind
 from subiquity.models.filesystem import (
     align_up,
@@ -110,7 +115,7 @@ class Probe:
                 "probing failed restricted=%s", self.restricted)
             self.crash_report = self.controller.app.make_apport_report(
                 self.kind, "block probing", interrupt=False)
-            self.state = ProbeState.FAILED
+            self.state = ProbeState.FAIL ED
         else:
             block_discover_log.exception(
                 "probing successful restricted=%s", self.restricted)
@@ -145,12 +150,42 @@ class FilesystemController(BaseController):
         self._monitor = None
         self._udev_listen_handle = None
         self._probes = {}
+        self._probe_task = SingleInstanceTask()
 
     def load_autoinstall(self):
         pass
 
     async def apply_autoinstall_config(self):
         await self._probe_task
+
+    async def _probe_once(self, restricted):
+        if self.restricted:
+            probe_types = {'blockdev'}
+        else:
+            probe_types = None
+        debug_flags = self.controller.debug_flags
+        try:
+            if 'bpfail-full' in debug_flags and not self.restricted:
+                await asyncio.sleep(2)
+                1/0
+            if 'bpfail-restricted' in debug_flags and self.restricted:
+                await asyncio.sleep(2)
+                1/0
+            storage = await run_in_thread(
+                self.controller.app.prober.get_storage, probe_types)
+        except Exception:
+            block_discover_log.exception(
+                "probing failed restricted=%s", self.restricted)
+            if restricted:
+                kind = ErrorReportKind.DISK_PROBE_FAIL
+            else:
+                kind = ErrorReportKind.BLOCK_PROBE_FAIL
+            crash_report = self.controller.app.make_apport_report(
+                kind, "block probing", interrupt=False)
+            if not restricted:
+                await self._probe_once(True)
+            block_discover_log.exception(
+                "probing successful restricted=%s", self.restricted)
 
     def start(self):
         self._start_probe(restricted=False, start=False)

@@ -252,6 +252,11 @@ class InstallProgressController(BaseController):
         self.sm = None
         self.tb_extractor = TracebackExtractor()
 
+    def interactive(self):
+        if not self.app.autoinstall_config:
+            return True
+        return bool(self.app.autoinstall_config.get('interactive-sections'))
+
     def tpath(self, *path):
         return os.path.join(self.model.target, *path)
 

@@ -34,7 +34,10 @@ from subiquitycore.utils import (
 from subiquitycore.file_util import write_file
 from subiquitycore import netplan
 
-from subiquity.async_helpers import schedule_task
+from subiquity.async_helpers import (
+    schedule_task,
+    SingleInstanceTask,
+    )
 
 
 log = logging.getLogger("subiquitycore.controller.network")
@@ -131,7 +134,7 @@ class NetworkController(BaseController):
         super().__init__(app)
         self.view = None
         self.view_shown = False
-        self.apply_config_task = async_helpers.SingleInstanceTask()
+        self.apply_config_task = SingleInstanceTask()
 
         self._watching = False
         self.network_event_receiver = SubiquityNetworkEventReceiver(self.model)
