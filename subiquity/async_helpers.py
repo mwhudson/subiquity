@@ -29,3 +29,21 @@ def schedule_task(coro):
 async def run_in_thread(func, *args):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, func, *args)
+
+
+class SingleInstanceTask:
+
+    def __init__(self):
+        self.task = None
+
+    async def start(self, coro):
+        if self.task is not None:
+            self.task.cancel()
+            try:
+                await self.task
+            except asyncio.CancelledError:
+                pass
+        self.task = schedule_task(coro)
+
+    def start_sync(self, coro):
+        return schedule_task(self.start, coro)

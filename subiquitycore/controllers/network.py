@@ -131,7 +131,7 @@ class NetworkController(BaseController):
         super().__init__(app)
         self.view = None
         self.view_shown = False
-        self.apply_config_task = None
+        self.apply_config_task = async_helpers.SingleInstanceTask()
 
         self._watching = False
         self.network_event_receiver = SubiquityNetworkEventReceiver(self.model)
@@ -314,19 +314,9 @@ class NetworkController(BaseController):
         return os.path.join(self.root, 'etc/netplan', netplan_config_file_name)
 
     def apply_config_start(self, silent=False):
-        schedule_task(self.apply_config(silent))
+        self.apply_config_task.start_sync(self.apply_config(silent))
 
     async def apply_config(self, silent):
-        if self.apply_config_task is not None:
-            self.apply_config_task.cancel()
-            try:
-                await self.apply_config_task
-            except asyncio.CancelledError:
-                pass
-        self.apply_config_task = asyncio.ensure_future(
-            self._apply_config(silent))
-
-    async def _apply_config(self, silent):
         log.debug("apply_config silent=%s", silent)
 
         config = self.model.render()
