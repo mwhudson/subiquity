@@ -45,5 +45,8 @@ class SingleInstanceTask:
                 pass
         self.task = schedule_task(coro)
 
+    def __await__(self):
+        return self.task
+
     def start_sync(self, coro):
         return schedule_task(self.start, coro)
