@@ -200,11 +200,14 @@ class KeyboardModel:
 
     async def set_keyboard(self, setting):
         path = self.config_path
+        cur = None
+        if os.path.exists(path):
+            cur = KeyboardSetting.from_config_file(path)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w') as fp:
             fp.write(setting.render())
-        if setting != self.setting:
-            self.setting = setting
+        self.setting = setting
+        if setting != cur:
             if self.root == '/':
                 await arun_command([
                     'setupcon', '--save', '--force', '--keyboard-only'])

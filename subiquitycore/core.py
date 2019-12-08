@@ -466,6 +466,7 @@ class Application:
                 print("applying config for new", new)
                 coro = new.apply_autoinstall_config()
                 if coro is not None:
+                    print("waiting", coro)
                     task = schedule_task(coro)
                     task.add_done_callback(lambda fut: self._move_screen(increment))
                     return

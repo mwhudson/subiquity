@@ -48,7 +48,7 @@ class KeyboardController(BaseController):
             code = code.split('_')[0]
         if not self.model.has_language(code):
             code = 'C'
-        log.debug("loading launguage %s", code)
+        log.debug("loading language %s", code)
         self.model.load_language(code)
 
     def start_ui(self):

@@ -82,7 +82,7 @@ class FilesystemController(BaseController):
         pass
 
     async def apply_autoinstall_config(self):
-        await self._probe_task.task
+        await self._start_task
 
     async def _probe_once(self, restricted):
         if restricted:
@@ -127,7 +127,7 @@ class FilesystemController(BaseController):
             self.start_ui()
 
     def start(self):
-        schedule_task(self._start())
+        self._start_task = schedule_task(self._start())
 
     async def _start(self):
         target = self.app.base_model.target
@@ -171,7 +171,6 @@ class FilesystemController(BaseController):
             action, dev = self._monitor.receive_device()
             log.debug("_udev_event %s %s", action, dev)
         self._probe_task.start_sync(self._probe())
-
 
     def start_ui(self):
         if not self._probe_task.task.done():
