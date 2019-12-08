@@ -195,9 +195,10 @@ class FilesystemController(BaseController):
                 (True,  ErrorReportKind.DISK_PROBE_FAIL),
                 ]:
             try:
-                asyncio.wait_for(
+                await self._probe_once_task.start(self._probe_once(restricted))
+                await asyncio.wait_for(
                     5.0,
-                    self._probe_once_task.start(self._probe_once(restricted)))
+                    self._probe_once_task.task)
             except Exception:
                 block_discover_log.exception(
                     "block probing failed restricted=%s", restricted)
@@ -217,14 +218,14 @@ class FilesystemController(BaseController):
                 '-t', self.app.base_model.target,
                 ]
             if self.opts.dry_run:
-                cmd = ['sleep', 0.2]
+                cmd = ['sleep', "0.2"]
             await arun_command(cmd)
         context = pyudev.Context()
         self._monitor = pyudev.Monitor.from_netlink(context)
         self._monitor.filter_by(subsystem='block')
         self._monitor.enable_receiving()
         self.start_listening_udev()
-        await self._probe_task.start(self._probe)
+        await self._probe_task.start(self._probe())
 
     def start_listening_udev(self):
         loop = asyncio.get_event_loop()
