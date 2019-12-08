@@ -73,9 +73,7 @@ class FilesystemController(BaseController):
         self.answers.setdefault('guided', False)
         self.answers.setdefault('guided-index', 0)
         self.answers.setdefault('manual', [])
-        self._cur_probe = None
         self._monitor = None
-        self._udev_listen_handle = None
         self._crash_reports = {}
         self._probe_once_task = SingleInstanceTask()
         self._probe_task = SingleInstanceTask()
