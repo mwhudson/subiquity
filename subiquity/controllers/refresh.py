@@ -25,6 +25,7 @@ from subiquitycore.core import Skip
 
 from subiquity.async_helpers import (
     schedule_task,
+    SingleInstanceTask,
     )
 
 log = logging.getLogger('subiquity.controllers.refresh')
@@ -60,6 +61,7 @@ class RefreshController(BaseController):
 
         self.offered_first_time = False
         self.enabled = True
+        self.check_task = SingleInstanceTask()
 
     def load_autoinstall(self):
         self.enabled = self.autoinstall_data['update']
@@ -87,7 +89,6 @@ class RefreshController(BaseController):
             return
         self.check_state = CheckState.CHECKING
         self.configure_snapd_task = schedule_task(self.configure_snapd())
-        self.check_task = None
 
     async def configure_snapd(self):
         try:
@@ -150,10 +151,7 @@ class RefreshController(BaseController):
     def snapd_network_changed(self):
         if self.check_state.is_definite():
             return
-        if self.check_task and not self.check_task.done():
-            log.debug("cancelling check")
-            self.check_task.cancel()
-        self.check_task = schedule_task(self.check_for_update())
+        self.check_task.start_sync(self.check_for_update())
 
     async def check_for_update(self):
         await self.configure_snapd_task

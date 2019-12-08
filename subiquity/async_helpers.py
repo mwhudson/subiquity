@@ -49,4 +49,4 @@ class SingleInstanceTask:
         return self.task
 
     def start_sync(self, coro):
-        return schedule_task(self.start, coro)
+        return schedule_task(self.start(coro))

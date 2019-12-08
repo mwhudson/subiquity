@@ -14,13 +14,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-import enum
 import json
 import logging
 import os
 import select
 import sys
-import time
 
 import pyudev
 
@@ -62,81 +60,6 @@ PREP_GRUB_SIZE_BYTES = 8 * 1024 * 1024    # 8MiB
 UEFI_GRUB_SIZE_BYTES = 512 * 1024 * 1024  # 512MiB EFI partition
 
 
-class ProbeState(enum.IntEnum):
-    NOT_STARTED = enum.auto()
-    PROBING = enum.auto()
-    FAILED = enum.auto()
-    DONE = enum.auto()
-
-
-class Probe:
-
-    def __init__(self, controller, restricted, timeout, cb):
-        self.controller = controller
-        self.restricted = restricted
-        self.timeout = timeout
-        self.cb = cb
-        self.state = ProbeState.NOT_STARTED
-        self.result = None
-        if restricted:
-            self.kind = ErrorReportKind.DISK_PROBE_FAIL
-        else:
-            self.kind = ErrorReportKind.BLOCK_PROBE_FAIL
-        self.crash_report = None
-
-    def start(self):
-        block_discover_log.debug(
-            "starting probe restricted=%s", self.restricted)
-        self.state = ProbeState.PROBING
-        self.controller.run_in_bg(self._bg_probe, self._probed)
-        self.controller.loop.set_alarm_in(self.timeout, self._check_timeout)
-
-    def _bg_probe(self):
-        if self.restricted:
-            probe_types = {'blockdev'}
-        else:
-            probe_types = None
-        debug_flags = self.controller.debug_flags
-        if 'bpfail-full' in debug_flags and not self.restricted:
-            time.sleep(2)
-            1/0
-        if 'bpfail-restricted' in debug_flags and self.restricted:
-            time.sleep(2)
-            1/0
-        # Should consider invoking probert in a subprocess here (so we
-        # can kill it if it gets stuck).
-        return self.controller.app.prober.get_storage(probe_types=probe_types)
-
-    def _probed(self, fut):
-        if self.state == ProbeState.FAILED:
-            block_discover_log.debug(
-                "ignoring result %s for timed out probe", fut)
-            return
-        try:
-            self.result = fut.result()
-        except Exception:
-            block_discover_log.exception(
-                "probing failed restricted=%s", self.restricted)
-            self.crash_report = self.controller.app.make_apport_report(
-                self.kind, "block probing", interrupt=False)
-            self.state = ProbeState.FAILED
-        else:
-            block_discover_log.exception(
-                "probing successful restricted=%s", self.restricted)
-            self.state = ProbeState.DONE
-        self.cb(self)
-
-    def _check_timeout(self, loop, ud):
-        if self.state != ProbeState.PROBING:
-            return
-        self.crash_report = self.controller.app.make_apport_report(
-            self.kind, "block probing timed out", interrupt=False)
-        block_discover_log.exception(
-            "probing timed out restricted=%s", self.restricted)
-        self.state = ProbeState.FAILED
-        self.cb(self)
-
-
 class FilesystemController(BaseController):
 
     autoinstall_key = 'storage'
@@ -161,10 +84,10 @@ class FilesystemController(BaseController):
         pass
 
     async def apply_autoinstall_config(self):
-        await self._probe_task
+        await self._probe_task.task
 
     async def _probe_once(self, restricted):
-        if self.restricted:
+        if restricted:
             probe_types = {'blockdev'}
             fname = 'probe-data-restricted.json'
             key = "ProbeDataRestricted"
@@ -172,7 +95,7 @@ class FilesystemController(BaseController):
             probe_types = None
             fname = 'probe-data.json'
             key = "ProbeData"
-        debug_flags = self.controller.debug_flags
+        debug_flags = self.debug_flags
         if 'bpfail-full' in debug_flags and not restricted:
             await asyncio.sleep(2)
             1/0
@@ -180,7 +103,7 @@ class FilesystemController(BaseController):
             await asyncio.sleep(2)
             1/0
         storage = await run_in_thread(
-            self.controller.app.prober.get_storage, probe_types)
+            self.app.prober.get_storage, probe_types)
         block_discover_log.exception(
             "probing successful restricted=%s", restricted)
         fpath = os.path.join(self.app.block_log_dir, fname)
@@ -196,9 +119,7 @@ class FilesystemController(BaseController):
                 ]:
             try:
                 await self._probe_once_task.start(self._probe_once(restricted))
-                await asyncio.wait_for(
-                    5.0,
-                    self._probe_once_task.task)
+                await asyncio.wait_for(self._probe_once_task.task, 5.0)
             except Exception:
                 block_discover_log.exception(
                     "block probing failed restricted=%s", restricted)
@@ -233,7 +154,7 @@ class FilesystemController(BaseController):
 
     def stop_listening_udev(self):
         loop = asyncio.get_event_loop()
-        loop.remove_reader(self._monitor.fileno(), self._udev_event)
+        loop.remove_reader(self._monitor.fileno())
 
     def _udev_event(self):
         cp = run_command(['udevadm', 'settle', '-t', '0'])
