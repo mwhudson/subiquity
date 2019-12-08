@@ -64,27 +64,27 @@ def run_command(cmd, *, input=None, stdout=subprocess.PIPE,
 
 async def arun_command(cmd, *, stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE, encoding='utf-8', input=None,
-                       errors='replace', env=None, **kw):
+                       errors='replace', env=None, check=False, **kw):
     if input is None:
         kw['stdin'] = subprocess.DEVNULL
     else:
         input = input.encode(encoding)
-    log.debug("run_command called: %s", cmd)
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=stdout, stderr=stderr,
-            env=_clean_env(env), **kw)
-        stdout, stderr = await proc.communicate(input=input)
-        if encoding:
-            stdout = stdout.decode(encoding)
-            stderr = stderr.decode(encoding)
-        cp = subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
-    except subprocess.CalledProcessError as e:
-        log.debug("run_command %s", str(e))
-        raise
+    log.debug("arun_command called: %s", cmd)
+    proc = await asyncio.create_subprocess_exec(
+        *cmd, stdout=stdout, stderr=stderr,
+        env=_clean_env(env), **kw)
+    log.debug("arun_command proc %s")
+    stdout, stderr = await proc.communicate(input=input)
+    log.debug("arun_command communicated")
+    if encoding:
+        stdout = stdout.decode(encoding)
+        stderr = stderr.decode(encoding)
+    log.debug("arun_command %s exited with code %s", cmd, proc.returncode)
+    if check and proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, cmd)
     else:
-        log.debug("run_command %s exited with code %s", cp.args, cp.returncode)
-        return cp
+        cp = subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
+    return cp
 
 
 def start_command(cmd, *, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
