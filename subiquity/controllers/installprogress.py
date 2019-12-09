@@ -15,16 +15,15 @@
 
 import asyncio
 from concurrent.futures import Future
+import contextlib
 import datetime
 import logging
 import os
 import re
-import signal
 import subprocess
 import sys
 import platform
 import tempfile
-import time
 import traceback
 
 from curtin.commands.install import (
@@ -41,7 +40,10 @@ import yaml
 from subiquitycore import utils
 from subiquitycore.controller import BaseController
 
-from subiquity.async_helpers import schedule_task
+from subiquity.async_helpers import (
+    run_in_thread,
+    schedule_task,
+    )
 from subiquity.controllers.error import ErrorReportKind
 from subiquity.ui.views.installprogress import ProgressView
 
@@ -241,17 +243,22 @@ class InstallProgressController(BaseController):
         self.progress_view = None
         self.install_state = InstallState.NOT_STARTED
         self.journal_listener_handle = None
+        self.filesystem_event = asyncio.Event()
+        self.reboot_clicked = asyncio.Event()
         self._postinstall_prerequisites = {
-            'install': False,
-            'ssh': False,
-            'identity': False,
-            'snap': False,
+            'ssh': asyncio.Event(),
+            'identity': asyncio.Event(),
+            'snap': asyncio.Event(),
             }
+        self.uu_running = False
         self._event_indent = ""
         self._event_syslog_identifier = 'curtin_event.%s' % (os.getpid(),)
         self._log_syslog_identifier = 'curtin_log.%s' % (os.getpid(),)
         self.sm = None
         self.tb_extractor = TracebackExtractor()
+
+    def start(self):
+        schedule_task(self.install())
 
     def interactive(self):
         if not self.app.autoinstall_config:
@@ -262,13 +269,10 @@ class InstallProgressController(BaseController):
         return os.path.join(self.model.target, *path)
 
     def filesystem_config_done(self):
-        schedule_task(self.curtin_start_install())
+        self.filesystem_event.set()
 
     def _step_done(self, step):
-        self._postinstall_prerequisites[step] = True
-        log.debug("_step_done %s %s", step, self._postinstall_prerequisites)
-        if all(self._postinstall_prerequisites.values()):
-            self.start_postinstall_configuration()
+        self._postinstall_prerequisites[step].set()
 
     def identity_config_done(self):
         self._step_done('identity')
@@ -390,8 +394,8 @@ class InstallProgressController(BaseController):
 
         return curtin_cmd
 
-    async def curtin_start_install(self):
-        log.debug('curtin_start_install')
+    async def curtin_install(self):
+        log.debug('curtin_install')
         self.install_state = InstallState.RUNNING
         self.progress_view = ProgressView(self)
 
@@ -403,19 +407,58 @@ class InstallProgressController(BaseController):
 
         log.debug('curtin install cmd: {}'.format(curtin_cmd))
 
-        cp = await utils.arun_command(self.logged_command(curtin_cmd))
+        cp = await utils.arun_command(
+            self.logged_command(curtin_cmd), check=True)
 
         log.debug('curtin_install completed: %s', cp.returncode)
 
-        if cp.returncode != 0:
-            self.curtin_error()
-            return
         self.install_state = InstallState.DONE
         log.debug('After curtin install OK')
-        self._step_done('install')
 
     def cancel(self):
         pass
+
+    async def install(self):
+
+        await self.filesystem_event.wait()
+
+        await self.curtin_install()
+
+        await asyncio.wait(
+            {e.wait() for e in self._postinstall_prerequisites.values()})
+
+        @contextlib.contextmanager
+        def install_event(label):
+            self._install_event_start(label)
+            try:
+                yield
+            finally:
+                self._install_event_finish()
+
+        await self.drain_curtin_events()
+        with install_event("final system configuration"):
+            with install_event("configuring cloud-init"):
+                await run_in_thread(self.model.configure_cloud_init)
+            if self.model.ssh.install_server:
+                with install_event("installing openssh"):
+                    await self.install_openssh()
+            with install_event("restoring apt configuration"):
+                await self.restore_apt_config()
+        self.ui.set_header(_("Installation complete!"))
+        self.progress_view.set_status(_("Finished install!"))
+        self.progress_view.show_complete()
+        if self.model.network.has_network:
+            self.progress_view.update_running()
+            with install_event("downloading and installing security updates"):
+                await self.run_uu()
+            self.progress_view.update_done()
+        with install_event("copying logs to installed system"):
+            await self.copy_logs_to_target()
+
+        if not self.answers['reboot']:
+            await self.reboot_clicked.wait()
+
+        self.reboot()
 
     def start_postinstall_configuration(self):
         has_network = self.model.network.has_network
@@ -432,24 +475,14 @@ class InstallProgressController(BaseController):
         self.sm = StateMachine(self, collect_tasks(self, filter_task))
         self.sm.run()
 
-    @task
-    def _bg_drain_curtin_events(self):
+    async def drain_curtin_events(self):
         waited = 0.0
         while self._event_indent and waited < 5.0:
-            time.sleep(0.1)
+            await asyncio.sleep(0.1)
             waited += 0.1
         log.debug("waited %s seconds for events to drain", waited)
 
-    @task
-    def start_final_configuration(self):
-        self._install_event_start("final system configuration")
-
-    @task(label="configuring cloud-init")
-    def _bg_configure_cloud_init(self):
-        self.model.configure_cloud_init()
-
-    @task(label="installing openssh")
-    def _bg_install_openssh(self):
+    async def install_openssh(self):
         if self.opts.dry_run:
             cmd = ["sleep", str(2/self.app.scale_factor)]
         else:
@@ -458,10 +491,9 @@ class InstallProgressController(BaseController):
                 "/target",
                 "--", "openssh-server",
                 ]
-        self._bg_run_command_logged(cmd, check=True)
+        await utils.arun_command(self.logged_command(cmd), check=True)
 
-    @task(label="restoring apt configuration")
-    def _bg_restore_apt_config(self):
+    async def restore_apt_config(self):
         if self.opts.dry_run:
             cmds = [["sleep", str(1/self.app.scale_factor)]]
         else:
@@ -476,24 +508,9 @@ class InstallProgressController(BaseController):
             else:
                 cmds.append(["umount", self.tpath('var/lib/apt/lists')])
         for cmd in cmds:
-            self._bg_run_command_logged(cmd, check=True)
+            await utils.arun_command(self.logged_command(cmd), check=True)
 
-    @task
-    def postinstall_complete(self):
-        self._install_event_finish()
-        self.ui.set_header(_("Installation complete!"))
-        self.progress_view.set_status(_("Finished install!"))
-        self.progress_view.show_complete()
-        self.copy_logs_transition = 'wait'
-
-    @task(net_only=True)
-    def uu_start(self):
-        self.progress_view.update_running()
-
-    @task(label="downloading and installing security updates",
-          transitions={'reboot': 'abort_uu'},
-          net_only=True)
-    def _bg_run_uu(self):
+    async def run_uu(self):
         target_tmp = os.path.join(self.model.target, "tmp")
         os.makedirs(target_tmp, exist_ok=True)
         apt_conf = tempfile.NamedTemporaryFile(
@@ -503,77 +520,39 @@ class InstallProgressController(BaseController):
         env = os.environ.copy()
         env["APT_CONFIG"] = apt_conf.name[len(self.model.target):]
         if self.opts.dry_run:
-            self.uu = utils.start_command([
-                "sleep", str(10/self.app.scale_factor)])
-            self.uu.wait()
+            pass
+            await utils.arun_command(self.logged_command([
+                "sleep", "5"]), env=env, check=True)
         else:
-            self._bg_run_command_logged([
+            await utils.arun_command(self.logged_command([
                 sys.executable, "-m", "curtin", "in-target", "-t", "/target",
                 "--", "unattended-upgrades", "-v",
-            ], env=env, check=True)
+                ]), env=env, check=True)
         os.remove(apt_conf.name)
 
-    @task(transitions={'success': 'copy_logs_to_target'}, net_only=True)
-    def uu_done(self):
-        self.progress_view.update_done()
-
-    @task(net_only=True)
-    def abort_uu(self):
-        self._install_event_finish()
-
-    @task(label="cancelling update", net_only=True)
-    def _bg_stop_uu(self):
-        if self.opts.dry_run:
-            time.sleep(1)
-            self.uu.terminate()
-        else:
-            self._bg_run_command_logged([
+    async def stop_uu(self):
+        await utils.arun_command(self.logged_command([
                 'chroot', '/target',
                 '/usr/share/unattended-upgrades/unattended-upgrade-shutdown',
                 '--stop-only',
-                ], check=True)
+                ], check=True))
 
-    @task(net_only=True, transitions={'success': 'copy_logs_to_target'})
-    def _bg_wait_for_uu(self):
-        r, w = os.pipe()
-
-        def callback(fut):
-            os.write(w, b'x')
-
-        self.sm.subscribe('run_uu', callback)
-        os.read(r, 1)
-        os.close(w)
-        os.close(r)
-        self.copy_logs_transition = 'reboot'
-
-    @task(label="copying logs to installed system",
-          transitions={'reboot': 'reboot'})
-    def _bg_copy_logs_to_target(self):
+    async def copy_logs_to_target(self):
         if self.opts.dry_run:
             if 'copy-logs-fail' in self.debug_flags:
                 raise PermissionError()
             return
         target_logs = self.tpath('var/log/installer')
-        utils.run_command(['cp', '-aT', '/var/log/installer', target_logs])
+        await utils.arun_command(['cp', '-aT', '/var/log/installer', target_logs])
         try:
             with open(os.path.join(target_logs,
                                    'installer-journal.txt'), 'w') as output:
-                utils.run_command(
+                await utils.arun_command(
                     ['journalctl'],
                     stdout=output, stderr=subprocess.STDOUT)
         except Exception:
             log.exception("saving journal failed")
 
-    @task(transitions={'wait': 'wait_for_click', 'reboot': 'reboot'})
-    def copy_logs_done(self):
-        self.sm.transition(self.copy_logs_transition)
-
-    @task(transitions={'reboot': 'reboot'})
-    def _bg_wait_for_click(self):
-        if not self.answers['reboot']:
-            signal.pause()
-
-    @task
     def reboot(self):
         if self.opts.dry_run:
             log.debug('dry-run enabled, skipping reboot, quitting instead')
@@ -586,14 +565,13 @@ class InstallProgressController(BaseController):
             # Should probably run curtin -c $CONFIG unmount -t TARGET first.
             utils.run_command(["/sbin/reboot"])
 
+    async def _click_reboot(self):
+        if self.uu_running:
+            await self.stop_uu()
+        self.reboot_clicked.set()
+
     def click_reboot(self):
-        if self.sm is None:
-            # If the curtin install itself crashes, the state machine
-            # that manages post install steps won't be running. Just
-            # reboot anyway.
-            self.reboot()
-        else:
-            self.sm.transition('reboot')
+        schedule_task(self._click_reboot())
 
     def quit(self):
         if not self.opts.dry_run:
