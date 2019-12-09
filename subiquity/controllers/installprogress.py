@@ -85,7 +85,9 @@ class InstallProgressController(BaseController):
     def __init__(self, app):
         super().__init__(app)
         self.model = app.base_model
-        self.answers.setdefault('reboot', False)
+        self.auto_reboot = not self.interactive()
+        if self.answers.get('reboot', False):
+            self.auto_reboot = True
         self.progress_view = ProgressView(self)
         self.install_state = InstallState.NOT_STARTED
         self.journal_listener_handle = None
@@ -273,13 +275,6 @@ class InstallProgressController(BaseController):
 
     async def install(self):
 
-        await self.filesystem_event.wait()
-
-        await self.curtin_install()
-
-        await asyncio.wait(
-            {e.wait() for e in self._postinstall_prerequisites.values()})
-
         @contextlib.contextmanager
         def install_event(label):
             self._install_event_start(label)
@@ -288,30 +283,41 @@ class InstallProgressController(BaseController):
             finally:
                 self._install_event_finish()
 
-        await self.drain_curtin_events()
-        with install_event("final system configuration"):
-            with install_event("configuring cloud-init"):
-                await run_in_thread(self.model.configure_cloud_init)
-            if self.model.ssh.install_server:
-                with install_event("installing openssh"):
-                    await self.install_openssh()
-            with install_event("restoring apt configuration"):
-                await self.restore_apt_config()
-        self.ui.set_header(_("Installation complete!"))
-        self.progress_view.set_status(_("Finished install!"))
-        self.progress_view.show_complete()
-        if self.model.network.has_network:
-            self.progress_view.update_running()
-            with install_event("downloading and installing security updates"):
-                await self.run_uu()
-            self.progress_view.update_done()
-        with install_event("copying logs to installed system"):
-            await self.copy_logs_to_target()
+        try:
+            await self.filesystem_event.wait()
 
-        if not self.answers['reboot']:
-            await self.reboot_clicked.wait()
+            await self.curtin_install()
 
-        self.reboot()
+            await asyncio.wait(
+                {e.wait() for e in self._postinstall_prerequisites.values()})
+
+            await self.drain_curtin_events()
+            with install_event("final system configuration"):
+                with install_event("configuring cloud-init"):
+                    await run_in_thread(self.model.configure_cloud_init)
+                if self.model.ssh.install_server:
+                    with install_event("installing openssh"):
+                        await self.install_openssh()
+                with install_event("restoring apt configuration"):
+                    await self.restore_apt_config()
+            self.ui.set_header(_("Installation complete!"))
+            self.progress_view.set_status(_("Finished install!"))
+            self.progress_view.show_complete()
+            if self.model.network.has_network:
+                self.progress_view.update_running()
+                with install_event("downloading and installing security updates"):
+                    await self.run_uu()
+                self.progress_view.update_done()
+            with install_event("copying logs to installed system"):
+                await self.copy_logs_to_target()
+
+            if not self.auto_reboot:
+                await self.reboot_clicked.wait()
+
+            self.reboot()
+        except Exception:
+            self.curtin_error()
+            raise
 
     async def drain_curtin_events(self):
         waited = 0.0

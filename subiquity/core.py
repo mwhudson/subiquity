@@ -13,10 +13,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import fcntl
 import logging
 import os
 import platform
+import signal
 import sys
 import traceback
 import yaml
@@ -168,6 +170,7 @@ class Subiquity(Application):
             super().run()
         except Exception:
             print("generating crash report")
+            asyncio.get_event_loop().remove_signal_handler(signal.SIGCHLD)
             report = self.make_apport_report(
                 ErrorReportKind.UI, "Installer UI", interrupt=False, wait=True)
             print("report saved to {}".format(report.path))

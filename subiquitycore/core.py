@@ -15,7 +15,6 @@
 
 from concurrent import futures
 import fcntl
-from functools import partial
 import json
 import logging
 import os
@@ -464,12 +463,11 @@ class Application:
                     return
             else:
                 print("applying config for new", new)
-                coro = new.apply_autoinstall_config()
-                if coro is not None:
-                    print("waiting", coro)
-                    task = schedule_task(coro)
-                    task.add_done_callback(lambda fut: self._move_screen(increment))
-                    return
+                async def w():
+                    await new.apply_autoinstall_config()
+                    self._move_screen(increment)
+                task = schedule_task(w())
+                return
 
     def next_screen(self, *args):
         self._move_screen(1)

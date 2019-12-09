@@ -53,6 +53,7 @@ class RefreshController(BaseController):
 
     def __init__(self, app):
         super().__init__(app)
+        self.enabled = self.interactive()
         self.snap_name = os.environ.get("SNAP_NAME", "subiquity")
         self.check_state = CheckState.NOT_STARTED
 
@@ -60,7 +61,6 @@ class RefreshController(BaseController):
         self.new_snap_version = ""
 
         self.offered_first_time = False
-        self.enabled = True
         self.check_task = SingleInstanceTask()
 
     def load_autoinstall(self):
@@ -73,10 +73,8 @@ class RefreshController(BaseController):
             return
         if self.check_state.is_definite():
             return
-        if not self.app.base_model.network.has_network:
-            return
         await self.configure_snapd_task
-        await asyncio.wait_for(60, self.check_for_update())
+        await asyncio.wait_for(self.check_for_update(), 60)
         if self.check_state == CheckState.AVAILABLE:
             update_marker = os.path.join(self.app.state_dir, 'updating')
             open(update_marker, 'w').close()
@@ -151,7 +149,8 @@ class RefreshController(BaseController):
     def snapd_network_changed(self):
         if self.check_state.is_definite():
             return
-        self.check_task.start_sync(self.check_for_update())
+        if not self.interactive():
+            self.check_task.start_sync(self.check_for_update())
 
     async def check_for_update(self):
         await self.configure_snapd_task
@@ -172,10 +171,10 @@ class RefreshController(BaseController):
                     "new version of snap available: %r",
                     self.new_snap_version)
                 break
-            else:
-                self.check_state = CheckState.UNAVAILABLE
-                if self.showing:
-                    self.ui.body.update_check_state()
+        else:
+            self.check_state = CheckState.UNAVAILABLE
+        if self.showing:
+            self.ui.body.update_check_state()
 
     def start_update(self, callback):
         update_marker = os.path.join(self.app.state_dir, 'updating')

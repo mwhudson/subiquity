@@ -161,9 +161,10 @@ class NetworkController(BaseController):
         pass
 
     async def apply_autoinstall_config(self):
-        # oh boy
-        # await self.apply_config(silent=True)
-        pass
+        await self.apply_config_task.start(self.apply_config(silent=True))
+        await self.apply_config_task.task
+        self.model.has_network = bool(
+            self.network_event_receiver.default_routes)
 
     def route_watcher(self, routes):
         if routes:
@@ -404,6 +405,9 @@ class NetworkController(BaseController):
 
         if not silent and self.view:
             self.view.hide_apply_spinner()
+
+        if not dhcp_device_versions:
+            return
 
         await asyncio.sleep(10)
 

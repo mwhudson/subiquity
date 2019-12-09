@@ -15,9 +15,9 @@
 
 
 from abc import ABC, abstractmethod
+import asyncio
 import logging
 import os
-import time
 
 log = logging.getLogger("subiquitycore.controller")
 
@@ -84,7 +84,7 @@ class BaseController(ABC):
 
     @property
     def showing(self):
-        return self.app.controllers.cur is self
+        return self.interactive() and self.app.controllers.cur is self
 
     @abstractmethod
     def start_ui(self):
@@ -109,8 +109,8 @@ class BaseController(ABC):
         if data is not None:
             raise Exception("missing deserialize method on {}".format(self))
 
-    def apply_autoinstall_config(self):
-        time.sleep(1)
+    async def apply_autoinstall_config(self):
+        await asyncio.sleep(1)
 
     # Stuff for fine grained actions, used by filesystem and network
     # controller at time of writing this comment.

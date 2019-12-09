@@ -27,8 +27,8 @@ class IdentityController(BaseController):
     autoinstall_key = 'identity'
 
     def __init__(self, app):
-        super().__init__(app)
         self.model = app.base_model.identity
+        super().__init__(app)
 
     def load_autoinstall(self):
         self.model.add_user(self.autoinstall_data)
