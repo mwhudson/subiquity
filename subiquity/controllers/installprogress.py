@@ -86,7 +86,7 @@ class InstallProgressController(BaseController):
         super().__init__(app)
         self.model = app.base_model
         self.answers.setdefault('reboot', False)
-        self.progress_view = None
+        self.progress_view = ProgressView(self)
         self.install_state = InstallState.NOT_STARTED
         self.journal_listener_handle = None
         self.filesystem_event = asyncio.Event()
@@ -97,6 +97,7 @@ class InstallProgressController(BaseController):
             'snap': asyncio.Event(),
             }
         self.uu_running = False
+        self.uu = None
         self._event_indent = ""
         self._event_syslog_identifier = 'curtin_event.%s' % (os.getpid(),)
         self._log_syslog_identifier = 'curtin_log.%s' % (os.getpid(),)
@@ -243,7 +244,6 @@ class InstallProgressController(BaseController):
     async def curtin_install(self):
         log.debug('curtin_install')
         self.install_state = InstallState.RUNNING
-        self.progress_view = ProgressView(self)
 
         self.journal_listener_handle = self.start_journald_listener(
             [self._event_syslog_identifier, self._log_syslog_identifier],
@@ -350,19 +350,28 @@ class InstallProgressController(BaseController):
         apt_conf.close()
         env = os.environ.copy()
         env["APT_CONFIG"] = apt_conf.name[len(self.model.target):]
+        self.uu_running = True
         if self.opts.dry_run:
-            pass
-            await utils.arun_command(self.logged_command([
-                "sleep", "5"]), env=env, check=True)
+            self.uu = await utils.astart_command(self.logged_command([
+                "sleep", "5"]), env=env)
         else:
-            await utils.arun_command(self.logged_command([
+            self.uu = await utils.astart_command(self.logged_command([
                 sys.executable, "-m", "curtin", "in-target", "-t", "/target",
                 "--", "unattended-upgrades", "-v",
-                ]), env=env, check=True)
+                ]), env=env)
+        await self.uu.communicate()
+        self.uu_running = False
+        self.uu = None
         os.remove(apt_conf.name)
 
     async def stop_uu(self):
-        await utils.arun_command(self.logged_command([
+        self._install_event_finish()
+        self._install_event_start("cancelling update")
+        if self.opts.dry_run:
+            await asyncio.sleep(1)
+            self.uu.terminate()
+        else:
+            await utils.arun_command(self.logged_command([
                 'chroot', '/target',
                 '/usr/share/unattended-upgrades/unattended-upgrade-shutdown',
                 '--stop-only',
