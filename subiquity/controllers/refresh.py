@@ -52,8 +52,12 @@ class RefreshController(BaseController):
     ]
 
     def __init__(self, app):
+        self.enabled = True
         super().__init__(app)
-        self.enabled = self.interactive()
+        if self.interactive():
+            self.enabled = True
+        else:
+            self.enabled = self.autoinstall_data.get('update', False)
         self.snap_name = os.environ.get("SNAP_NAME", "subiquity")
         self.check_state = CheckState.NOT_STARTED
 
@@ -64,23 +68,27 @@ class RefreshController(BaseController):
         self.check_task = SingleInstanceTask()
 
     def load_autoinstall(self):
-        self.enabled = self.autoinstall_data['update']
+        pass
 
     async def apply_autoinstall_config(self, index=0):
         if self.app.updated:
             return
         if not self.enabled:
             return
-        if self.check_state.is_definite():
-            return
+        print("configuring snapd")
         await self.configure_snapd_task
+        print("checking for update")
         await asyncio.wait_for(self.check_for_update(), 60)
         if self.check_state == CheckState.AVAILABLE:
+            print("update available, updating")
             update_marker = os.path.join(self.app.state_dir, 'updating')
             open(update_marker, 'w').close()
             await self.app.snapd.post_and_wait(
                 'v2/snaps/{}'.format(self.snap_name),
                 {'action': 'refresh'})
+            self.app.updated = True
+        else:
+            print("no update available, continuing")
 
     def start(self):
         if self.app.updated:
@@ -149,7 +157,7 @@ class RefreshController(BaseController):
     def snapd_network_changed(self):
         if self.check_state.is_definite():
             return
-        if not self.interactive():
+        if self.interactive():
             self.check_task.start_sync(self.check_for_update())
 
     async def check_for_update(self):

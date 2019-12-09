@@ -6,3 +6,5 @@ identity:
         username: ubuntu
         password: ubuntu
         hostname: ubuntu
+refresh-installer:
+        update: true
