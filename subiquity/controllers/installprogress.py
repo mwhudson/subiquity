@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
+import asyncio
 from concurrent.futures import Future
 import datetime
 import logging
@@ -41,6 +41,7 @@ import yaml
 from subiquitycore import utils
 from subiquitycore.controller import BaseController
 
+from subiquity.async_helpers import schedule_task
 from subiquity.controllers.error import ErrorReportKind
 from subiquity.ui.views.installprogress import ProgressView
 
@@ -261,7 +262,7 @@ class InstallProgressController(BaseController):
         return os.path.join(self.model.target, *path)
 
     def filesystem_config_done(self):
-        self.curtin_start_install()
+        schedule_task(self.curtin_start_install())
 
     def _step_done(self, step):
         self._postinstall_prerequisites[step] = True
@@ -295,9 +296,11 @@ class InstallProgressController(BaseController):
         self.progress_view.show_error(crash_report)
 
     def _bg_run_command_logged(self, cmd, **kwargs):
-        cmd = ['systemd-cat', '--level-prefix=false',
+        return utils.run_command(self.logged_command(cmd), **kwargs)
+
+    def logged_command(self, cmd):
+        return ['systemd-cat', '--level-prefix=false',
                '--identifier=' + self._log_syslog_identifier] + cmd
-        return utils.run_command(cmd, **kwargs)
 
     def _journal_event(self, event):
         if event['SYSLOG_IDENTIFIER'] == self._event_syslog_identifier:
@@ -347,7 +350,8 @@ class InstallProgressController(BaseController):
                 return
             for event in reader:
                 callback(event)
-        return self.loop.watch_file(reader.fileno(), watch)
+        loop = asyncio.get_event_loop()
+        return loop.add_reader(reader.fileno(), watch)
 
     def _write_config(self, path, config):
         with open(path, 'w') as conf:
@@ -386,7 +390,7 @@ class InstallProgressController(BaseController):
 
         return curtin_cmd
 
-    def curtin_start_install(self):
+    async def curtin_start_install(self):
         log.debug('curtin_start_install')
         self.install_state = InstallState.RUNNING
         self.progress_view = ProgressView(self)
@@ -398,13 +402,11 @@ class InstallProgressController(BaseController):
         curtin_cmd = self._get_curtin_command()
 
         log.debug('curtin install cmd: {}'.format(curtin_cmd))
-        self.run_in_bg(
-            lambda: self._bg_run_command_logged(curtin_cmd),
-            self.curtin_install_completed)
 
-    def curtin_install_completed(self, fut):
-        cp = fut.result()
+        cp = await utils.arun_command(self.logged_command(curtin_cmd))
+
         log.debug('curtin_install completed: %s', cp.returncode)
+
         if cp.returncode != 0:
             self.curtin_error()
             return
