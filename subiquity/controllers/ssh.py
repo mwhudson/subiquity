@@ -50,7 +50,7 @@ class SSHController(BaseController):
             self.model.pwauth = True
 
     async def apply_autoinstall_config(self):
-        pass
+        self.signal.emit_signal('installprogress:ssh-config-done')
 
     def start_ui(self):
         self.ui.set_body(SSHView(self.model, self))

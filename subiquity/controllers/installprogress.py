@@ -101,16 +101,21 @@ class InstallProgressController(BaseController):
         self._event_indent = ""
         self._event_syslog_identifier = 'curtin_event.%s' % (os.getpid(),)
         self._log_syslog_identifier = 'curtin_log.%s' % (os.getpid(),)
-        self.sm = None
         self.tb_extractor = TracebackExtractor()
 
     def start(self):
-        schedule_task(self.install())
+        self.install_task = schedule_task(self.install())
+
+    async def apply_autoinstall_config(self):
+        return self.install_task
 
     def interactive(self):
         if not self.app.autoinstall_config:
             return True
         return bool(self.app.autoinstall_config.get('interactive-sections'))
+
+    async def apply_autoinstall_config(self):
+        await self.install_task
 
     def tpath(self, *path):
         return os.path.join(self.model.target, *path)
@@ -161,6 +166,8 @@ class InstallProgressController(BaseController):
 
     def _install_event_start(self, message):
         log.debug("_install_event_start %s", message)
+        if not self.app.interactive:
+            print(self._event_indent + message)
         self.progress_view.add_event(self._event_indent + message)
         self._event_indent += "  "
         self.progress_view.spinner.start()

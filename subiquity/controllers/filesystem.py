@@ -83,6 +83,7 @@ class FilesystemController(BaseController):
 
     async def apply_autoinstall_config(self):
         await self._start_task
+        self.signal.emit_signal('installprogress:filesystem-config-done')
 
     async def _probe_once(self, restricted):
         if restricted:

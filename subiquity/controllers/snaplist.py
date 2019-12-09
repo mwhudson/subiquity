@@ -124,17 +124,17 @@ class SnapListController(BaseController):
         pass
 
     async def apply_autoinstall_config(self):
-        pass
+        self.signal.emit_signal("installprogress:snap-config-done")
 
     def snapd_network_changed(self):
         # If the loader managed to load the list of snaps, the
         # network must basically be working.
         if self.loader.snap_list_fetched:
             return
-        else:
+        elif self.interactive():
             self.loader.stop()
-        self.loader = self._make_loader()
-        self.loader.start()
+            self.loader = self._make_loader()
+            self.loader.start()
 
     def start_ui(self):
         if self.loader.failed or not self.app.base_model.network.has_network:
