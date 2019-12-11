@@ -29,6 +29,7 @@ from subiquitycore.ui.form import (
     BooleanField,
     Form,
     NO_CAPTION,
+    PasswordField,
     RadioField,
     simple_field,
     SubForm,
@@ -59,6 +60,37 @@ can do it manually.
 
 If you choose to partition an entire disk you will still have a chance to \
 review and modify the results.""")
+
+class SubFormWidget(WidgetWrap, WantsToKnowFormField):
+
+    def __init__(self):
+        self.table = Pile([])
+        super().__init__(self.table)
+
+    @property
+    def value(self):
+        return self.form.as_data()
+
+    @value.setter
+    def value(self, data):
+        for k, v in data.items():
+            getattr(self.form, k).value = v
+
+    def set_bound_form_field(self, bff):
+        self.form = bff.field.form_cls(bff.form)
+        self.table.contents[:] = [(r, self.table.options('pack')) for r in self.form.as_rows()]
+
+
+class SubFormField(FormField):
+
+    takes_default_style = False
+
+    def __init__(self, form_cls, caption=None, help=None):
+        super().__init__(caption=caption, help=help)
+        self.form_cls = form_cls
+
+    def _make_widget(self, form):
+        return SubFormWidget()
 
 
 class DiskChooser(WidgetWrap, WantsToKnowFormField):
@@ -97,11 +129,38 @@ class DiskChooser(WidgetWrap, WantsToKnowFormField):
 DiskField = simple_field(DiskChooser)
 DiskField.takes_default_style = False
 
+class LUKSOptionsForm(SubForm):
+
+    passphrase = PasswordField(_("Passphrase"))
+
+class LVMOptionsForm(SubForm):
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        connect_signal(self.encrypt.widget, 'change', self._toggle)
+        self.luks_options.enabled = self.encrypt.value
+
+    def _toggle(self, sender, val):
+        self.luks_options.enabled = val
+
+    encrypt = BooleanField(_("I like LUKS"))
+    luks_options = SubFormField(LUKSOptionsForm, "")
+
 
 class GuidedChoiceForm(SubForm):
 
+    def __init__(self, parent):
+        super().__init__(parent)
+        connect_signal(self.use_lvm.widget, 'change', self._toggle)
+        self.lvm_options.enabled = self.use_lvm.value
+
+    def _toggle(self, sender, val):
+        self.lvm_options.enabled = val
+
     disk_choice = DiskField(caption=NO_CAPTION)
     use_lvm = BooleanField(_("Set up this disk as an LVM group"))
+    lvm_options = SubFormField(LVMOptionsForm, "")
+
 
 
 class GuidedForm(Form):
@@ -138,7 +197,7 @@ class GuidedForm(Form):
         self.custom_layout.value = not guided_layout
 
         # grey-out guided_layout dependencies
-        self.guided_layout.enabled = guided_layout
+        self.guided_choice.enabled = guided_layout
         #self.use_lvm.enabled = guided_layout
         self.in_signal = False
 
@@ -161,7 +220,7 @@ class GuidedDiskSelectionView(BaseView):
         connect_signal(self.form, 'cancel', self.cancel)
 
         super().__init__(self.form.as_screen(
-            focus_buttons=False, excerpt=text, narrow_rows=True))
+            focus_buttons=False, excerpt=text))
 
     def done(self, result):
         results=result.as_data()
