@@ -27,33 +27,46 @@ from curtin.reporter.events import (
 from subiquitycore.controller import NoUIController
 
 
+class Context:
+
+    def __init__(self, name, description="", parent=None):
+        self.name = name
+        self.description = description
+        self.parent = parent
+
+    def child(self, name, description=""):
+        return Context(name, description, self)
+
+    def _name(self):
+        c = self
+        while c is not None
+            names.append(c.name)
+            c = c.parent
+        return '/'.join(names)
+
+    def enter(self);
+        report_start_event(self._name(), self.description)
+
+    def exit(self, result=status.SUCCESS):
+        report_finish_event(self._name(), self.description)
+
+    def __enter__(self):
+        self.enter()
+        return self
+
+    def __exit__(self, exc, value, tb):
+        if exc:
+            result = status.FAIL
+        else:
+            result = status.SUCCESS
+        self.exit(result)
+
+
 class ReportingController(NoUIController):
 
     def __init__(self, app):
         super().__init__(app)
-        self.stack = []
+        self.root = Context(app.project)
 
     def start(self):
         update_configuration({'default': {'type': 'log'}})
-
-    def _name(self):
-        return '/'.join([s[0] for s in self.stack])
-
-    def event_start(self, name, description):
-        self.stack.append((name, description))
-        report_start_event(self._name(), description)
-        return 
-
-    def event_stop(self, result):
-        report_finish_event(self._name(), self.stack[-1][1], result)
-        self.stack.pop()
-
-    @contextlib.contextmanager
-    def event(self, name, description):
-        self.event_start(name, description)
-        try:
-            yield
-        except BaseException:
-            self.event_stop(status.FAIL)
-        else:
-            self.event_stop(status.SUCCESS)
