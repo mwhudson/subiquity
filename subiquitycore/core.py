@@ -27,7 +27,6 @@ import yaml
 from subiquitycore.async_helpers import schedule_task
 from subiquitycore.context import (
     Context,
-    Status,
     )
 from subiquitycore.controller import (
     RepeatedController,

@@ -80,6 +80,7 @@ class TracebackExtractor:
 def install_step(label):
     def decorate(meth):
         name = meth.__name__
+
         async def decorated(self):
             self._install_event_start(name, label)
             try:

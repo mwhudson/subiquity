@@ -90,7 +90,8 @@ class RefreshController(BaseController):
                     "current version of snap is: %r" %
                     self.current_snap_version)
             channel = self.get_refresh_channel()
-            with context.child("switching", "switching to {}".format(channel)) as subcontext:
+            desc = "switching to {}".format(channel)
+            with context.child("switching", desc) as subcontext:
                 try:
                     await self.app.snapd.post_and_wait(
                         'v2/snaps/{}'.format(self.snap_name),
