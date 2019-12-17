@@ -484,12 +484,15 @@ class Application:
         self.controllers.index = controller_index - 1
         self.next_screen()
 
-    def report_start_event(self, name, description):
-        self.controllers.Reporting.report_start_event(name, description)
+    def report_start_event(self, name, description, level="INFO"):
+        log = logging.getLogger(name)
+        level = getattr(logging, level)
+        log.log(level, "start: %s", description)
 
-    def report_finish_event(self, name, description, status):
-        self.controllers.Reporting.report_finish_event(
-            name, description, status)
+    def report_finish_event(self, name, description, status, level="INFO"):
+        log = logging.getLogger(name)
+        level = getattr(logging, level)
+        log.log(level, "finish: %s %s", description, status.name)
 
 # EventLoop -------------------------------------------------------------------
 

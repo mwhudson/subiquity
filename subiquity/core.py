@@ -124,6 +124,14 @@ class Subiquity(Application):
             print("report saved to {}".format(report.path))
             raise
 
+    def report_start_event(self, name, description, level="INFO"):
+        self.controllers.Reporting.report_start_event(
+            name, description, level)
+
+    def report_finish_event(self, name, description, status, level="INFO"):
+        self.controllers.Reporting.report_finish_event(
+            name, description, status, level)
+
     def select_initial_screen(self, index):
         super().select_initial_screen(index)
         for report in self.controllers.Error.reports:

@@ -17,20 +17,11 @@ import logging
 import os
 
 
-def factory(name, level, *args, **kwargs):
-    if name.startswith("curtin.reporting"):
-        if 'cmd-install' in name:
-            level = logging.DEBUG
-        name = "event"
-    return logging.LogRecord(name, level, *args, **kwargs)
-
-
 def setup_logger(dir):
     os.makedirs(dir, exist_ok=True)
 
     logger = logging.getLogger("")
     logger.setLevel(logging.DEBUG)
-    logging.setLogRecordFactory(factory)
 
     r = {}
 

@@ -13,7 +13,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 from curtin.reporter import (
+    available_handlers,
     update_configuration,
     )
 from curtin.reporter.events import (
@@ -21,8 +24,23 @@ from curtin.reporter.events import (
     report_start_event,
     status,
     )
+from curtin.reporter.handlers import (
+    LogHandler,
+    )
 
 from subiquitycore.controller import NoUIController
+
+
+
+class LogHandler(LogHandler):
+    def publish_event(self, event):
+        level = getattr(logging, event.level)
+        logger = logging.getLogger('')
+        logger.log(level, event.as_string())
+
+
+available_handlers.unregister_item('log')
+available_handlers.register_item('log', LogHandler)
 
 
 class ReportingController(NoUIController):
@@ -33,9 +51,9 @@ class ReportingController(NoUIController):
     def start(self):
         update_configuration({'default': {'type': 'log', 'level': 'INFO'}})
 
-    def report_start_event(self, name, description):
-        report_start_event(name, description)
+    def report_start_event(self, name, description, level):
+        report_start_event(name, description, level=level)
 
-    def report_finish_event(self, name, description, result):
+    def report_finish_event(self, name, description, result, level):
         result = getattr(status, result.name, status.WARN)
-        report_finish_event(name, description, result)
+        report_finish_event(name, description, result, level=level)

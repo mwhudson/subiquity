@@ -25,14 +25,17 @@ class Status(enum.Enum):
 
 class Context:
 
-    def __init__(self, app, name, description, parent):
+    def __init__(self, app, name, description, parent, level="INFO"):
         self.app = app
         self.name = name
         self.description = description
         self.parent = parent
+        self.level = level
 
-    def child(self, name, description=""):
-        return Context(self.app, name, description, self)
+    def child(self, name, description="", level=None):
+        if level is None:
+            level = self.level
+        return Context(self.app, name, description, self, level)
 
     def _name(self):
         c = self
@@ -45,12 +48,12 @@ class Context:
     def enter(self, description=None):
         if description is None:
             description = self.description
-        self.app.report_start_event(self._name(), description)
+        self.app.report_start_event(self._name(), description, self.level)
 
     def exit(self, description=None, result=Status.SUCCESS):
         if description is None:
             description = self.description
-        self.app.report_finish_event(self._name(), description, result)
+        self.app.report_finish_event(self._name(), description, result, self.level)
 
     def __enter__(self):
         self.enter()

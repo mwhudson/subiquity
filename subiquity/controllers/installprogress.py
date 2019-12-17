@@ -146,16 +146,16 @@ class InstallProgressController(BaseController):
         elif event['SYSLOG_IDENTIFIER'] == self._log_syslog_identifier:
             self.curtin_log(event)
 
-    def _install_event_start(self, name, message):
-        self.context.child(name, message).enter()
+    def _install_event_start(self, name, message, level="INFO"):
+        self.context.child(name, message, level).enter()
         self.progress_view.add_event(self._event_indent + message)
         self._event_indent += "  "
         self.progress_view.spinner.start()
 
-    def _install_event_finish(self, name, message, result):
+    def _install_event_finish(self, name, message, result, level="INFO"):
         self._event_indent = self._event_indent[:-2]
         self.progress_view.spinner.stop()
-        self.context.child(name, message).exit(result=result)
+        self.context.child(name, message, level).exit(result=result)
 
     def curtin_event(self, event):
         prefix = "CURTIN_"
@@ -166,10 +166,10 @@ class InstallProgressController(BaseController):
         log.debug("curtin_event received %r", e)
         event_type = e["EVENT_TYPE"]
         if event_type == 'start':
-            self._install_event_start(e["NAME"], e["MESSAGE"])
+            self._install_event_start(e["NAME"], e["MESSAGE"], "DEBUG")
         elif event_type == 'finish':
             result = getattr(Status, e["RESULT"], Status.WARN)
-            self._install_event_finish(e["NAME"], e["MESSAGE"], result)
+            self._install_event_finish(e["NAME"], e["MESSAGE"], result, "DEBUG")
 
     def curtin_log(self, event):
         log_line = event['MESSAGE']
