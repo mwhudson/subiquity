@@ -31,7 +31,7 @@ class ReportingController(NoUIController):
         super().__init__(app)
 
     def start(self):
-        update_configuration({'default': {'type': 'log'}})
+        update_configuration({'default': {'type': 'log', 'level': 'INFO'}})
 
     def report_start_event(self, name, description):
         report_start_event(name, description)

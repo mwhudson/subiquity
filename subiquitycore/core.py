@@ -467,7 +467,7 @@ class Application:
             try:
                 self.select_screen(new)
             except Skip:
-                new.context.child('ui').exit(Status.SKIP)
+                new.context.child('ui').exit("(skipped)")
                 continue
             else:
                 return

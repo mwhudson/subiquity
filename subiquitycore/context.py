@@ -44,16 +44,18 @@ class Context:
     def enter(self):
         self.app.report_start_event(self._name(), self.description)
 
-    def exit(self, result=Status.SUCCESS):
-        self.app.report_finish_event(self._name(), self.description, result)
+    def exit(self, description=None, result=Status.SUCCESS):
+        if description is None:
+            description = self.description
+        self.app.report_finish_event(self._name(), description, result)
 
     def __enter__(self):
         self.enter()
         return self
 
     def __exit__(self, exc, value, tb):
-        if exc:
+        if exc is not None:
             result = Status.FAIL
         else:
             result = Status.SUCCESS
-        self.exit(result)
+        self.exit(description="", result=result)
