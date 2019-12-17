@@ -87,6 +87,7 @@ class Subiquity(Application):
             "SnapList",
             "InstallProgress",
             "Error",  # does not have a UI
+            "Reporting",  # does not have a UI
     ]
 
     def __init__(self, opts, block_log_dir):

@@ -25,6 +25,10 @@ import urwid
 import yaml
 
 from subiquitycore.async_helpers import schedule_task
+from subiquitycore.context import (
+    Context,
+    Status,
+    )
 from subiquitycore.controller import (
     RepeatedController,
     Skip,
@@ -385,6 +389,7 @@ class Application:
         self.prober = prober
         self.loop = None
         self.controllers = ControllerSet(self, self.controllers)
+        self.context = Context(self, self.project, "", None)
 
     def run_command_in_foreground(self, cmd, before_hook=None, after_hook=None,
                                   **kw):
@@ -440,7 +445,6 @@ class Application:
             json.dump(cur.serialize(), fp)
 
     def select_screen(self, new):
-        log.info("moving to screen %s", new.name)
         if self.opts.screens and new.name not in self.opts.screens:
             raise Skip
         new.start_ui()
@@ -452,16 +456,18 @@ class Application:
         self.save_state()
         old = self.controllers.cur
         if old is not None:
+            old.context.child('ui').exit()
             old.end_ui()
         while True:
             self.controllers.index += increment
             if self.controllers.out_of_bounds():
                 self.exit()
             new = self.controllers.cur
+            new.context.child('ui').enter()
             try:
                 self.select_screen(new)
             except Skip:
-                log.debug("skipping screen %s", new.name)
+                new.context.child('ui').exit(Status.SKIP)
                 continue
             else:
                 return
@@ -475,6 +481,13 @@ class Application:
     def select_initial_screen(self, controller_index):
         self.controllers.index = controller_index - 1
         self.next_screen()
+
+    def report_start_event(self, name, description):
+        self.controllers.Reporting.report_start_event(name, description)
+
+    def report_finish_event(self, name, description, status):
+        self.controllers.Reporting.report_finish_event(
+            name, description, status)
 
 # EventLoop -------------------------------------------------------------------
 

@@ -13,8 +13,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import contextlib
-
 from curtin.reporter import (
     update_configuration,
     )
@@ -27,46 +25,17 @@ from curtin.reporter.events import (
 from subiquitycore.controller import NoUIController
 
 
-class Context:
-
-    def __init__(self, name, description="", parent=None):
-        self.name = name
-        self.description = description
-        self.parent = parent
-
-    def child(self, name, description=""):
-        return Context(name, description, self)
-
-    def _name(self):
-        c = self
-        while c is not None
-            names.append(c.name)
-            c = c.parent
-        return '/'.join(names)
-
-    def enter(self);
-        report_start_event(self._name(), self.description)
-
-    def exit(self, result=status.SUCCESS):
-        report_finish_event(self._name(), self.description)
-
-    def __enter__(self):
-        self.enter()
-        return self
-
-    def __exit__(self, exc, value, tb):
-        if exc:
-            result = status.FAIL
-        else:
-            result = status.SUCCESS
-        self.exit(result)
-
-
 class ReportingController(NoUIController):
 
     def __init__(self, app):
         super().__init__(app)
-        self.root = Context(app.project)
 
     def start(self):
         update_configuration({'default': {'type': 'log'}})
+
+    def report_start_event(self, name, description):
+        report_start_event(name, description)
+
+    def report_finish_event(self, name, description, result):
+        result = getattr(status, result.name, status.WARN)
+        report_finish_event(name, description, result)

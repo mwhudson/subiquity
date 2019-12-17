@@ -15,6 +15,7 @@
 
 import unittest
 
+from subiquitycore.context import Context
 from subiquity.controllers.filesystem import (
     FilesystemController,
     )
@@ -39,11 +40,14 @@ class MiniApplication:
     opts = Thing()
     opts.dry_run = True
     opts.bootloader = None
+    def report_start_event(*args): pass
+    def report_finish_event(*args): pass
 
 
 def make_controller(bootloader=None):
     app = MiniApplication()
     app.base_model = bm = Thing()
+    app.context = Context(app, "", "", None)
     bm.filesystem = make_model(bootloader)
     controller = FilesystemController(app)
     return controller
