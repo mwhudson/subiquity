@@ -53,7 +53,8 @@ class Context:
     def exit(self, description=None, result=Status.SUCCESS):
         if description is None:
             description = self.description
-        self.app.report_finish_event(self._name(), description, result, self.level)
+        self.app.report_finish_event(
+            self._name(), description, result, self.level)
 
     def __enter__(self):
         self.enter()

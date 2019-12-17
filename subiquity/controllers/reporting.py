@@ -31,7 +31,6 @@ from curtin.reporter.handlers import (
 from subiquitycore.controller import NoUIController
 
 
-
 class LogHandler(LogHandler):
     def publish_event(self, event):
         level = getattr(logging, event.level)

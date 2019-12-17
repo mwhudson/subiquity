@@ -154,7 +154,8 @@ class InstallProgressController(BaseController):
     def _pop_context(self, result):
         cur = self.cur_context
         self.cur_context = self.cur_context.parent
-        self._install_event_finish(cur.name, cur.description, result, cur.level)
+        self._install_event_finish(
+            cur.name, cur.description, result, cur.level)
 
     def _install_event_start(self, name, message, level=None):
         context = self.cur_context.child(name, message, level)
@@ -181,7 +182,8 @@ class InstallProgressController(BaseController):
             self._install_event_start(e["NAME"], e["MESSAGE"], "DEBUG")
         elif event_type == 'finish':
             result = getattr(Status, e["RESULT"], Status.WARN)
-            self._install_event_finish(e["NAME"], e["MESSAGE"], result, "DEBUG")
+            self._install_event_finish(
+                e["NAME"], e["MESSAGE"], result, "DEBUG")
 
     def curtin_log(self, event):
         log_line = event['MESSAGE']
@@ -267,14 +269,16 @@ class InstallProgressController(BaseController):
     async def install(self):
         try:
             with self.context.child(
-                    "installwait", "waiting for install config", level="DEBUG"):
+                    "installwait", "waiting for install config",
+                    level="DEBUG"):
                 await asyncio.wait(
                     {e.wait() for e in self.model.install_events})
 
             await self.curtin_install()
 
             with self.context.child(
-                    "postinstallwait", "waiting for postinstall config", level="DEBUG"):
+                    "postinstallwait", "waiting for postinstall config",
+                    level="DEBUG"):
                 await asyncio.wait(
                     {e.wait() for e in self.model.postinstall_events})
 
