@@ -78,25 +78,22 @@ class FilesystemController(BaseController):
         self._probe_task = SingleInstanceTask(self._probe)
 
     async def _probe_once(self, restricted):
-        if restricted:
-            probe_types = {'blockdev'}
-            fname = 'probe-data-restricted.json'
-            key = "ProbeDataRestricted"
-        else:
-            probe_types = None
-            fname = 'probe-data.json'
-            key = "ProbeData"
-        block_discover_log.exception(
-            "probing restricted=%s", restricted)
-        storage = await run_in_thread(
-            self.app.prober.get_storage, probe_types)
-        block_discover_log.info(
-            "probing successful restricted=%s", restricted)
-        fpath = os.path.join(self.app.block_log_dir, fname)
-        with open(fpath, 'w') as fp:
-            json.dump(storage, fp, indent=4)
-        self.app.note_file_for_apport(key, fpath)
-        self.model.load_probe_data(storage)
+        with self.context.child("probe", "restricted={}".format(restricted)):
+            if restricted:
+                probe_types = {'blockdev'}
+                fname = 'probe-data-restricted.json'
+                key = "ProbeDataRestricted"
+            else:
+                probe_types = None
+                fname = 'probe-data.json'
+                key = "ProbeData"
+            storage = await run_in_thread(
+                self.app.prober.get_storage, probe_types)
+            fpath = os.path.join(self.app.block_log_dir, fname)
+            with open(fpath, 'w') as fp:
+                json.dump(storage, fp, indent=4)
+            self.app.note_file_for_apport(key, fpath)
+            self.model.load_probe_data(storage)
 
     async def _probe(self):
         self._crash_reports = {}
