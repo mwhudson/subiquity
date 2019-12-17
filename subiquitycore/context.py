@@ -61,5 +61,5 @@ class Context:
             description = str(value)
         else:
             result = Status.SUCCESS
-            description = ""
+            description = None
         self.exit(description, result)
