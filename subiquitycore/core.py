@@ -447,7 +447,11 @@ class Application:
         new.context.enter("starting UI")
         if self.opts.screens and new.name not in self.opts.screens:
             raise Skip
-        new.start_ui()
+        try:
+            new.start_ui()
+        except Skip:
+            new.context.exit("(skipped)")
+            raise
         state_path = os.path.join(self.state_dir, 'last-screen')
         with open(state_path, 'w') as fp:
             fp.write(new.name)
@@ -466,7 +470,6 @@ class Application:
             try:
                 self.select_screen(new)
             except Skip:
-                new.context.child('ui').exit("(skipped)")
                 continue
             else:
                 return
