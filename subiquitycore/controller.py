@@ -154,12 +154,3 @@ class RepeatedController(BaseController):
 
     def cancel(self):
         self.orig.cancel()
-
-
-class NoUIController(BaseController):
-
-    def start_ui(self):
-        raise Skip
-
-    def cancel(self):
-        pass

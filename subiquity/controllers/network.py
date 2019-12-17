@@ -15,8 +15,10 @@
 
 from subiquitycore.controllers.network import NetworkController
 
+from subiquity.controller import SubiquityController
 
-class NetworkController(NetworkController):
+
+class NetworkController(NetworkController, SubiquityController):
 
     def done(self):
         self.configured()
