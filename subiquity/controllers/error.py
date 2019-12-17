@@ -173,7 +173,7 @@ class ErrorReport(metaclass=urwid.MetaSignals):
             schedule_task(add_info())
 
     async def load(self):
-        with self.controller.context.child("adding_info", self.base):
+        with self.controller.context.child("loading", self.base):
             # Load report from disk in background.
             try:
                 await run_in_thread(self.pr.load, self._file)

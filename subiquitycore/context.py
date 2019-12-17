@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import enum
 
 
@@ -58,7 +59,10 @@ class Context:
     def __exit__(self, exc, value, tb):
         if exc is not None:
             result = Status.FAIL
-            description = str(value)
+            if isinstance(value, asyncio.CancelledError):
+                description = "cancelled"
+            else:
+                description = str(value)
         else:
             result = Status.SUCCESS
             description = None
