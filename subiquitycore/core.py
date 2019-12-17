@@ -445,6 +445,7 @@ class Application:
             json.dump(cur.serialize(), fp)
 
     def select_screen(self, new):
+        new.context.enter("starting UI")
         if self.opts.screens and new.name not in self.opts.screens:
             raise Skip
         new.start_ui()
@@ -456,14 +457,13 @@ class Application:
         self.save_state()
         old = self.controllers.cur
         if old is not None:
-            old.context.child('ui').exit()
+            old.context.exit("completed")
             old.end_ui()
         while True:
             self.controllers.index += increment
             if self.controllers.out_of_bounds():
                 self.exit()
             new = self.controllers.cur
-            new.context.child('ui').enter()
             try:
                 self.select_screen(new)
             except Skip:

@@ -18,8 +18,8 @@ import enum
 
 class Status(enum.Enum):
     SUCCESS = enum.auto()
-    FAILURE = enum.auto()
-    SKIP = enum.auto()
+    FAIL = enum.auto()
+    WARN = enum.auto()
 
 
 class Context:
@@ -41,8 +41,10 @@ class Context:
             c = c.parent
         return '/'.join(reversed(names))
 
-    def enter(self):
-        self.app.report_start_event(self._name(), self.description)
+    def enter(self, description=None):
+        if description is None:
+            description = self.description
+        self.app.report_start_event(self._name(), description)
 
     def exit(self, description=None, result=Status.SUCCESS):
         if description is None:
@@ -56,6 +58,8 @@ class Context:
     def __exit__(self, exc, value, tb):
         if exc is not None:
             result = Status.FAIL
+            description = str(value)
         else:
             result = Status.SUCCESS
-        self.exit(description="", result=result)
+            description = ""
+        self.exit(description, result)
