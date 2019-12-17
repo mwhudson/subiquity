@@ -77,19 +77,19 @@ class TracebackExtractor:
             self.traceback.append(line)
 
 
-def install_step(label):
+def install_step(label, level=None):
     def decorate(meth):
         name = meth.__name__
 
         async def decorated(self):
-            self._install_event_start(name, label)
+            self._push_context(name, label, level)
             try:
                 await meth(self)
             except BaseException:
-                self._install_event_finish(name, label, Status.FAIL)
+                self._pop_context(Status.FAIL)
                 raise
             else:
-                self._install_event_finish(name, label, Status.SUCCESS)
+                self._pop_context(Status.SUCCESS)
         return decorated
     return decorate
 
@@ -113,6 +113,7 @@ class InstallProgressController(BaseController):
         self._event_syslog_identifier = 'curtin_event.%s' % (os.getpid(),)
         self._log_syslog_identifier = 'curtin_log.%s' % (os.getpid(),)
         self.tb_extractor = TracebackExtractor()
+        self.cur_context = self.context
 
     def start(self):
         self.install_task = schedule_task(self.install())
@@ -146,16 +147,27 @@ class InstallProgressController(BaseController):
         elif event['SYSLOG_IDENTIFIER'] == self._log_syslog_identifier:
             self.curtin_log(event)
 
-    def _install_event_start(self, name, message, level="INFO"):
-        self.context.child(name, message, level).enter()
+    def _push_context(self, name, message, level):
+        self.cur_context = self._install_event_start(
+            name, message, level)
+
+    def _pop_context(self, result):
+        cur = self.cur_context
+        self.cur_context = self.cur_context.parent
+        self._install_event_finish(cur.name, cur.description, result, cur.level)
+
+    def _install_event_start(self, name, message, level=None):
+        context = self.cur_context.child(name, message, level)
+        context.enter()
         self.progress_view.add_event(self._event_indent + message)
         self._event_indent += "  "
         self.progress_view.spinner.start()
+        return context
 
     def _install_event_finish(self, name, message, result, level="INFO"):
         self._event_indent = self._event_indent[:-2]
         self.progress_view.spinner.stop()
-        self.context.child(name, message, level).exit(result=result)
+        self.cur_context.child(name, message, level).exit(result=result)
 
     def curtin_event(self, event):
         prefix = "CURTIN_"
@@ -255,14 +267,14 @@ class InstallProgressController(BaseController):
     async def install(self):
         try:
             with self.context.child(
-                    "installwait", "waiting for install config"):
+                    "installwait", "waiting for install config", level="DEBUG"):
                 await asyncio.wait(
                     {e.wait() for e in self.model.install_events})
 
             await self.curtin_install()
 
             with self.context.child(
-                    "postinstallwait", "waiting for postinstall config"):
+                    "postinstallwait", "waiting for postinstall config", level="DEBUG"):
                 await asyncio.wait(
                     {e.wait() for e in self.model.postinstall_events})
 
@@ -301,11 +313,11 @@ class InstallProgressController(BaseController):
             await self.install_openssh()
         await self.restore_apt_config()
 
-    @install_step("configuring cloud-init")
+    @install_step("configuring cloud-init", level="DEBUG")
     async def configure_cloud_init(self):
         await run_in_thread(self.model.configure_cloud_init)
 
-    @install_step("installing openssh")
+    @install_step("installing openssh", level="DEBUG")
     async def install_openssh(self):
         if self.opts.dry_run:
             cmd = ["sleep", str(2/self.app.scale_factor)]
@@ -317,7 +329,7 @@ class InstallProgressController(BaseController):
                 ]
         await arun_command(self.logged_command(cmd), check=True)
 
-    @install_step("restoring apt configuration")
+    @install_step("restoring apt configuration", level="DEBUG")
     async def restore_apt_config(self):
         if self.opts.dry_run:
             cmds = [["sleep", str(1/self.app.scale_factor)]]
@@ -360,8 +372,8 @@ class InstallProgressController(BaseController):
         os.remove(apt_conf.name)
 
     async def stop_uu(self):
-        self._install_event_finish()
-        self._install_event_start("cancelling update")
+        self._pop_context(Status.WARN)
+        self._push_context("cancel", "cancelling update", "INFO")
         if self.opts.dry_run:
             await asyncio.sleep(1)
             self.uu.terminate()
@@ -372,7 +384,7 @@ class InstallProgressController(BaseController):
                 '--stop-only',
                 ], check=True))
 
-    @install_step("copying logs to installed system")
+    @install_step("copying logs to installed system", level="DEBUG")
     async def copy_logs_to_target(self):
         if self.opts.dry_run:
             if 'copy-logs-fail' in self.app.debug_flags:
