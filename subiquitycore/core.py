@@ -296,16 +296,19 @@ class ControllerSet:
         self.controllers_mod = __import__(
             '{}.controllers'.format(self.app.project), None, None, [''])
 
+    def _get_controller_class(self, name):
+        return getattr(self.controllers_mod, name+"Controller")
+
     def load(self, name):
         self.controller_names.remove(name)
         log.debug("Importing controller: %s", name)
-        klass = getattr(self.controllers_mod, name+"Controller")
+        klass = self._get_controller_class(name)
         if hasattr(self, name):
             c = 1
             for instance in self.instances:
                 if isinstance(instance, klass):
                     c += 1
-            inst = RepeatedController(getattr(self, name), c)
+            inst = self._get_controller_class("Repeated")(getattr(self, name), c)
             name = inst.name
         else:
             inst = klass(self.app)

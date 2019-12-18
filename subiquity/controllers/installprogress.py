@@ -106,6 +106,8 @@ class InstallProgressController(SubiquityController):
         self.reboot_clicked = asyncio.Event()
         if self.answers.get('reboot', False):
             self.reboot_clicked.set()
+        if not self.interactive():
+            self.reboot_clicked.set()
 
         self.uu_running = False
         self.uu = None

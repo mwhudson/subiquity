@@ -47,7 +47,10 @@ class ReportingController(NoUIController):
     autoinstall_key = 'reporting'
 
     def start(self):
-        update_configuration({'logging': {'type': 'log', 'level': 'INFO'}})
+        conf = {'logging': {'type': 'log', 'level': 'INFO'}}
+        if not self.app.interactive():
+            conf['print'] = {'type': 'print'}
+        update_configuration(conf)
 
     async def apply_autoinstall_config(self):
         pass

@@ -23,6 +23,7 @@ from .proxy import ProxyController
 from .mirror import MirrorController
 from .network import NetworkController
 from .refresh import RefreshController
+from ..controller import RepeatedController
 from .reporting import ReportingController
 from .snaplist import SnapListController
 from .ssh import SSHController
