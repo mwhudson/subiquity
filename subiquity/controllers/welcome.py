@@ -28,6 +28,11 @@ class WelcomeController(SubiquityController):
     autoinstall_key = 'locale'
     model_name = "locale"
 
+    def __init__(self, app):
+        super().__init__(app)
+        if self.autoinstall_data is not None:
+            os.environ["LANG"] = self.model.locale = self.autoinstall_data
+
     def start(self):
         lang = os.environ.get("LANG")
         if lang.endswith(".UTF-8"):

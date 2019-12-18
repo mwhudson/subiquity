@@ -115,6 +115,9 @@ class SubiquityModel:
     def configured(self, model_name):
         self._events[model_name].set()
 
+    def is_configured(self, model_name):
+        return self._events[model_name].is_set()
+
     def get_target_groups(self):
         command = ['chroot', self.target, 'getent', 'group']
         if self.root != '/':

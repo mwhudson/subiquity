@@ -159,8 +159,6 @@ class Subiquity(Application):
         return bool(self.autoinstall_config.get('interactive-sections'))
 
     async def _start(self, index):
-        self.controllers.Reporting.start()
-        await self.controllers.Early.run()
         await super()._start(index)
         for report in self.controllers.Error.reports:
             if report.kind == ErrorReportKind.UI and not report.seen:
@@ -172,7 +170,7 @@ class Subiquity(Application):
         if new.interactive():
             super().select_screen(new)
             return
-        elif self.autoinstall_config:
+        elif self.autoinstall_config and not new.autoinstall_applied:
             schedule_task(self._apply(new))
         else:
             raise Skip
@@ -180,6 +178,8 @@ class Subiquity(Application):
     async def _apply(self, controller):
         with controller.context.child("apply_autoinstall_config"):
             await controller.apply_autoinstall_config()
+        controller.autoinstall_applied = True
+        controller.configured()
         self.next_screen()
 
     def _network_change(self):

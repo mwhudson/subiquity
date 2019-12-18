@@ -39,6 +39,7 @@ class CheckState(enum.IntEnum):
 class MirrorController(SubiquityController):
 
     autoinstall_key = 'apt'
+    autoinstall_default = {}
     model_name = "mirror"
     signals = [
         ('snapd-network-change', 'snapd_network_changed'),
@@ -51,8 +52,16 @@ class MirrorController(SubiquityController):
             self.check_state = CheckState.DONE
             self.model.set_country(self.answers['country-code'])
         self.lookup_task = SingleInstanceTask(self.lookup)
+        if 'mirror' in self.autoinstall_data:
+            self.model.mirror = self.autoinstall_data['mirror']
+
+    async def apply_autoinstall_config(self):
+        if 'mirror' not in self.autoinstall_data:
+            await self.lookup_task.task
 
     def snapd_network_changed(self):
+        if 'mirror' in self.autoinstall_data:
+            return
         if self.check_state != CheckState.DONE:
             self.check_state = CheckState.CHECKING
             self.lookup_task.start_sync()

@@ -1207,6 +1207,12 @@ class FilesystemModel(object):
             self._actions = []
         self.grub_install_device = None
 
+    def apply_autoinstall_config(self, autoinstall_data):
+        # This needs to get much smarter!
+        self._actions = self._actions_from_config(
+            autoinstall_data["config"],
+            self._probe_data['blockdev'])
+
     def _actions_from_config(self, config, blockdevs):
         """Convert curtin storage config into action instances.
 
@@ -1373,9 +1379,12 @@ class FilesystemModel(object):
                 }
         return config
 
-    def load_probe_data(self, probe_data):
+    def load_probe_data(self, probe_data, autoinstall_data):
         self._probe_data = probe_data
-        self.reset()
+        if autoinstall_data:
+            self.apply_autoinstall_config(autoinstall_data)
+        else:
+            self.reset()
 
     def disk_by_path(self, path):
         for a in self._actions:

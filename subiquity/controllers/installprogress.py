@@ -115,8 +115,14 @@ class InstallProgressController(SubiquityController):
         self.tb_extractor = TracebackExtractor()
         self.cur_context = self.context
 
+    def interactive(self):
+        return self.app.interactive()
+
     def start(self):
         self.install_task = schedule_task(self.install())
+
+    async def apply_autoinstall_config(self):
+        await self.install_task
 
     def tpath(self, *path):
         return os.path.join(self.model.target, *path)

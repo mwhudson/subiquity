@@ -95,7 +95,7 @@ class FilesystemController(SubiquityController):
             with open(fpath, 'w') as fp:
                 json.dump(storage, fp, indent=4)
             self.app.note_file_for_apport(key, fpath)
-            self.model.load_probe_data(storage)
+            self.model.load_probe_data(storage, self.autoinstall_data)
 
     async def _probe(self):
         self._crash_reports = {}
@@ -136,6 +136,9 @@ class FilesystemController(SubiquityController):
         self._monitor.enable_receiving()
         self.start_listening_udev()
         await self._probe_task.start()
+
+    async def apply_autoinstall_config(self):
+        await self._start_task
 
     def start_listening_udev(self):
         loop = asyncio.get_event_loop()

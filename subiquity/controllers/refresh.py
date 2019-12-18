@@ -44,7 +44,8 @@ class CheckState(enum.IntEnum):
 
 class RefreshController(SubiquityController):
 
-    autoinstall_key = 'refresh'
+    autoinstall_key = 'refresh-installer'
+    autoinstall_default = {}
     signals = [
         ('snapd-network-change', 'snapd_network_changed'),
     ]
@@ -60,17 +61,45 @@ class RefreshController(SubiquityController):
 
         self.offered_first_time = False
 
-    def start(self):
-        self.configure_task = schedule_task(self.configure_snapd())
-        self.check_task = SingleInstanceTask(
-            self.check_for_update, propagate_errors=False)
-        self.check_task.start_sync()
+    def _active(self):
+        if self.interactive():
+            return True
+        return self.autoinstall_data.get('refresh', False)
 
-    async def apply_autoinstall_config(self):
-        pass
+    def start(self):
+        if self._active():
+            self.configure_task = schedule_task(self.configure_snapd())
+            self.check_task = SingleInstanceTask(
+                self.check_for_update, propagate_errors=False)
+            self.check_task.start_sync()
+
+    async def apply_autoinstall_config(self, index=1):
+        if not self.autoinstall_data.get('refresh', False):
+            return
+        try:
+            await asyncio.wait_for(self.check_task.task, 60)
+        except asyncio.TimeoutError:
+            return
+        if self.check_state != CheckState.AVAILABLE:
+            return
+        change_id = await self.start_update()
+        while True:
+            try:
+                change = await self.controller.get_progress(change_id)
+            except requests.exceptions.RequestException as e:
+                raise e
+            if change['status'] == 'Done':
+                # Will only get here dry run mode as part of the refresh is us
+                # getting restarted by snapd...
+                return
+            if change['status'] not in ['Do', 'Doing']:
+                raise Exception("hm")
+            await asyncio.sleep(0.1)
 
     @property
     def check_state(self):
+        if not self._active():
+            return CheckState.UNAVAILABLE
         task = self.check_task.task
         if not task.done() or task.cancelled():
             return CheckState.UNKNOWN
@@ -110,6 +139,8 @@ class RefreshController(SubiquityController):
         """Return the channel we should refresh subiquity to."""
         if 'channel' in self.answers:
             return self.answers['channel']
+        if 'channel' in self.autoinstall_data:
+            return self.autoinstall_data['channel']
         with open('/proc/cmdline') as fp:
             cmdline = fp.read()
         prefix = "subiquity-channel="

@@ -26,6 +26,14 @@ class IdentityController(SubiquityController):
     autoinstall_key = 'identity'
     model_name = "identity"
 
+    def __init__(self, app):
+        super().__init__(app)
+        if self.autoinstall_data:
+            self.model.add_user(self.autoinstall_data)
+
+    async def apply_autoinstall_config(self):
+        pass
+
     def start_ui(self):
         self.ui.set_body(IdentityView(self.model, self))
         if all(elem in self.answers for elem in

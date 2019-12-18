@@ -25,3 +25,8 @@ class NetworkController(NetworkController, SubiquityController):
     def done(self):
         self.configured()
         super().done()
+
+    async def apply_autoinstall_config(self):
+        await self.apply_config_task.start(silent=True)
+        self.model.has_network = bool(
+            self.network_event_receiver.default_routes)

@@ -85,11 +85,6 @@ class BaseController(ABC):
         running.
         """
 
-    def configured(self):
-        """Let the world know that this controller's model is now configured.
-        """
-        self.app.base_model.configured(self.model_name)
-
     def serialize(self):
         return None
 
@@ -145,6 +140,7 @@ class RepeatedController(BaseController):
         self.orig = orig
         self.index = index
         self.context = orig.context
+        self.autoinstall_applied = False
 
     def register_signals(self):
         pass
@@ -152,5 +148,14 @@ class RepeatedController(BaseController):
     def start_ui(self):
         self.orig.start_ui(self.index)
 
+    async def apply_autoinstall_config(self):
+        await self.orig.apply_autoinstall_config(self.index)
+
     def cancel(self):
         self.orig.cancel()
+
+    def interactive(self):
+        return self.orig.interactive()
+
+    def configured(self):
+        self.orig.configured()

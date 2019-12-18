@@ -27,6 +27,19 @@ class ProxyController(SubiquityController):
     autoinstall_key = 'proxy'
     model_name = "proxy"
 
+    def __init__(self, app):
+        super().__init__(app)
+        if self.autoinstall_data:
+            self.model.proxy = self.autoinstall_data
+
+    def start(self):
+        if self.model.proxy:
+            os.environ['http_proxy'] = os.environ['https_proxy'] = proxy
+            self.signal.emit_signal('network-proxy-set')
+
+    async def apply_autoinstall_config(self):
+        pass
+
     def start_ui(self):
         self.ui.set_body(ProxyView(self.model, self))
         if 'proxy' in self.answers:
