@@ -73,6 +73,8 @@ class Subiquity(Application):
         return SubiquityUI(self)
 
     controllers = [
+            "Reporting",  # does not have a UI
+            "Error",  # does not have a UI
             "Welcome",
             "Refresh",
             "Keyboard",
@@ -86,8 +88,6 @@ class Subiquity(Application):
             "SSH",
             "SnapList",
             "InstallProgress",
-            "Error",  # does not have a UI
-            "Reporting",  # does not have a UI
     ]
 
     def __init__(self, opts, block_log_dir):
@@ -139,6 +139,16 @@ class Subiquity(Application):
                 log.debug("showing new error %r", report.base)
                 self.show_error_report(report)
                 return
+
+    def select_screen(self, new):
+        if new.interactive():
+            super().select_screen(new)
+            return
+        schedule_task(self._apply(new))
+
+    async def _apply(self, controller):
+        with controller.context.child("apply_autoinstall_config"):
+            await controller.apply_autoinstall_config()
 
     def _network_change(self):
         self.signal.emit_signal('snapd-network-change')
