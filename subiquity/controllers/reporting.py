@@ -44,9 +44,6 @@ available_handlers.register_item('log', LogHandler)
 
 class ReportingController(NoUIController):
 
-    def __init__(self, app):
-        super().__init__(app)
-
     def start(self):
         update_configuration({'logging': {'type': 'log', 'level': 'INFO'}})
 

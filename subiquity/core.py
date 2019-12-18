@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 import os
 import platform
@@ -117,14 +118,23 @@ class Subiquity(Application):
         self._apport_data = []
         self._apport_files = []
         self.autoinstall_config = {}
+        self.merged_autoinstall_path = os.path.join(
+            self.root, 'autoinstall.yaml')
         self.note_data_for_apport("SnapUpdated", str(self.updated))
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
 
     def run(self):
         if self.opts.autoinstall:
-            merged_path = os.path.join(self.root, 'autoinstall.yaml')
-            merge_autoinstall_configs(self.opts.autoinstall, merged_path)
-            with open(merged_path) as fp:
+            merge_autoinstall_configs(
+                self.opts.autoinstall, self.merged_autoinstall_path)
+            with open(self.merged_autoinstall_path) as fp:
+                self.autoinstall_config = yaml.safe_load(fp)
+            self.controllers.load("Early")
+            self.controllers.load("Reporting")
+            self.controllers.Reporting.start()
+            aioloop = asyncio.get_event_loop()
+            aioloop.run_until_complete(self.controllers.Early.run())
+            with open(self.merged_autoinstall_path) as fp:
                 self.autoinstall_config = yaml.safe_load(fp)
         try:
             super().run()
