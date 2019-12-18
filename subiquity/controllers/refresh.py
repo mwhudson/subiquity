@@ -44,6 +44,7 @@ class CheckState(enum.IntEnum):
 
 class RefreshController(SubiquityController):
 
+    autoinstall_key = 'refresh'
     signals = [
         ('snapd-network-change', 'snapd_network_changed'),
     ]
@@ -64,6 +65,9 @@ class RefreshController(SubiquityController):
         self.check_task = SingleInstanceTask(
             self.check_for_update, propagate_errors=False)
         self.check_task.start_sync()
+
+    async def apply_autoinstall_config(self):
+        pass
 
     @property
     def check_state(self):

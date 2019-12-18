@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import fcntl
 import json
 import logging
@@ -610,16 +611,21 @@ class Application:
                 controller_index = i
         return controller_index
 
+    async def _start(self, initial_controller_index):
+        self.start_controllers()
+        self.select_initial_screen(initial_controller_index)
+
     def run(self):
         log.debug("Application.run")
         screen = make_screen(self.COLORS, self.is_linux_tty, self.opts.ascii)
 
+        self.aioloop = asyncio.get_event_loop()
         self.loop = urwid.MainLoop(
             self.ui, palette=self.color_palette, screen=screen,
             handle_mouse=False, pop_ups=True,
             input_filter=self.input_filter.filter,
             unhandled_input=self.unhandled_input,
-            event_loop=AsyncioEventLoop())
+            event_loop=AsyncioEventLoop(loop=self.aioloop))
 
         if self.opts.ascii:
             urwid.util.set_encoding('ascii')
@@ -634,20 +640,15 @@ class Application:
                 self.run_scripts(self.opts.scripts)
 
             self.controllers.load()
+            self._connect_base_signals()
 
             initial_controller_index = 0
 
             if self.updated:
                 initial_controller_index = self.load_serialized_state()
 
-            self.loop.set_alarm_in(
-                0.00, lambda loop, ud: tty.setraw(0))
-            self.loop.set_alarm_in(
-                0.05, lambda loop, ud: self.select_initial_screen(
-                    initial_controller_index))
-            self._connect_base_signals()
-
-            self.start_controllers()
+            self.aioloop.call_soon(tty.setraw, 0)
+            schedule_task(self._start(initial_controller_index))
 
             self.loop.run()
         except Exception:

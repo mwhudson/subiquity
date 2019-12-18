@@ -35,6 +35,9 @@ class WelcomeController(SubiquityController):
             if code == lang:
                 self.model.switch_language(code)
 
+    async def apply_autoinstall_config(self):
+        pass
+
     def start_ui(self):
         view = WelcomeView(self.model, self)
         self.ui.set_body(view)

@@ -1,0 +1,10 @@
+version: 1
+keyboard:
+        layout: gb
+identity:
+        realname: ''
+        username: ubuntu
+        password: ubuntu
+        hostname: ubuntu
+refresh-installer:
+        update: true

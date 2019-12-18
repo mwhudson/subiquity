@@ -336,6 +336,9 @@ class ErrorController(NoUIController):
         # in the background
         self.scan_crash_dir()
 
+    async def apply_autoinstall_config(self):
+        pass
+
     async def _load_reports(self, to_load):
         for report in to_load:
             await report.load()

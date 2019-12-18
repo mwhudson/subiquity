@@ -21,12 +21,16 @@ import traceback
 
 import apport.hookutils
 
+import yaml
+
 from subiquitycore.async_helpers import (
     run_in_thread,
     schedule_task,
     )
+from subiquitycore.controller import Skip
 from subiquitycore.core import Application
 
+from subiquity.autoinstall import merge_autoinstall_configs
 from subiquity.controllers.error import (
     ErrorReportKind,
     )
@@ -73,22 +77,23 @@ class Subiquity(Application):
         return SubiquityUI(self)
 
     controllers = [
-            "Reporting",  # does not have a UI
-            "Error",  # does not have a UI
-            "Welcome",
-            "Refresh",
-            "Keyboard",
-            "Zdev",
-            "Network",
-            "Proxy",
-            "Mirror",
-            "Refresh",
-            "Filesystem",
-            "Identity",
-            "SSH",
-            "SnapList",
-            "InstallProgress",
-    ]
+        "Early",
+        "Reporting",
+        "Error",
+        "Welcome",
+        "Refresh",
+        "Keyboard",
+        "Zdev",
+        "Network",
+        "Proxy",
+        "Mirror",
+        "Refresh",
+        "Filesystem",
+        "Identity",
+        "SSH",
+        "SnapList",
+        "InstallProgress",
+        ]
 
     def __init__(self, opts, block_log_dir):
         if not opts.bootloader == 'none' and platform.machine() != 's390x':
@@ -111,10 +116,16 @@ class Subiquity(Application):
             ])
         self._apport_data = []
         self._apport_files = []
+        self.autoinstall_config = {}
         self.note_data_for_apport("SnapUpdated", str(self.updated))
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
 
     def run(self):
+        if self.opts.autoinstall:
+            merged_path = os.path.join(self.root, 'autoinstall.yaml')
+            merge_autoinstall_configs(self.opts.autoinstall, merged_path)
+            with open(merged_path) as fp:
+                self.autoinstall_config = yaml.safe_load(fp)
         try:
             super().run()
         except Exception:
@@ -132,8 +143,15 @@ class Subiquity(Application):
         self.controllers.Reporting.report_finish_event(
             name, description, status, level)
 
-    def select_initial_screen(self, index):
-        super().select_initial_screen(index)
+    def interactive(self):
+        if not self.autoinstall_config:
+            return True
+        return bool(self.autoinstall_config.get('interactive-sections'))
+
+    async def _start(self, index):
+        self.controllers.Reporting.start()
+        await self.controllers.Early.run()
+        await super()._start(index)
         for report in self.controllers.Error.reports:
             if report.kind == ErrorReportKind.UI and not report.seen:
                 log.debug("showing new error %r", report.base)
@@ -144,11 +162,15 @@ class Subiquity(Application):
         if new.interactive():
             super().select_screen(new)
             return
-        schedule_task(self._apply(new))
+        elif self.autoinstall_config:
+            schedule_task(self._apply(new))
+        else:
+            raise Skip
 
     async def _apply(self, controller):
         with controller.context.child("apply_autoinstall_config"):
             await controller.apply_autoinstall_config()
+        self.next_screen()
 
     def _network_change(self):
         self.signal.emit_signal('snapd-network-change')

@@ -50,6 +50,9 @@ class ReportingController(NoUIController):
     def start(self):
         update_configuration({'logging': {'type': 'log', 'level': 'INFO'}})
 
+    async def apply_autoinstall_config(self):
+        pass
+
     def report_start_event(self, name, description, level):
         report_start_event(name, description, level=level)
 
