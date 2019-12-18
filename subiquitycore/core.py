@@ -424,7 +424,7 @@ class Application:
             screen.start()
             urwid.emit_signal(
                 screen, urwid.display_common.INPUT_DESCRIPTORS_CHANGED)
-            tty.setraw(0)
+            self.setraw()
             if after_hook is not None:
                 after_hook()
 
@@ -622,9 +622,44 @@ class Application:
         self.start_controllers()
         self.select_initial_screen(initial_controller_index)
 
+    def setraw(self):
+        fd = self.loop.screen._term_input_file.fileno()
+        if os.isatty(fd):
+            tty.setraw(fd)
+
+    def make_screen(self):
+        """Return a screen to be passed to MainLoop.
+
+        colors is a list of exactly 8 tuples (name, (r, g, b)), the same as
+        passed to make_palette.
+        """
+        # On the linux console, we overwrite the first 8 colors to be those
+        # defined by colors. Otherwise, we return a screen that uses ISO
+        # 8613-3ish codes to display the colors.
+        if len(self.COLORS) != 8:
+            raise Exception(
+                "make_screen must be passed a list of exactly 8 colors")
+        if self.is_linux_tty:
+            # Perhaps we ought to return a screen subclass that does this
+            # ioctl-ing in .start() and undoes it in .stop() but well.
+            curpal = bytearray(16*3)
+            fcntl.ioctl(sys.stdout.fileno(), GIO_CMAP, curpal)
+            for i in range(8):
+                for j in range(3):
+                    curpal[i*3+j] = self.COLORS[i][1][j]
+            fcntl.ioctl(sys.stdout.fileno(), PIO_CMAP, curpal)
+            return urwid.raw_display.Screen()
+        elif self.opts.ascii:
+            return urwid.raw_display.Screen()
+        else:
+            _urwid_name_to_rgb = {}
+            for i, n in enumerate(urwid_8_names):
+                _urwid_name_to_rgb[n] = self.COLORS[i][1]
+            return TwentyFourBitScreen(_urwid_name_to_rgb)
+
     def run(self):
         log.debug("Application.run")
-        screen = make_screen(self.COLORS, self.is_linux_tty, self.opts.ascii)
+        screen = self.make_screen()
 
         self.aioloop = asyncio.get_event_loop()
         self.loop = urwid.MainLoop(
@@ -654,7 +689,7 @@ class Application:
             if self.updated:
                 initial_controller_index = self.load_serialized_state()
 
-            self.aioloop.call_soon(tty.setraw, 0)
+            self.aioloop.call_soon(self.setraw)
             schedule_task(self._start(initial_controller_index))
 
             self.loop.run()

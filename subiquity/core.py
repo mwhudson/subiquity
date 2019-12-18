@@ -19,6 +19,7 @@ import os
 import platform
 import sys
 import traceback
+import urwid
 
 import apport.hookutils
 
@@ -122,6 +123,16 @@ class Subiquity(Application):
             self.root, 'autoinstall.yaml')
         self.note_data_for_apport("SnapUpdated", str(self.updated))
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
+
+    def make_screen(self):
+        if self.interactive():
+            return super().make_screen()
+        else:
+            r, w = os.pipe()
+            s = urwid.raw_display.Screen(
+                input=os.fdopen(r), output=open('/dev/null', 'w'))
+            s.get_cols_rows = lambda : (80, 24)
+            return s
 
     def run(self):
         if self.opts.autoinstall:
