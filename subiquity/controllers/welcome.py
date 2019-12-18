@@ -25,6 +25,7 @@ log = logging.getLogger('subiquity.controllers.welcome')
 
 class WelcomeController(SubiquityController):
 
+    autoinstall_key = 'locale'
     model_name = "locale"
 
     def start(self):

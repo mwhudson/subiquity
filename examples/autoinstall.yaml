@@ -1,4 +1,8 @@
 version: 1
+early-commands:
+        - echo a
+        - sleep 1
+        - echo a
 keyboard:
         layout: gb
 identity:

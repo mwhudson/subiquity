@@ -23,6 +23,7 @@ log = logging.getLogger('subiquity.controllers.identity')
 
 class IdentityController(SubiquityController):
 
+    autoinstall_key = 'identity'
     model_name = "identity"
 
     def start_ui(self):

@@ -24,6 +24,7 @@ log = logging.getLogger('subiquity.controllers.proxy')
 
 class ProxyController(SubiquityController):
 
+    autoinstall_key = 'proxy'
     model_name = "proxy"
 
     def start_ui(self):

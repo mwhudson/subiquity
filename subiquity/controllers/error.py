@@ -319,6 +319,8 @@ class ErrorReport(metaclass=urwid.MetaSignals):
 
 class ErrorController(NoUIController):
 
+    autoinstall_key = 'error-commands'
+
     def __init__(self, app):
         super().__init__(app)
         self.crash_directory = os.path.join(self.app.root, 'var/crash')

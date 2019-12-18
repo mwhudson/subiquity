@@ -61,6 +61,8 @@ UEFI_GRUB_SIZE_BYTES = 512 * 1024 * 1024  # 512MiB EFI partition
 
 class FilesystemController(SubiquityController):
 
+    autoinstall_key = 'storage'
+
     model_name = "filesystem"
 
     def __init__(self, app):

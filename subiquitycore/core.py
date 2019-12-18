@@ -299,7 +299,7 @@ class ControllerSet:
     def load(self, name):
         self.controller_names.remove(name)
         log.debug("Importing controller: %s", name)
-        klass = getattr(controllers_mod, name+"Controller")
+        klass = getattr(self.controllers_mod, name+"Controller")
         if hasattr(self, name):
             c = 1
             for instance in self.instances:

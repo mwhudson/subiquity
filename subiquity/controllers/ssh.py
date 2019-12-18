@@ -33,6 +33,7 @@ class FetchSSHKeysFailure(Exception):
 
 class SSHController(SubiquityController):
 
+    autoinstall_key = 'ssh'
     model_name = "ssh"
 
     def __init__(self, app):

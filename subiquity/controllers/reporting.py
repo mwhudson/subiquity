@@ -44,6 +44,8 @@ available_handlers.register_item('log', LogHandler)
 
 class ReportingController(NoUIController):
 
+    autoinstall_key = 'reporting'
+
     def start(self):
         update_configuration({'logging': {'type': 'log', 'level': 'INFO'}})
 
