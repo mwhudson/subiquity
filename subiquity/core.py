@@ -14,6 +14,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import contextlib
+import fcntl
 import logging
 import os
 import platform
@@ -35,6 +37,7 @@ from subiquitycore.utils import run_command
 from subiquity.controllers.error import (
     ErrorReportKind,
     )
+from subiquity.journald import journald_listener
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.snapd import (
     AsyncSnapd,
@@ -101,6 +104,8 @@ class Subiquity(Application):
         if not opts.bootloader == 'none' and platform.machine() != 's390x':
             self.controllers.remove("Zdev")
 
+        self.journal_fd, self.journal_watcher = journald_listener(
+            ["subiquity"], self.subiquity_event, seek=True)
         super().__init__(opts)
         self.block_log_dir = block_log_dir
         if opts.snaps_from_examples:
@@ -150,6 +155,15 @@ class Subiquity(Application):
             s.get_cols_rows = lambda: (80, 24)
             return s
 
+    def subiquity_event(self, event):
+        log.debug("subiquity_event %s", event)
+        if not self.interactive():
+            print(event['MESSAGE'])
+
+    def new_event_loop(self):
+        super().new_event_loop()
+        self.aio_loop.add_reader(self.journal_fd, self.journal_watcher)
+
     def run(self):
         if os.path.exists(self.opts.autoinstall):
             with open(self.opts.autoinstall) as fp:
@@ -157,7 +171,9 @@ class Subiquity(Application):
             self.controllers.load("Early")
             self.controllers.load("Reporting")
             self.controllers.Reporting.start()
-            self.aio_loop.run_until_complete(self.controllers.Early.run())
+            with self.exclusive("Early") as done:
+                if not done:
+                    self.aio_loop.run_until_complete(self.controllers.Early.run())
             self.new_event_loop()
             with open(self.opts.autoinstall) as fp:
                 self.autoinstall_config = yaml.safe_load(fp)
@@ -202,17 +218,33 @@ class Subiquity(Application):
         else:
             raise Skip
 
+    @contextlib.contextmanager
+    def exclusive(self, name):
+        progress_path = os.path.join(self.state_dir, name)
+        done_path = os.path.join(self.state_dir, name + '-done')
+        progress = open(progress_path, 'w')
+        print('locking', progress)
+        fcntl.flock(progress, fcntl.LOCK_EX)
+        print('locked', progress)
+        try:
+            yield os.path.exists(done_path)
+        finally:
+            open(done_path, 'w').close()
+            progress.close()
+
     async def _apply(self, controller):
         with controller.context.child("apply_autoinstall_config"):
-            try:
-                await controller.apply_autoinstall_config()
-            except BaseException:
-                logging.exception(
-                    "%s.apply_autoinstall_config failed", controller.name)
-                # Obviously need to something better here.
-                await asyncio.sleep(1800)
-                raise
-        controller.autoinstall_applied = True
+            with self.exclusive(controller.name) as done:
+                if not done:
+                    try:
+                        await controller.apply_autoinstall_config()
+                    except BaseException:
+                        logging.exception(
+                            "%s.apply_autoinstall_config failed",
+                            controller.name)
+                        # Obviously need to something better here.
+                        await asyncio.sleep(1800)
+                        raise
         controller.configured()
         self.next_screen()
 

@@ -42,8 +42,10 @@ class LogHandler(LogHandler):
 available_handlers.unregister_item('log')
 available_handlers.register_item('log', LogHandler)
 
-INITIAL_CONFIG = {'logging': {'type': 'log'}}
-NON_INTERACTIVE_CONFIG = {'builtin': {'type': 'print'}}
+INITIAL_CONFIG = {
+    'logging': {'type': 'log'},
+    'journal': {'type': 'journald', 'identifier': 'subiquity'},
+    }
 
 
 class ReportingController(NoUIController):
@@ -57,7 +59,6 @@ class ReportingController(NoUIController):
     def load_autoinstall_data(self, data):
         if self.app.interactive():
             return
-        self.config.update(copy.deepcopy(NON_INTERACTIVE_CONFIG))
         if data is not None:
             self.config.update(copy.deepcopy(data))
 
