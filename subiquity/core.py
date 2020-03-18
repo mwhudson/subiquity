@@ -193,7 +193,9 @@ class Subiquity(Application):
         try:
             super().run()
             self.new_event_loop()
-            self.aio_loop.run_until_complete(self.controllers.Late.run())
+            with self.exclusive("Late") as done:
+                if not done:
+                    self.aio_loop.run_until_complete(self.controllers.Late.run())
         except Exception:
             print("generating crash report")
             report = self.make_apport_report(
@@ -247,17 +249,15 @@ class Subiquity(Application):
 
     async def _apply(self, controller):
         with controller.context.child("apply_autoinstall_config"):
-            with self.exclusive(controller.name) as done:
-                if not done:
-                    try:
-                        await controller.apply_autoinstall_config()
-                    except BaseException:
-                        logging.exception(
-                            "%s.apply_autoinstall_config failed",
-                            controller.name)
-                        # Obviously need to something better here.
-                        await asyncio.sleep(1800)
-                        raise
+            try:
+                await controller.apply_autoinstall_config()
+            except BaseException:
+                logging.exception(
+                    "%s.apply_autoinstall_config failed",
+                    controller.name)
+                # Obviously need to something better here.
+                await asyncio.sleep(1800)
+                raise
         controller.configured()
         self.next_screen()
 
