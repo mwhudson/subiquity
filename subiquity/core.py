@@ -184,18 +184,14 @@ class Subiquity(Application):
             self.controllers.load("Early")
             self.controllers.load("Reporting")
             self.controllers.Reporting.start()
-            with self.exclusive("Early") as done:
-                if not done:
-                    self.aio_loop.run_until_complete(self.controllers.Early.run())
+            self.aio_loop.run_until_complete(self.controllers.Early.run())
             self.new_event_loop()
             with open(self.opts.autoinstall) as fp:
                 self.autoinstall_config = yaml.safe_load(fp)
         try:
             super().run()
             self.new_event_loop()
-            with self.exclusive("Late") as done:
-                if not done:
-                    self.aio_loop.run_until_complete(self.controllers.Late.run())
+            self.aio_loop.run_until_complete(self.controllers.Late.run())
         except Exception:
             print("generating crash report")
             report = self.make_apport_report(
@@ -241,6 +237,7 @@ class Subiquity(Application):
         print('locking', progress)
         fcntl.flock(progress, fcntl.LOCK_EX)
         print('locked', progress)
+        print('done', os.path.exists(done_path))
         try:
             yield os.path.exists(done_path)
         finally:
@@ -265,8 +262,16 @@ class Subiquity(Application):
         self.signal.emit_signal('snapd-network-change')
 
     async def _proxy_set(self):
-        await run_in_thread(
-            self.snapd.connection.configure_proxy, self.base_model.proxy)
+        if not self.controllers.Proxy.interactive():
+            with self.exclusive("snapd-proxy") as done:
+                if not done:
+                    await run_in_thread(
+                        self.snapd.connection.configure_proxy,
+                        self.base_model.proxy)
+        else:
+            await run_in_thread(
+                self.snapd.connection.configure_proxy,
+                self.base_model.proxy)
         self.signal.emit_signal('snapd-network-change')
 
     def unhandled_input(self, key):

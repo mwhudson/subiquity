@@ -77,7 +77,7 @@ class RefreshController(SubiquityController):
 
     def journal_message(self, m):
         change_id = m.get('CHANGE_ID')
-        if change_id is None or self.change_id is not None:
+        if not self.interactive() or change_id is None or self.change_id is not None:
             return
         self.change_id = change_id
         self.app.select_screen(self)
@@ -86,25 +86,28 @@ class RefreshController(SubiquityController):
     async def apply_autoinstall_config(self, index=1):
         if not self.active:
             return
-        try:
-            await asyncio.wait_for(self.check_task.wait(), 60)
-        except asyncio.TimeoutError:
-            return
-        if self.check_state != CheckState.AVAILABLE:
-            return
-        change_id = await self.start_update()
-        while True:
+        with self.app.exclusive(self.name) as done:
+            if done:
+                return
             try:
-                change = await self.controller.get_progress(change_id)
-            except requests.exceptions.RequestException as e:
-                raise e
-            if change['status'] == 'Done':
-                # Clearly if we got here we didn't get restarted by
-                # snapd/systemctl (dry-run mode or logged in via SSH)
-                self.app.restart(remove_last_screen=False)
-            if change['status'] not in ['Do', 'Doing']:
-                raise Exception("update failed")
-            await asyncio.sleep(0.1)
+                await asyncio.wait_for(self.check_task.wait(), 60)
+            except asyncio.TimeoutError:
+                return
+            if self.check_state != CheckState.AVAILABLE:
+                return
+            change_id = await self.start_update()
+            while True:
+                try:
+                    change = await self.controller.get_progress(change_id)
+                except requests.exceptions.RequestException as e:
+                    raise e
+                if change['status'] == 'Done':
+                    # Clearly if we got here we didn't get restarted by
+                    # snapd/systemctl (dry-run mode or logged in via SSH)
+                    self.app.restart(remove_last_screen=False)
+                if change['status'] not in ['Do', 'Doing']:
+                    raise Exception("update failed")
+                await asyncio.sleep(0.1)
 
     @property
     def check_state(self):

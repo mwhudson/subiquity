@@ -27,10 +27,16 @@ class CmdListController(NoUIController):
         self.cmds = data
 
     async def run(self):
-        for i, cmd in enumerate(self.cmds):
-            with self.context.child("command_{}".format(i), cmd):
-                proc = await asyncio.create_subprocess_shell(cmd)
-                await proc.communicate()
+        with self.app.exclusive(self.name) as done:
+            if done:
+                return
+            for i, cmd in enumerate(self.cmds):
+                sc_cmd = [
+                    "systemd-cat", "--level-prefix=false",
+                    "--identifier=subiquity", "sh", "-c", cmd]
+                with self.context.child("command_{}".format(i), cmd):
+                    proc = await asyncio.create_subprocess_exec(*sc_cmd)
+                    await proc.communicate()
 
 
 class EarlyController(CmdListController):

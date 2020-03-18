@@ -38,7 +38,10 @@ class KeyboardController(SubiquityController):
             self.model.setting = KeyboardSetting(**data)
 
     async def apply_autoinstall_config(self):
-        await self.model.set_keyboard(self.model.setting)
+        with self.app.exclusive(self.name) as done:
+            if done:
+                return
+            await self.model.set_keyboard(self.model.setting)
 
     def language_selected(self, code):
         log.debug("language_selected %s", code)

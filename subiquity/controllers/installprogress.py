@@ -265,25 +265,29 @@ class InstallProgressController(SubiquityController):
             await asyncio.wait(
                 {e.wait() for e in self.model.install_events})
 
-            await self.curtin_install(context)
+            with self.app.exclusive(self.name) as done:
+                if done:
+                    return
 
-            await asyncio.wait(
-                {e.wait() for e in self.model.postinstall_events})
+                await self.curtin_install(context)
 
-            await self.drain_curtin_events(context)
+                await asyncio.wait(
+                    {e.wait() for e in self.model.postinstall_events})
 
-            await self.postinstall(context)
+                await self.drain_curtin_events(context)
 
-            self.ui.set_header(_("Installation complete!"))
-            self.progress_view.set_status(_("Finished install!"))
-            self.progress_view.show_complete()
+                await self.postinstall(context)
 
-            if self.model.network.has_network:
-                self.progress_view.update_running()
-                await self.run_unattended_upgrades(context)
-                self.progress_view.update_done()
+                self.ui.set_header(_("Installation complete!"))
+                self.progress_view.set_status(_("Finished install!"))
+                self.progress_view.show_complete()
 
-            await self.copy_logs_to_target(context)
+                if self.model.network.has_network:
+                    self.progress_view.update_running()
+                    await self.run_unattended_upgrades(context)
+                    self.progress_view.update_done()
+
+                await self.copy_logs_to_target(context)
         except Exception:
             self.curtin_error()
             if not self.interactive():
