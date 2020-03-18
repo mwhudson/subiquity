@@ -142,6 +142,8 @@ class RefreshView(BaseView):
 
         if self.controller.check_state == CheckState.UNKNOWN:
             self.check_state_checking()
+        elif self.controller.change_id is not None:
+            self.check_state_refreshing()
         else:
             self.check_state_available()
 
@@ -229,6 +231,10 @@ class RefreshView(BaseView):
                 self.controller.done()
 
     def update(self, sender=None):
+        self.check_state_refreshing()
+        schedule_task(self._update())
+
+    def check_state_refreshing(self):
         self.spinner.stop()
 
         self.lb_tasks = ListBox([])
@@ -238,10 +244,10 @@ class RefreshView(BaseView):
             other_btn(_("Cancel update"), on_press=self.check_state_available),
             ]
 
-        self.controller.ui.set_header("Downloading update...")
+        self.title = _("Downloading update...")
+        self.controller.ui.set_header(self.title)
         self._w = screen(
             self.lb_tasks, buttons, excerpt=_(self.progress_excerpt))
-        schedule_task(self._update())
 
     async def _update(self):
         try:
@@ -249,6 +255,9 @@ class RefreshView(BaseView):
         except requests.exceptions.RequestException as e:
             self.update_failed(exc_message(e))
             return
+        await self.track_update(change_id)
+
+    async def track_update(self, change_id):
         while True:
             try:
                 change = await self.controller.get_progress(change_id)
@@ -256,9 +265,9 @@ class RefreshView(BaseView):
                 self.update_failed(exc_message(e))
                 return
             if change['status'] == 'Done':
-                # Will only get here dry run mode as part of the refresh is us
-                # getting restarted by snapd...
-                self.done()
+                # Clearly if we got here we didn't get restarted by
+                # snapd/systemctl (dry-run mode or logged in via SSH)
+                self.controller.app.restart(remove_last_screen=False)
                 return
             if change['status'] not in ['Do', 'Doing']:
                 self.update_failed(change.get('err', "Unknown error"))

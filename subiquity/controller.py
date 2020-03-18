@@ -77,6 +77,9 @@ class SubiquityController(BaseController):
     def make_autoinstall(self):
         return {}
 
+    def journal_message(self, m):
+        pass
+
 
 class NoUIController(SubiquityController):
 

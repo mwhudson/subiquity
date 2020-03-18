@@ -26,6 +26,8 @@ import yaml
 
 import apport.hookutils
 
+from systemd import journal
+
 from subiquitycore.async_helpers import (
     run_in_thread,
     schedule_task,
@@ -159,6 +161,17 @@ class Subiquity(Application):
         log.debug("subiquity_event %s", event)
         if not self.interactive():
             print(event['MESSAGE'])
+        cn = event.get("SUBIQUITY_CONTROLLER_NAME")
+        if cn is not None:
+            controller = getattr(self.controllers, cn, None)
+            if controller is not None:
+                controller.journal_message(event)
+
+    def broadcast(self, msg, **kw):
+        journal.send(
+            msg,
+            SYSLOG_IDENTIFIER="subiquity",
+            **kw)
 
     def new_event_loop(self):
         super().new_event_loop()

@@ -55,6 +55,7 @@ class RefreshController(SubiquityController):
         self.snap_name = os.environ.get("SNAP_NAME", "subiquity")
         self.configure_task = None
         self.check_task = None
+        self.change_id = None
 
         self.current_snap_version = "unknown"
         self.new_snap_version = ""
@@ -73,6 +74,14 @@ class RefreshController(SubiquityController):
         self.check_task = SingleInstanceTask(
             self.check_for_update, propagate_errors=False)
         self.check_task.start_sync()
+
+    def journal_message(self, m):
+        change_id = m.get('CHANGE_ID')
+        if change_id is None or self.change_id is not None:
+            return
+        self.change_id = change_id
+        self.app.select_screen(self)
+        schedule_task(self.ui.body.track_update(change_id))
 
     async def apply_autoinstall_config(self, index=1):
         if not self.active:
@@ -200,6 +209,9 @@ class RefreshController(SubiquityController):
                 'v2/snaps/{}'.format(self.snap_name),
                 {'action': 'refresh'})
             context.description = "change id: {}".format(change)
+            self.app.broadcast(
+                "refreshing, change id: {}".format(change),
+                SUBIQUITY_CONTROLLER_NAME=self.name, CHANGE_ID=change)
             return change
 
     async def get_progress(self, change):
@@ -208,10 +220,12 @@ class RefreshController(SubiquityController):
 
     def start_ui(self, index=1):
         from subiquity.ui.views.refresh import RefreshView
-        if self.app.updated:
-            raise Skip()
         show = False
-        if index == 1:
+        if self.change_id is not None:
+            show = True
+        elif self.app.updated:
+            show = False
+        elif index == 1:
             if self.check_state == CheckState.AVAILABLE:
                 show = True
                 self.offered_first_time = True
