@@ -1,5 +1,7 @@
 #!/bin/bash
 set -eux
+cloud-init status
+cloud-init status --wait
 python3 -m unittest discover
 export SUBIQUITY_REPLAY_TIMESCALE=100
 for answers in examples/answers*.yaml; do
