@@ -172,8 +172,6 @@ class SubiquityModel:
                 'lock-passwd': False,
                 }
             config['users'] = [user_info]
-        if self.ssh.install_server:
-            config['ssh_pwauth'] = self.ssh.pwauth
         if self.ssh.authorized_keys:
             config['ssh_authorized_keys'] = self.ssh.authorized_keys
         if self.snaplist.to_install:

@@ -353,6 +353,16 @@ class InstallProgressController(SubiquityController):
         packages = []
         if self.model.ssh.install_server:
             packages = ['openssh-server']
+            debconf_selection = (
+                'openssh-server openssh-server/password-authentication '
+                'boolean ' + str(self.model.ssh.pwauth).lower())
+            cmd = ['chroot', self.model.target, 'debconf-set-selections']
+            if self.opts.dry_run:
+                cmd = ['cat']
+            subcontext = self.install_context(
+                context, "configure-openssh", "configuring openssh-server")
+            with subcontext:
+                await arun_command(cmd, input=debconf_selection)
         packages.extend(self.app.base_model.packages)
         for package in packages:
             subcontext = self.install_context(
