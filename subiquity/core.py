@@ -96,6 +96,7 @@ class Subiquity(Application):
         return SubiquityModel(root, self.opts.sources)
 
     def make_ui(self):
+        self.help_menu = HelpMenu(self)
         return SubiquityUI(self, self.help_menu)
 
     controllers = [
@@ -128,7 +129,6 @@ class Subiquity(Application):
 
         self.journal_fd, self.journal_watcher = journald_listener(
             ["subiquity"], self.subiquity_event, seek=True)
-        self.help_menu = HelpMenu(self)
         super().__init__(opts)
         self.event_listeners = []
         self.install_lock_file = Lockfile(self.state_path("installing"))

@@ -321,6 +321,8 @@ class Application:
 
         prober = Prober(opts.machine_config, self.debug_flags)
 
+        self.signal = Signal()
+
         self.ui = self.make_ui()
         self.opts = opts
         opts.project = self.project
@@ -353,7 +355,6 @@ class Application:
         self.scale_factor = float(
             os.environ.get('SUBIQUITY_REPLAY_TIMESCALE', "1"))
         self.updated = os.path.exists(self.state_path('updating'))
-        self.signal = Signal()
         self.prober = prober
         self.new_event_loop()
         self.urwid_loop = None

@@ -42,6 +42,7 @@ class WelcomeController(SubiquityController):
         for code, name in self.model.get_languages(self.app.is_linux_tty):
             if code == lang:
                 self.model.switch_language(code)
+                self.signal.emit_signal('l10n:language-selected', code)
                 break
         else:
             self.model.selected_language = lang
@@ -54,8 +55,8 @@ class WelcomeController(SubiquityController):
 
     def done(self, code):
         log.debug("WelcomeController.done %s next_screen", code)
-        self.signal.emit_signal('l10n:language-selected', code)
         self.model.switch_language(code)
+        self.signal.emit_signal('l10n:language-selected', code)
         self.configured()
         self.app.next_screen()
 

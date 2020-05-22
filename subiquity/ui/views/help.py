@@ -378,7 +378,13 @@ class HelpMenu(PopUpLauncher):
         self.btn = header_btn(_("Help"), on_press=self._open)
         self.ssh_password = None
         self.current_help = None
+        self.app.signal.register_signals('l10n:language-selected')
+        self.app.signal.connect_signal(
+            'l10n:language-selected', self._switch_language)
         super().__init__(self.btn)
+
+    def _switch_language(self, code):
+        self.btn.base_widget.set_label(_("Help"))
 
     def _open(self, sender):
         log.debug("open help menu")
