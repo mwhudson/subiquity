@@ -33,6 +33,7 @@ from subiquitycore.async_helpers import (
     )
 from subiquitycore.controller import Skip
 from subiquitycore.core import Application
+from subiquitycore.screen import is_linux_tty
 from subiquitycore.snapd import (
     AsyncSnapd,
     FakeSnapdConnection,
@@ -45,6 +46,10 @@ from subiquity.common.errorreport import (
     ErrorReportKind,
     )
 from subiquity.journald import journald_listener
+from subiquity.keycodes import (
+    DummyKeycodesFilter,
+    KeyCodesFilter,
+    )
 from subiquity.lockfile import Lockfile
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.ui.frame import SubiquityUI
@@ -122,6 +127,11 @@ class Subiquity(Application):
     def __init__(self, opts, block_log_dir):
         if not opts.bootloader == 'none' and platform.machine() != 's390x':
             self.controllers.remove("Zdev")
+
+        if is_linux_tty():
+            self.input_filter = KeyCodesFilter()
+        else:
+            self.input_filter = DummyKeycodesFilter()
 
         self.journal_fd, self.journal_watcher = journald_listener(
             ["subiquity"], self.subiquity_event, seek=True)
@@ -264,6 +274,9 @@ class Subiquity(Application):
     def new_event_loop(self):
         super().new_event_loop()
         self.aio_loop.add_reader(self.journal_fd, self.journal_watcher)
+
+    def extra_urwid_loop_args(self):
+        return dict(input_filter=self.input_filter.filter)
 
     def run(self):
         try:

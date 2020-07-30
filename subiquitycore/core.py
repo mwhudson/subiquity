@@ -14,12 +14,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-import fcntl
 import json
 import logging
 import os
-import struct
-import sys
 
 import urwid
 import yaml
@@ -34,23 +31,12 @@ from subiquitycore.controller import (
 from subiquitycore.controllerset import ControllerSet
 from subiquitycore.palette import PALETTE_COLOR, PALETTE_MONO
 from subiquitycore.prober import Prober
-from subiquitycore.screen import is_linux_tty, make_screen
+from subiquitycore.screen import make_screen
 from subiquitycore.signals import Signal
 from subiquitycore.ui.frame import SubiquityCoreUI
 from subiquitycore.utils import arun_command
 
 log = logging.getLogger('subiquitycore.core')
-
-
-# /usr/include/linux/kd.h
-K_RAW = 0x00
-K_XLATE = 0x01
-K_MEDIUMRAW = 0x02
-K_UNICODE = 0x03
-K_OFF = 0x04
-
-KDGKBMODE = 0x4B44  # gets current keyboard mode
-KDSKBMODE = 0x4B45  # sets current keyboard mode
 
 
 def extend_dec_special_charmap():
@@ -66,82 +52,6 @@ def extend_dec_special_charmap():
         ord('\N{FULL BLOCK}'): urwid.escape.DEC_SPECIAL_CHARMAP[
             ord('\N{BOX DRAWINGS LIGHT VERTICAL}')],
     })
-
-
-class KeyCodesFilter:
-    """input_filter that can pass (medium) raw keycodes to the application
-
-    See http://lct.sourceforge.net/lct/x60.html for terminology.
-
-    Call enter_keycodes_mode()/exit_keycodes_mode() to switch into and
-    out of keycodes mode. In keycodes mode, the only events passed to
-    the application are "press $N" / "release $N" where $N is the
-    keycode the user pressed or released.
-
-    Much of this is cribbed from the source of the "showkeys" utility.
-    """
-
-    def __init__(self):
-        self._fd = os.open("/proc/self/fd/"+str(sys.stdin.fileno()), os.O_RDWR)
-        self.filtering = False
-
-    def enter_keycodes_mode(self):
-        log.debug("enter_keycodes_mode")
-        self.filtering = True
-        # Read the old keyboard mode (it will proably always be K_UNICODE but
-        # well).
-        o = bytearray(4)
-        fcntl.ioctl(self._fd, KDGKBMODE, o)
-        self._old_mode = struct.unpack('i', o)[0]
-        # Set the keyboard mode to K_MEDIUMRAW, which causes the keyboard
-        # driver in the kernel to pass us keycodes.
-        fcntl.ioctl(self._fd, KDSKBMODE, K_MEDIUMRAW)
-
-    def exit_keycodes_mode(self):
-        log.debug("exit_keycodes_mode")
-        self.filtering = False
-        fcntl.ioctl(self._fd, KDSKBMODE, self._old_mode)
-
-    def filter(self, keys, codes):
-        # Luckily urwid passes us the raw results from read() we can
-        # turn into keycodes.
-        if self.filtering:
-            i = 0
-            r = []
-            n = len(codes)
-            while i < len(codes):
-                # This is straight from showkeys.c.
-                if codes[i] & 0x80:
-                    p = 'release '
-                else:
-                    p = 'press '
-                if i + 2 < n and (codes[i] & 0x7f) == 0:
-                    if (codes[i + 1] & 0x80) != 0:
-                        if (codes[i + 2] & 0x80) != 0:
-                            kc = (((codes[i + 1] & 0x7f) << 7) |
-                                  (codes[i + 2] & 0x7f))
-                            i += 3
-                else:
-                    kc = codes[i] & 0x7f
-                    i += 1
-                r.append(p + str(kc))
-            return r
-        else:
-            return keys
-
-
-class DummyKeycodesFilter:
-    # A dummy implementation of the same interface as KeyCodesFilter
-    # we can use when not running in a linux tty.
-
-    def enter_keycodes_mode(self):
-        pass
-
-    def exit_keycodes_mode(self):
-        pass
-
-    def filter(self, keys, codes):
-        return keys
 
 
 class AsyncioEventLoop(urwid.AsyncioEventLoop):
@@ -212,11 +122,6 @@ class Application:
         # Set rich_mode to the opposite of what we want, so we can
         # call toggle_rich to get the right things set up.
         self.rich_mode = opts.run_on_serial
-
-        if is_linux_tty():
-            self.input_filter = KeyCodesFilter()
-        else:
-            self.input_filter = DummyKeycodesFilter()
 
         self.scale_factor = float(
             os.environ.get('SUBIQUITY_REPLAY_TIMESCALE', "1"))
@@ -453,15 +358,18 @@ class Application:
     def make_screen(self, inputf=None, outputf=None):
         return make_screen(self.opts.ascii, inputf, outputf)
 
+    def extra_urwid_loop_args(self):
+        pass
+
     def run(self, input=None, output=None):
         log.debug("Application.run")
 
         self.urwid_loop = urwid.MainLoop(
             self.ui, screen=self.make_screen(input, output),
             handle_mouse=False, pop_ups=True,
-            input_filter=self.input_filter.filter,
             unhandled_input=self.unhandled_input,
-            event_loop=AsyncioEventLoop(loop=self.aio_loop))
+            event_loop=AsyncioEventLoop(loop=self.aio_loop),
+            **self.extra_urwid_loop_args())
 
         extend_dec_special_charmap()
 
