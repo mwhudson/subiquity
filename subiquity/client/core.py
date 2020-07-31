@@ -1,4 +1,4 @@
-# Copyright 2015 Canonical, Ltd.
+# Copyright 2020 Canonical, Ltd.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -15,20 +15,13 @@
 
 import logging
 import os
-import platform
-import shlex
-import signal
 import sys
 import traceback
-import time
 import urwid
 
-import jsonschema
-
-import yaml
+import aiohttp
 
 from subiquitycore.async_helpers import (
-    run_in_thread,
     schedule_task,
     )
 from subiquitycore.tuicontroller import Skip
@@ -50,8 +43,6 @@ from subiquity.keycodes import (
     DummyKeycodesFilter,
     KeyCodesFilter,
     )
-from subiquity.lockfile import Lockfile
-from subiquity.models.subiquity import SubiquityModel
 from subiquity.ui.frame import SubiquityUI
 from subiquity.ui.views.error import ErrorReportStretchy
 from subiquity.ui.views.help import HelpMenu
@@ -76,38 +67,12 @@ class Subiquity(TuiApplication):
 
     snapd_socket_path = '/run/snapd.socket'
 
-    base_schema = {
-        'type': 'object',
-        'properties': {
-            'version': {
-                'type': 'integer',
-                'minimum': 1,
-                'maximum': 1,
-                },
-            },
-        'required': ['version'],
-        'additionalProperties': True,
-        }
-
-    from subiquity import controllers as controllers_mod
-    project = "subiquity"
-
-    def make_model(self):
-        root = '/'
-        if self.opts.dry_run:
-            root = os.path.abspath('.subiquity')
-        return SubiquityModel(root, self.opts.sources)
+    from subiquity.client import controllers as controllers_mod
 
     def make_ui(self):
         return SubiquityUI(self, self.help_menu)
 
     controllers = [
-        "Early",
-        "Reporting",
-        "Error",
-        "Userdata",
-        "Package",
-        "Debconf",
         "Welcome",
         "Refresh",
         "Keyboard",
@@ -121,13 +86,11 @@ class Subiquity(TuiApplication):
         "SSH",
         "SnapList",
         "InstallProgress",
-        "Late",
-        "Reboot",
     ]
 
     def __init__(self, opts, block_log_dir):
-        if not opts.bootloader == 'none' and platform.machine() != 's390x':
-            self.controllers.remove("Zdev")
+        self.conn = aiohttp.UnixConnector(
+            path=".subiquity/run/subiquity/socket")
 
         if is_linux_tty():
             self.input_filter = KeyCodesFilter()
@@ -138,11 +101,7 @@ class Subiquity(TuiApplication):
             ["subiquity"], self.subiquity_event, seek=True)
         self.help_menu = HelpMenu(self)
         super().__init__(opts)
-        self.event_listeners = []
-        self.install_lock_file = Lockfile(self.state_path("installing"))
         self.global_overlays = []
-        self.block_log_dir = block_log_dir
-        self.kernel_cmdline = shlex.split(opts.kernel_cmdline)
         if opts.snaps_from_examples:
             connection = FakeSnapdConnection(
                 os.path.join(
@@ -153,12 +112,7 @@ class Subiquity(TuiApplication):
         else:
             connection = SnapdConnection(self.root, self.snapd_socket_path)
         self.snapd = AsyncSnapd(connection)
-        self.signal.connect_signals([
-            ('network-proxy-set', lambda: schedule_task(self._proxy_set())),
-            ('network-change', self._network_change),
-            ])
 
-        self.autoinstall_config = {}
         self.report_to_show = None
         self.show_progress_handle = None
         self.progress_shown_time = self.aio_loop.time()
@@ -166,10 +120,8 @@ class Subiquity(TuiApplication):
         self.error_reporter = ErrorReporter(
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
 
-        self.note_data_for_apport("SnapUpdated", str(self.updated))
+        # self.note_data_for_apport("SnapUpdated", str(self.updated))
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
-
-        self.install_confirmed = False
 
     def subiquity_event(self, event):
         if event["MESSAGE"] == "starting install":
@@ -212,66 +164,6 @@ class Subiquity(TuiApplication):
             s.get_cols_rows = lambda: (80, 24)
             return s
 
-    def get_primary_tty(self):
-        tty = '/dev/tty1'
-        for work in self.kernel_cmdline:
-            if work.startswith('console='):
-                tty = '/dev/' + work[len('console='):].split(',')[0]
-        return tty
-
-    def load_autoinstall_config(self):
-        with open(self.opts.autoinstall) as fp:
-            self.autoinstall_config = yaml.safe_load(fp)
-        primary_tty = self.get_primary_tty()
-        try:
-            our_tty = os.ttyname(0)
-        except OSError:
-            # This is a gross hack for testing in travis.
-            our_tty = "/dev/not a tty"
-        if not self.interactive() and our_tty != primary_tty:
-            while True:
-                print(
-                    _("the installer running on {tty} will perform the "
-                      "autoinstall").format(tty=primary_tty))
-                print()
-                print(_("press enter to start a shell"))
-                input()
-                os.system("cd / && bash")
-        self.controllers.load("Reporting")
-        self.controllers.Reporting.start()
-        self.controllers.load("Error")
-        with self.context.child("core_validation", level="INFO"):
-            jsonschema.validate(self.autoinstall_config, self.base_schema)
-        self.controllers.load("Early")
-        if self.controllers.Early.cmds:
-            stamp_file = self.state_path("early-commands")
-            if our_tty != primary_tty:
-                print(
-                    _("waiting for installer running on {tty} to run early "
-                      "commands").format(tty=primary_tty))
-                while not os.path.exists(stamp_file):
-                    time.sleep(1)
-            elif not os.path.exists(stamp_file):
-                self.aio_loop.run_until_complete(
-                    self.controllers.Early.run())
-                self.new_event_loop()
-                open(stamp_file, 'w').close()
-            with open(self.opts.autoinstall) as fp:
-                self.autoinstall_config = yaml.safe_load(fp)
-            with self.context.child("core_validation", level="INFO"):
-                jsonschema.validate(self.autoinstall_config, self.base_schema)
-            for controller in self.controllers.instances:
-                controller.setup_autoinstall()
-        if not self.interactive() and self.opts.run_on_serial:
-            # Thanks to the fact that we are launched with agetty's
-            # --skip-login option, on serial lines we can end up starting with
-            # some strange terminal settings (see the docs for --skip-login in
-            # agetty(8)). For an interactive install this does not matter as
-            # the settings will soon be clobbered but for a non-interactive
-            # one we need to clear things up or the prompting for confirmation
-            # in next_screen below will be confusing.
-            os.system('stty sane')
-
     def new_event_loop(self):
         super().new_event_loop()
         self.aio_loop.add_reader(self.journal_fd, self.journal_watcher)
@@ -281,10 +173,6 @@ class Subiquity(TuiApplication):
 
     def run(self):
         try:
-            if self.opts.autoinstall is not None:
-                self.load_autoinstall_config()
-                if not self.interactive() and not self.opts.dry_run:
-                    open('/run/casper-no-prompt', 'w').close()
             super().run()
         except Exception:
             print("generating crash report")
@@ -297,31 +185,10 @@ class Subiquity(TuiApplication):
             except Exception:
                 print("report generation failed")
                 traceback.print_exc()
-            Error = getattr(self.controllers, "Error", None)
-            if Error is not None and Error.cmds:
-                self.new_event_loop()
-                self.aio_loop.run_until_complete(Error.run())
-            if self.interactive():
-                self._remove_last_screen()
-                raise
-            else:
-                traceback.print_exc()
-                signal.pause()
-
-    def add_event_listener(self, listener):
-        self.event_listeners.append(listener)
-
-    def report_start_event(self, context, description):
-        for listener in self.event_listeners:
-            listener.report_start_event(context, description)
-
-    def report_finish_event(self, context, description, status):
-        for listener in self.event_listeners:
-            listener.report_finish_event(context, description, status)
+            self._remove_last_screen()
 
     def confirm_install(self):
-        self.install_confirmed = True
-        self.controllers.InstallProgress.confirmation.set()
+        XXX
 
     def _cancel_show_progress(self):
         if self.show_progress_handle is not None:
@@ -360,11 +227,6 @@ class Subiquity(TuiApplication):
                 super().next_screen()
         else:
             super().next_screen()
-
-    def interactive(self):
-        if not self.autoinstall_config:
-            return True
-        return bool(self.autoinstall_config.get('interactive-sections'))
 
     def add_global_overlay(self, overlay):
         self.global_overlays.append(overlay)
@@ -411,20 +273,6 @@ class Subiquity(TuiApplication):
         self.progress_shown_time = self.aio_loop.time()
         self.progress_showing = True
         self.ui.set_body(self.controllers.InstallProgress.progress_view)
-
-    async def _apply(self, controller):
-        await controller.apply_autoinstall_config()
-        controller.autoinstall_applied = True
-        controller.configured()
-        self.next_screen()
-
-    def _network_change(self):
-        self.signal.emit_signal('snapd-network-change')
-
-    async def _proxy_set(self):
-        await run_in_thread(
-            self.snapd.connection.configure_proxy, self.base_model.proxy)
-        self.signal.emit_signal('snapd-network-change')
 
     def unhandled_input(self, key):
         if key == 'f1':
@@ -493,11 +341,3 @@ class Subiquity(TuiApplication):
                 # Don't show an error if already looking at one.
                 return
         self.add_global_overlay(ErrorReportStretchy(self, report))
-
-    def make_autoinstall(self):
-        config = {'version': 1}
-        for controller in self.controllers.instances:
-            controller_conf = controller.make_autoinstall()
-            if controller_conf:
-                config[controller.autoinstall_key] = controller_conf
-        return config

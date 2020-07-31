@@ -53,9 +53,10 @@ class ErrorReportState(enum.Enum):
 
 class ErrorReportKind(enum.Enum):
     BLOCK_PROBE_FAIL = _("Block device probe failure")
+    DAEMON = _("Installer daemon crash")
     DISK_PROBE_FAIL = _("Disk probe failure")
     INSTALL_FAIL = _("Install failure")
-    UI = _("Installer crash")
+    UI = _("Installer UI crash")
     NETWORK_FAIL = _("Network error")
     UNKNOWN = _("Unknown error")
 
