@@ -14,11 +14,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import os
 
-from subiquitycore.screen import is_linux_tty
-
-from subiquity.controller import SubiquityTuiController
+from subiquity.controller import frobnozzle, SubiquityTuiController
 from subiquity.ui.views import WelcomeView
 
 
@@ -27,49 +24,21 @@ log = logging.getLogger('subiquity.controllers.welcome')
 
 class WelcomeController(SubiquityTuiController):
 
-    autoinstall_key = model_name = "locale"
-    autoinstall_schema = {'type': 'string'}
-    autoinstall_default = 'en_US.UTF-8'
+    endpoint = '/locale'
 
-    def interactive(self):
-        return self.app.interactive()
-
-    def load_autoinstall_data(self, data):
-        os.environ["LANG"] = data
-
-    def start(self):
-        lang = os.environ.get("LANG")
-        if lang is not None and lang.endswith(".UTF-8"):
-            lang = lang.rsplit('.', 1)[0]
-        for code, name in self.model.get_languages(is_linux_tty()):
-            if code == lang:
-                self.model.switch_language(code)
-                break
-        else:
-            self.model.selected_language = lang
-
-    def start_ui(self):
-        view = WelcomeView(self.model, self)
-        self.ui.set_body(view)
+    def _start_ui(self, status):
+        view = WelcomeView(self, status['language'])
+        self.app.set_body(view)
         if 'lang' in self.answers:
             self.done(self.answers['lang'])
 
-    def done(self, code):
+    @frobnozzle
+    async def done(self, code):
         log.debug("WelcomeController.done %s next_screen", code)
         self.signal.emit_signal('l10n:language-selected', code)
-        self.model.switch_language(code)
-        self.configured()
+        await self.post({'language': code})
         self.app.next_screen()
 
     def cancel(self):
         # Can't go back from here!
         pass
-
-    def serialize(self):
-        return self.model.selected_language
-
-    def deserialize(self, data):
-        self.model.switch_language(data)
-
-    def make_autoinstall(self):
-        return self.model.selected_language

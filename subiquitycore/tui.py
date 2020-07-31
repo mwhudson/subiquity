@@ -266,14 +266,18 @@ class TuiApplication(Application):
                 controller_index = i
         return controller_index
 
+    auto_start_urwid = True
+
     def run(self):
         if self.opts.scripts:
             self.run_scripts(self.opts.scripts)
-        self.aio_loop.call_soon(self.start_urwid)
-        self.aio_loop.call_soon(
-            lambda: self.select_initial_screen(
-                self.initial_controller_index()))
+        if self.auto_start_urwid:
+            self.aio_loop.call_soon(self.start_urwid)
+            self.aio_loop.call_soon(
+                lambda: self.select_initial_screen(
+                    self.initial_controller_index()))
         try:
             super().run()
         finally:
-            self.urwid_loop.stop()
+            if self.urwid_loop is not None:
+                self.urwid_loop.stop()

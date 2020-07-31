@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 import os
 import sys
@@ -171,22 +172,6 @@ class Subiquity(TuiApplication):
     def extra_urwid_loop_args(self):
         return dict(input_filter=self.input_filter.filter)
 
-    def run(self):
-        try:
-            super().run()
-        except Exception:
-            print("generating crash report")
-            try:
-                report = self.make_apport_report(
-                    ErrorReportKind.UI, "Installer UI", interrupt=False,
-                    wait=True)
-                if report is not None:
-                    print("report saved to {path}".format(path=report.path))
-            except Exception:
-                print("report generation failed")
-                traceback.print_exc()
-            self._remove_last_screen()
-
     def confirm_install(self):
         XXX
 
@@ -196,37 +181,37 @@ class Subiquity(TuiApplication):
             self.show_progress_handle.cancel()
             self.show_progress_handle = None
 
-    def next_screen(self):
-        can_install = all(e.is_set() for e in self.base_model.install_events)
-        if can_install and not self.install_confirmed:
-            if self.interactive():
-                log.debug("showing InstallConfirmation over %s", self.ui.body)
-                from subiquity.ui.views.installprogress import (
-                    InstallConfirmation,
-                    )
-                self._cancel_show_progress()
-                self.add_global_overlay(
-                    InstallConfirmation(self.ui.body, self))
-            else:
-                yes = _('yes')
-                no = _('no')
-                answer = no
-                if 'autoinstall' in self.kernel_cmdline:
-                    answer = yes
-                else:
-                    print(_("Confirmation is required to continue."))
-                    print(_("Add 'autoinstall' to your kernel command line to"
-                            " avoid this"))
-                    print()
-                prompt = "\n\n{} ({}|{})".format(
-                    _("Continue with autoinstall?"), yes, no)
-                while answer != yes:
-                    print(prompt)
-                    answer = input()
-                self.confirm_install()
-                super().next_screen()
-        else:
-            super().next_screen()
+    # def next_screen(self):
+    #     can_install = all(e.is_set() for e in self.base_model.install_events)
+    #     if can_install and not self.install_confirmed:
+    #         if self.interactive():
+    #             log.debug("showing InstallConfirmation over %s", self.ui.body)
+    #             from subiquity.ui.views.installprogress import (
+    #                 InstallConfirmation,
+    #                 )
+    #             self._cancel_show_progress()
+    #             self.add_global_overlay(
+    #                 InstallConfirmation(self.ui.body, self))
+    #         else:
+    #             yes = _('yes')
+    #             no = _('no')
+    #             answer = no
+    #             if 'autoinstall' in self.kernel_cmdline:
+    #                 answer = yes
+    #             else:
+    #                 print(_("Confirmation is required to continue."))
+    #                 print(_("Add 'autoinstall' to your kernel command line to"
+    #                         " avoid this"))
+    #                 print()
+    #             prompt = "\n\n{} ({}|{})".format(
+    #                 _("Continue with autoinstall?"), yes, no)
+    #             while answer != yes:
+    #                 print(prompt)
+    #                 answer = input()
+    #             self.confirm_install()
+    #             super().next_screen()
+    #     else:
+    #         super().next_screen()
 
     def add_global_overlay(self, overlay):
         self.global_overlays.append(overlay)
@@ -246,27 +231,61 @@ class Subiquity(TuiApplication):
                 break
         super().select_initial_screen(index)
 
-    def select_screen(self, new):
-        if new.interactive():
-            self._cancel_show_progress()
-            if self.progress_showing:
-                shown_for = self.aio_loop.time() - self.progress_shown_time
-                remaining = 1.0 - shown_for
-                if remaining > 0.0:
-                    self.aio_loop.call_later(
-                        remaining, self.select_screen, new)
-                    return
-            self.progress_showing = False
-            super().select_screen(new)
-        elif self.autoinstall_config and not new.autoinstall_applied:
-            if self.interactive() and self.show_progress_handle is None:
-                self.ui.block_input = True
-                self.show_progress_handle = self.aio_loop.call_later(
-                    0.1, self._show_progress)
-            schedule_task(self._apply(new))
-        else:
-            new.configured()
+    async def _move_screen(self, increment):
+        self.save_state()
+        old, self.cur_screen = self.cur_screen, None
+        if old is not None:
+            old.context.exit("completed")
+            old.end_ui()
+        cur_index = self.controllers.index
+        while True:
+            self.controllers.index += increment
+            if self.controllers.index < 0:
+                self.controllers.index = cur_index
+                return
+            if self.controllers.index >= len(self.controllers.instances):
+                self.exit()
+                return
+            new = self.controllers.cur
+            try:
+                await self.select_screen(new)
+            except Skip:
+                log.debug("skipping screen %s", new.name)
+                continue
+            else:
+                return
+
+    def next_screen(self, *args):
+        self.aio_loop.create_task(self._move_screen(1))
+
+    def prev_screen(self, *args):
+        self.aio_loop.create_task(self._move_screen(-1))
+
+    async def select_screen(self, new):
+        if self.show_progress_handle is None:
+            self.ui.block_input = True
+            self.show_progress_handle = self.aio_loop.call_later(
+                0.1, self._show_progress)
+        new.context.enter("starting UI")
+        if self.opts.screens and new.name not in self.opts.screens:
             raise Skip
+        try:
+            await new.start_ui()
+            self.cur_screen = new
+        except Skip:
+            new.context.exit("(skipped)")
+            raise
+        with open(self.state_path('last-screen'), 'w') as fp:
+            fp.write(new.name)
+
+    async def set_body(self, view):
+        self._cancel_show_progress()
+        if self.progress_showing:
+            shown_for = self.aio_loop.time() - self.progress_shown_time
+            remaining = 1.0 - shown_for
+            if remaining > 0.0:
+                await asyncio.sleep(remaining)
+        self.ui.set_body(view)
 
     def _show_progress(self):
         self.ui.block_input = False
@@ -341,3 +360,40 @@ class Subiquity(TuiApplication):
                 # Don't show an error if already looking at one.
                 return
         self.add_global_overlay(ErrorReportStretchy(self, report))
+
+    async def connect(self):
+        print("connecting...", end='', flush=True)
+        while True:
+            try:
+                status = self.get('/', timeout=1)
+            except aiohttp.ClientError:
+                await asyncio.sleep(1)
+                print(".", end='', flush=True)
+            else:
+                print()
+                break
+        self.interactive = status['interactive']
+        if self.interactive:
+            self.start_urwid()
+            self.next_screen()
+        else:
+            pass
+
+    auto_start_urwid = False
+
+    def run(self):
+        self.aio_loop.create_task(self.connect())
+        try:
+            super().run()
+        except Exception:
+            print("generating crash report")
+            try:
+                report = self.make_apport_report(
+                    ErrorReportKind.UI, "Installer UI", interrupt=False,
+                    wait=True)
+                if report is not None:
+                    print("report saved to {path}".format(path=report.path))
+            except Exception:
+                print("report generation failed")
+                traceback.print_exc()
+            self._remove_last_screen()
