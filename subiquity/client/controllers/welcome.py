@@ -15,7 +15,7 @@
 
 import logging
 
-from subiquity.controller import frobnozzle, SubiquityTuiController
+from subiquity.controller import SubiquityTuiController
 from subiquity.ui.views import WelcomeView
 
 
@@ -32,12 +32,10 @@ class WelcomeController(SubiquityTuiController):
         if 'lang' in self.answers:
             self.done(self.answers['lang'])
 
-    @frobnozzle
-    async def done(self, code):
+    def done(self, code):
         log.debug("WelcomeController.done %s next_screen", code)
         self.signal.emit_signal('l10n:language-selected', code)
-        await self.post({'language': code})
-        self.app.next_screen()
+        self.app.next_screen(self.post({'language': code}))
 
     def cancel(self):
         # Can't go back from here!

@@ -26,39 +26,24 @@ from subiquitycore.async_helpers import (
     run_in_thread,
     schedule_task,
     )
-from subiquitycore.tuicontroller import Skip
-from subiquitycore.tui import TuiApplication
+from subiquitycore.core import Application
 from subiquitycore.snapd import (
     AsyncSnapd,
     FakeSnapdConnection,
     SnapdConnection,
     )
-from subiquitycore.view import BaseView
 
 from subiquity.common.errorreport import (
     ErrorReporter,
     ErrorReportKind,
     )
 from subiquity.models.subiquity import SubiquityModel
-from subiquity.ui.views.error import ErrorReportStretchy
 
 
 log = logging.getLogger('subiquity.core')
 
 
-DEBUG_SHELL_INTRO = _("""\
-Installer shell session activated.
-
-This shell session is running inside the installer environment.  You
-will be returned to the installer when this shell is exited, for
-example by typing Control-D or 'exit'.
-
-Be aware that this is an ephemeral environment.  Changes to this
-environment will not survive a reboot. If the install has started, the
-installed system will be mounted at /target.""")
-
-
-class Subiquity(TuiApplication):
+class Subiquity(Application):
 
     snapd_socket_path = '/run/snapd.socket'
 
@@ -184,7 +169,6 @@ class Subiquity(TuiApplication):
             if Error is not None and Error.cmds:
                 self.new_event_loop()
                 self.aio_loop.run_until_complete(Error.run())
-            self._remove_last_screen()
             raise
 
     def add_event_listener(self, listener):
@@ -208,52 +192,10 @@ class Subiquity(TuiApplication):
             self.show_progress_handle.cancel()
             self.show_progress_handle = None
 
-    def next_screen(self):
-        can_install = all(e.is_set() for e in self.base_model.install_events)
-        if can_install and not self.install_confirmed:
-            if self.interactive():
-                log.debug("showing InstallConfirmation over %s", self.ui.body)
-                from subiquity.ui.views.installprogress import (
-                    InstallConfirmation,
-                    )
-                self._cancel_show_progress()
-                self.add_global_overlay(
-                    InstallConfirmation(self.ui.body, self))
-            else:
-                yes = _('yes')
-                no = _('no')
-                answer = no
-                if 'autoinstall' in self.kernel_cmdline:
-                    answer = yes
-                else:
-                    print(_("Confirmation is required to continue."))
-                    print(_("Add 'autoinstall' to your kernel command line to"
-                            " avoid this"))
-                    print()
-                prompt = "\n\n{} ({}|{})".format(
-                    _("Continue with autoinstall?"), yes, no)
-                while answer != yes:
-                    print(prompt)
-                    answer = input()
-                self.confirm_install()
-                super().next_screen()
-        else:
-            super().next_screen()
-
     def interactive(self):
         if not self.autoinstall_config:
             return True
         return bool(self.autoinstall_config.get('interactive-sections'))
-
-    def add_global_overlay(self, overlay):
-        self.global_overlays.append(overlay)
-        if isinstance(self.ui.body, BaseView):
-            self.ui.body.show_stretchy_overlay(overlay)
-
-    def remove_global_overlay(self, overlay):
-        self.global_overlays.remove(overlay)
-        if isinstance(self.ui.body, BaseView):
-            self.ui.body.remove_overlay(overlay)
 
     def select_initial_screen(self, index):
         self.error_reporter.start_loading_reports()

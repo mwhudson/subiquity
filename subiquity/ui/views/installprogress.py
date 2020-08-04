@@ -220,11 +220,10 @@ class InstallConfirmation(Stretchy):
             focus_index=2)
 
     def ok(self, sender):
-        self.app.confirm_install()
         self.app.remove_global_overlay(self)
         if isinstance(self.app.ui.body, ProgressView):
             self.app.ui.body.hide_continue()
-        self.app.next_screen()
+        self.app.next_screen(self.app.confirm_install())
 
     def cancel(self, sender):
         self.app.remove_global_overlay(self)

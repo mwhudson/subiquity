@@ -27,6 +27,8 @@ log = logging.getLogger('subiquity.controllers.welcome')
 
 class WelcomeController(SubiquityTuiController):
 
+    endpoint = '/locale'
+
     autoinstall_key = model_name = "locale"
     autoinstall_schema = {'type': 'string'}
     autoinstall_default = 'en_US.UTF-8'
@@ -48,23 +50,6 @@ class WelcomeController(SubiquityTuiController):
         else:
             self.model.selected_language = lang
 
-    def start_ui(self):
-        view = WelcomeView(self.model, self)
-        self.ui.set_body(view)
-        if 'lang' in self.answers:
-            self.done(self.answers['lang'])
-
-    def done(self, code):
-        log.debug("WelcomeController.done %s next_screen", code)
-        self.signal.emit_signal('l10n:language-selected', code)
-        self.model.switch_language(code)
-        self.configured()
-        self.app.next_screen()
-
-    def cancel(self):
-        # Can't go back from here!
-        pass
-
     def serialize(self):
         return self.model.selected_language
 
@@ -73,3 +58,9 @@ class WelcomeController(SubiquityTuiController):
 
     def make_autoinstall(self):
         return self.model.selected_language
+
+    async def _get(self):
+        return {'language': self.model.selected_language}
+
+    async def post(self, request):
+        self.model.switch_language(request.json()['language'])

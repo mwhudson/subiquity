@@ -20,8 +20,6 @@ import jsonschema
 from subiquitycore.context import with_context
 from subiquitycore.controller import (
     BaseController,
-    RepeatedController,
-    Skip,
     )
 
 log = logging.getLogger("subiquity.controller")
@@ -32,6 +30,7 @@ class SubiquityController(BaseController):
     autoinstall_key = None
     autoinstall_schema = None
     autoinstall_default = None
+    endpoint = None
 
     def __init__(self, app):
         super().__init__(app)
@@ -89,36 +88,8 @@ class SubiquityController(BaseController):
     def make_autoinstall(self):
         return {}
 
-
-class NoUIController(SubiquityController):
-
-    def start_ui(self):
-        raise Skip
-
-    def cancel(self):
-        pass
-
-    def interactive(self):
-        return False
-
-
-class RepeatedController(RepeatedController):
-
-    autoinstall_key = None
-    autoinstall_schema = None
-
-    def __init__(self, orig, index):
-        super().__init__(orig, index)
-        self.autoinstall_applied = False
-
-    async def apply_autoinstall_config(self):
-        await self.orig.apply_autoinstall_config(index=self.index)
-
-    def configured(self):
-        self.orig.configured()
-
-    def interactive(self):
-        return self.orig.interactive()
-
-    def make_autoinstall(self):
-        return {}
+    async def get(self):
+        return {
+            'interactive': self.interactive(),
+            'data': await self._get(),
+            }

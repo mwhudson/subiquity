@@ -155,16 +155,6 @@ class Subiquity(TuiApplication):
                 ] + sys.argv[1:]
         os.execvp(cmdline[0], cmdline)
 
-    def make_screen(self, input=None, output=None):
-        if self.interactive():
-            return super().make_screen(input, output)
-        else:
-            r, w = os.pipe()
-            s = urwid.raw_display.Screen(
-                input=os.fdopen(r), output=open('/dev/null', 'w'))
-            s.get_cols_rows = lambda: (80, 24)
-            return s
-
     def new_event_loop(self):
         super().new_event_loop()
         self.aio_loop.add_reader(self.journal_fd, self.journal_watcher)
@@ -172,8 +162,17 @@ class Subiquity(TuiApplication):
     def extra_urwid_loop_args(self):
         return dict(input_filter=self.input_filter.filter)
 
-    def confirm_install(self):
-        XXX
+    async def confirm_install(self):
+        await self.post("/confirm")
+
+    def show_confirm_install(self):
+        self._cancel_show_progress()
+        log.debug("showing InstallConfirmation over %s", self.ui.body)
+        from subiquity.ui.views.installprogress import (
+            InstallConfirmation,
+            )
+        self.add_global_overlay(
+            InstallConfirmation(self.ui.body, self))
 
     def _cancel_show_progress(self):
         if self.show_progress_handle is not None:
@@ -231,12 +230,21 @@ class Subiquity(TuiApplication):
                 break
         super().select_initial_screen(index)
 
-    async def _move_screen(self, increment):
+    def move_screen(self, increment, coro):
+        if self.show_progress_handle is None:
+            self.ui.block_input = True
+            self.show_progress_handle = self.aio_loop.call_later(
+                0.1, self._show_progress)
         self.save_state()
         old, self.cur_screen = self.cur_screen, None
         if old is not None:
             old.context.exit("completed")
             old.end_ui()
+        self.aio_loop.create_task(self._move_screen(increment, coro))
+
+    async def _move_screen(self, increment, coro):
+        if coro is not None:
+            await coro
         cur_index = self.controllers.index
         while True:
             self.controllers.index += increment
@@ -255,17 +263,13 @@ class Subiquity(TuiApplication):
             else:
                 return
 
-    def next_screen(self, *args):
-        self.aio_loop.create_task(self._move_screen(1))
+    def next_screen(self, coro=None):
+        self.move_screen(1, coro)
 
-    def prev_screen(self, *args):
-        self.aio_loop.create_task(self._move_screen(-1))
+    def prev_screen(self, coro=None):
+        self.move_screen(-1, coro)
 
     async def select_screen(self, new):
-        if self.show_progress_handle is None:
-            self.ui.block_input = True
-            self.show_progress_handle = self.aio_loop.call_later(
-                0.1, self._show_progress)
         new.context.enter("starting UI")
         if self.opts.screens and new.name not in self.opts.screens:
             raise Skip
