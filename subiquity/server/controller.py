@@ -28,11 +28,11 @@ from subiquitycore.controller import (
 log = logging.getLogger("subiquity.controller")
 
 
-def add_desc(context, resp):
-    if len(resp.text) > 80:
-        context.description = resp.text[:77] + '...'
+def trim(text):
+    if len(text) > 80:
+        return text[:77] + '...'
     else:
-        context.description = resp.text
+        return text
 
 
 def web_handler(meth):
@@ -40,7 +40,7 @@ def web_handler(meth):
         with self.context.child(meth.__name__) as context:
             context.set('request', request)
             resp = web.json_response(await meth(self, context=context))
-            add_desc(context, resp)
+            context.description = trim(resp.text)
             return resp
     return w
 
@@ -121,18 +121,19 @@ class SubiquityController(BaseController):
                 }
             resp.update(await self._get(context))
             resp = web.json_response(resp)
-            add_desc(context, resp)
+            context.description = trim(resp.text)
             return resp
 
     async def post(self, request):
-        with self.context.child('post') as context:
+        payload = await request.text()
+        with self.context.child('post', description=trim(payload)) as context:
             context.set('request', request)
-            resp = await self._post(context, await request.json())
+            resp = await self._post(context, json.loads(payload))
             self.configured()
             if resp is None:
                 resp = {}
             resp['confirmation-needed'] = \
                 self.app.base_model.confirmation_needed
             resp = web.json_response(resp)
-            add_desc(context, resp)
+            context.description = trim(resp.text)
             return resp

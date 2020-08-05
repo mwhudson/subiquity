@@ -134,6 +134,11 @@ class Subiquity(TuiApplication):
             async with session.get('http://a' + path, **kw) as resp:
                 return await resp.json()
 
+    async def post(self, path, data):
+        async with self.session() as session:
+            async with session.post('http://a' + path, json=data) as resp:
+                return await resp.json()
+
     def subiquity_event(self, event):
         if event["MESSAGE"] == "starting install":
             if event["_PID"] == os.getpid():
