@@ -25,7 +25,7 @@ from subiquitycore.tuicontroller import (
     Skip,
     )
 
-from subiquity.controller import (
+from subiquity.client.controller import (
     SubiquityTuiController,
     )
 

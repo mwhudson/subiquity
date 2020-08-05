@@ -27,7 +27,7 @@ from subiquitycore.async_helpers import (
     )
 from subiquitycore.context import with_context
 
-from subiquity.controller import SubiquityTuiController
+from subiquity.client.controller import SubiquityTuiController
 from subiquity.ui.views.mirror import MirrorView
 
 log = logging.getLogger('subiquity.controllers.mirror')

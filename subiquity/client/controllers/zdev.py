@@ -24,7 +24,7 @@ from urwid import Text
 from subiquitycore.ui.utils import Color
 from subiquitycore.utils import run_command
 
-from subiquity.controller import SubiquityTuiController
+from subiquity.client.controller import SubiquityTuiController
 from subiquity.ui.views import ZdevView
 
 

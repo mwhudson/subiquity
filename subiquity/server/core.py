@@ -152,7 +152,7 @@ class Subiquity(Application):
 
     async def _root(self, request):
         return web.json_response({
-            'interactive': True,
+            'interactive': self.interactive(),
             })
 
     async def start_serving(self):

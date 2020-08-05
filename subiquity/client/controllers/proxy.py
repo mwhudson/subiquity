@@ -18,7 +18,7 @@ import os
 
 from subiquitycore.context import with_context
 
-from subiquity.controller import SubiquityTuiController
+from subiquity.client.controller import SubiquityTuiController
 from subiquity.ui.views.proxy import ProxyView
 
 log = logging.getLogger('subiquity.controllers.proxy')

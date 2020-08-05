@@ -17,7 +17,7 @@ import logging
 
 from subiquitycore.async_helpers import schedule_task
 
-from subiquity.controller import SubiquityTuiController
+from subiquity.client.controller import SubiquityTuiController
 from subiquity.models.keyboard import KeyboardSetting
 from subiquity.ui.views import KeyboardView
 

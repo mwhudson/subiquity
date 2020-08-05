@@ -25,10 +25,7 @@ from subiquitycore.tuicontroller import (
 log = logging.getLogger("subiquity.controller")
 
 
-class SubiquityController(TuiController):
-
-    def __init__(self, app):
-        super().__init__(app)
+class SubiquityTuiController(TuiController):
 
     async def post(self, data):
         response = await self.app.post(self.endpoint, data)
@@ -40,9 +37,9 @@ class SubiquityController(TuiController):
         status = await self.app.get(self.endpoint)
         if not status['interactive']:
             raise Skip
-        coro = self._start_ui(status['data'])
+        coro = self._start_ui(status)
         if coro is not None:
-            self.aio_loop.create_task(coro)
+            self.app.aio_loop.create_task(coro)
 
 
 class RepeatedController(RepeatedController):

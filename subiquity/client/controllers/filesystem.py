@@ -33,8 +33,8 @@ from subiquitycore.utils import (
     )
 
 
+from subiquity.client.controller import SubiquityTuiController
 from subiquity.common.errorreport import ErrorReportKind
-from subiquity.controller import SubiquityTuiController
 from subiquity.models.filesystem import (
     align_up,
     Bootloader,

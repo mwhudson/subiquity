@@ -14,11 +14,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import contextlib
 import logging
 import os
 import sys
 import traceback
-import urwid
 
 import aiohttp
 
@@ -73,20 +73,25 @@ class Subiquity(TuiApplication):
     def make_ui(self):
         return SubiquityUI(self, self.help_menu)
 
+    project = 'subiquity'
+
+    def make_model(self, **args):
+        return None
+    
     controllers = [
         "Welcome",
-        "Refresh",
-        "Keyboard",
-        "Zdev",
-        "Network",
-        "Proxy",
-        "Mirror",
-        "Refresh",
-        "Filesystem",
-        "Identity",
-        "SSH",
-        "SnapList",
-        "InstallProgress",
+        ## "Refresh",
+        ## "Keyboard",
+        ## "Zdev",
+        ## "Network",
+        ## "Proxy",
+        ## "Mirror",
+        ## "Refresh",
+        ## "Filesystem",
+        ## "Identity",
+        ## "SSH",
+        ## "SnapList",
+        ## "InstallProgress",
     ]
 
     def __init__(self, opts, block_log_dir):
@@ -103,16 +108,6 @@ class Subiquity(TuiApplication):
         self.help_menu = HelpMenu(self)
         super().__init__(opts)
         self.global_overlays = []
-        if opts.snaps_from_examples:
-            connection = FakeSnapdConnection(
-                os.path.join(
-                    os.path.dirname(
-                        os.path.dirname(__file__)),
-                    "examples", "snaps"),
-                self.scale_factor)
-        else:
-            connection = SnapdConnection(self.root, self.snapd_socket_path)
-        self.snapd = AsyncSnapd(connection)
 
         self.confirmation_showing = False
 
@@ -125,6 +120,19 @@ class Subiquity(TuiApplication):
 
         # self.note_data_for_apport("SnapUpdated", str(self.updated))
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
+        self.conn = aiohttp.UnixConnector(
+            path=".subiquity/run/subiquity/socket")
+
+    @contextlib.asynccontextmanager
+    async def session(self):
+        async with aiohttp.ClientSession(
+                connector=self.conn, connector_owner=False) as session:
+            yield session
+
+    async def get(self, path, **kw):
+        async with self.session() as session:
+            async with session.get('http://a' + path, **kw) as resp:
+                return await resp.json()
 
     def subiquity_event(self, event):
         if event["MESSAGE"] == "starting install":
@@ -373,8 +381,10 @@ class Subiquity(TuiApplication):
         print("connecting...", end='', flush=True)
         while True:
             try:
-                status = self.get('/', timeout=1)
+                status = await self.get('/', timeout=1)
             except aiohttp.ClientError:
+                import traceback
+                traceback.print_exc()
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
             else:
@@ -394,6 +404,7 @@ class Subiquity(TuiApplication):
         try:
             super().run()
         except Exception:
+            log.exception('in run')
             print("generating crash report")
             try:
                 report = self.make_apport_report(
@@ -405,3 +416,11 @@ class Subiquity(TuiApplication):
                 print("report generation failed")
                 traceback.print_exc()
             self._remove_last_screen()
+
+
+if __name__ == '__main__':
+    from subiquitycore.log import setup_logger
+    from subiquity.cmd.tui import parse_options
+    setup_logger('.subiquity')
+    opts = parse_options(['--dry-run', '--snaps-from-examples'])
+    Subiquity(opts, '').run()

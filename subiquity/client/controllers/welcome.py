@@ -15,7 +15,7 @@
 
 import logging
 
-from subiquity.controller import SubiquityTuiController
+from subiquity.client.controller import SubiquityTuiController
 from subiquity.ui.views import WelcomeView
 
 
@@ -26,9 +26,9 @@ class WelcomeController(SubiquityTuiController):
 
     endpoint = '/locale'
 
-    def _start_ui(self, status):
+    async def _start_ui(self, status):
         view = WelcomeView(self, status['language'])
-        self.app.set_body(view)
+        await self.app.set_body(view)
         if 'lang' in self.answers:
             self.done(self.answers['lang'])
 

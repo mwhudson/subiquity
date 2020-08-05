@@ -19,7 +19,7 @@ import attr
 
 from subiquitycore.context import with_context
 
-from subiquity.controller import SubiquityTuiController
+from subiquity.client.controller import SubiquityTuiController
 from subiquity.ui.views import IdentityView
 
 log = logging.getLogger('subiquity.controllers.identity')
