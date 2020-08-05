@@ -13,44 +13,67 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
 import logging
 
-from subiquitycore.async_helpers import schedule_task
+import attr
 
 from subiquity.client.controller import SubiquityTuiController
-from subiquity.models.keyboard import KeyboardSetting
+from subiquity.client.keyboard import KeyboardList
+from subiquity.common.keyboard import (
+    KeyboardSetting,
+    set_keyboard,
+    )
 from subiquity.ui.views import KeyboardView
 
-log = logging.getLogger('subiquity.controllers.keyboard')
+log = logging.getLogger('subiquity.client.controllers.keyboard')
 
 
 class KeyboardController(SubiquityTuiController):
+
+    endpoint = '/keyboard'
 
     signals = [
         ('l10n:language-selected', 'language_selected'),
         ]
 
+    def __init__(self, app):
+        super().__init__(app)
+        self.keyboard_list = KeyboardList()
+
     def language_selected(self, code):
         log.debug("language_selected %s", code)
-        if not self.model.has_language(code):
+        if not self.keyboard_list.has_language(code):
             code = code.split('_')[0]
-        if not self.model.has_language(code):
+        if not self.keyboard_list.has_language(code):
             code = 'C'
-        log.debug("loading launguage %s", code)
-        self.model.load_language(code)
+        log.debug("loading language %s", code)
+        self.keyboard_list.load_language(code)
 
-    def start_ui(self):
-        if self.model.current_lang is None:
-            self.model.load_language('C')
-        view = KeyboardView(self.model, self, self.opts)
-        self.ui.set_body(view)
+    async def _start_ui(self, status):
+        initial_setting = KeyboardSetting(
+            status['layout'],
+            status['variant'],
+            status['toggle'])
+        if self.keyboard_list.current_lang is None:
+            self.keyboard_list.load_language('C')
+        view = KeyboardView(self, initial_setting)
+        await self.app.set_body(view)
         if 'layout' in self.answers:
             layout = self.answers['layout']
             variant = self.answers.get('variant', '')
-            self.done(KeyboardSetting(layout=layout, variant=variant))
+            self.done(KeyboardSetting(layout=layout, variant=variant), True)
 
-    def done(self, setting):
-        schedule_task(self.apply_settings(setting))
+    async def set_keyboard(self, setting):
+        await set_keyboard(setting, self.opts.dry_run)
+        self.app.next_screen(self.post(attr.asdict(setting)))
+
+    def done(self, setting, apply):
+        log.debug("KeyboardController.done %s next_screen", setting)
+        if apply:
+            self.app.aio_loop.create_task(self.set_keyboard(setting))
+        else:
+            self.app.next_screen(self.post(attr.asdict(setting)))
 
     def cancel(self):
         self.app.prev_screen()

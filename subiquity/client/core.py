@@ -77,11 +77,11 @@ class Subiquity(TuiApplication):
 
     def make_model(self, **args):
         return None
-    
+
     controllers = [
         "Welcome",
         ## "Refresh",
-        ## "Keyboard",
+        "Keyboard",
         ## "Zdev",
         ## "Network",
         ## "Proxy",
@@ -172,7 +172,7 @@ class Subiquity(TuiApplication):
 
     def new_event_loop(self):
         super().new_event_loop()
-        self.aio_loop.add_reader(self.journal_fd, self.journal_watcher)
+        #self.aio_loop.add_reader(self.journal_fd, self.journal_watcher)
 
     def extra_urwid_loop_args(self):
         return dict(input_filter=self.input_filter.filter)
@@ -388,8 +388,6 @@ class Subiquity(TuiApplication):
             try:
                 status = await self.get('/', timeout=1)
             except aiohttp.ClientError:
-                import traceback
-                traceback.print_exc()
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
             else:

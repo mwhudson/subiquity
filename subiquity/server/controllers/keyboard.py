@@ -19,7 +19,10 @@ import attr
 
 from subiquitycore.context import with_context
 
-from subiquity.models.keyboard import KeyboardSetting
+from subiquity.common.keyboard import (
+    KeyboardSetting,
+    set_keyboard,
+    )
 from subiquity.server.controller import SubiquityController
 
 log = logging.getLogger('subiquity.controllers.keyboard')
@@ -41,19 +44,20 @@ class KeyboardController(SubiquityController):
         'additionalProperties': False,
         }
 
+    def __init__(self, app):
+        self.ai_setting = None
+        super().__init__(app)
+
     def load_autoinstall_data(self, data):
         if data is not None:
-            self.model.setting = KeyboardSetting(**data)
+            self.ai_setting = KeyboardSetting(**data)
 
     @with_context()
     async def apply_autoinstall_config(self, context):
-        await self.model.set_keyboard(self.model.setting)
-
-    async def apply_settings(self, setting):
-        await self.model.set_keyboard(setting)
-        log.debug("KeyboardController next_screen")
-        self.configured()
-        self.app.next_screen()
+        if self.ai_setting is not None:
+            if self.ai_setting != self.model.setting:
+                self.model.setting = self.ai_setting
+                await set_keyboard(self.model.setting, self.opts.dry_run)
 
     def make_autoinstall(self):
         return attr.asdict(self.model.setting)

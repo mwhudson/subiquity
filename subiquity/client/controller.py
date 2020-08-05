@@ -27,6 +27,10 @@ log = logging.getLogger("subiquity.controller")
 
 class SubiquityTuiController(TuiController):
 
+    def __init__(self, app):
+        super().__init__(app)
+        self.answers = app.answers.get(self.name, {})
+
     async def post(self, data):
         response = await self.app.post(self.endpoint, data)
         if response['confirmation-needed']:
