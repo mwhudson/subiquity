@@ -13,7 +13,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 import logging
+
+from aiohttp import web
 
 import jsonschema
 
@@ -88,15 +91,24 @@ class SubiquityController(BaseController):
     def make_autoinstall(self):
         return {}
 
-    async def get(self):
-        return {
-            'interactive': self.interactive(),
-            'data': await self._get(),
-            }
+    async def get(self, request):
+        with self.context.child('get') as context:
+            context.set('request', request)
+            resp = {
+                'interactive': self.interactive(),
+                'data': await self._get(context),
+                }
+            text = json.dumps(resp)
+            if len(text) > 80:
+                context.description = text[:77] + '...'
+            else:
+                context.description = text
+            return web.Response(text=text)
 
     async def post(self, request):
-        await self._post(request)
-        self.configured()
-        request.write({
-            'confirmation-needed': self.app.base_model.confirmation_needed,
-            })
+        with self.context.child('post'):
+            await self._post(await request.json())
+            self.configured()
+            return web.json_response({
+                'confirmation-needed': self.app.base_model.confirmation_needed,
+                })

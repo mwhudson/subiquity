@@ -16,10 +16,7 @@
 import logging
 import os
 
-from subiquitycore.screen import is_linux_tty
-
 from subiquity.server.controller import SubiquityController
-from subiquity.ui.views import WelcomeView
 
 
 log = logging.getLogger('subiquity.controllers.welcome')
@@ -43,12 +40,7 @@ class WelcomeController(SubiquityController):
         lang = os.environ.get("LANG")
         if lang is not None and lang.endswith(".UTF-8"):
             lang = lang.rsplit('.', 1)[0]
-        for code, name in self.model.get_languages(is_linux_tty()):
-            if code == lang:
-                self.model.switch_language(code)
-                break
-        else:
-            self.model.selected_language = lang
+        self.model.selected_language = lang
 
     def serialize(self):
         return self.model.selected_language
@@ -59,8 +51,8 @@ class WelcomeController(SubiquityController):
     def make_autoinstall(self):
         return self.model.selected_language
 
-    async def _get(self):
+    async def _get(self, context):
         return {'language': self.model.selected_language}
 
-    async def post(self, request):
-        self.model.switch_language(request.json()['language'])
+    async def _post(self, data):
+        self.model.switch_language(data['language'])

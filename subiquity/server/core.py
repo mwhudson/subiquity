@@ -16,6 +16,7 @@
 import logging
 import os
 import shlex
+import sys
 import traceback
 
 from aiohttp import web
@@ -253,5 +254,13 @@ class Subiquity(Application):
 
 if __name__ == '__main__':
     from subiquity.cmd.tui import parse_options
+    logger = logging.getLogger('')
+    logger.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s %(levelname)s %(name)s:%(lineno)d %(message)s"))
+    logger.addHandler(handler)
     opts = parse_options(['--dry-run'])
     Subiquity(opts, '').run()
