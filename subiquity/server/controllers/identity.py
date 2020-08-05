@@ -27,6 +27,8 @@ log = logging.getLogger('subiquity.controllers.identity')
 
 class IdentityController(SubiquityController):
 
+    endpoint = '/identity'
+
     autoinstall_key = model_name = "identity"
     autoinstall_schema = {
         'type': 'object',
@@ -50,34 +52,20 @@ class IdentityController(SubiquityController):
             if 'user-data' not in self.app.autoinstall_config:
                 raise Exception("no identity data provided")
 
-    def start_ui(self):
-        self.ui.set_body(IdentityView(self.model, self))
-        if all(elem in self.answers for elem in
-               ['realname', 'username', 'password', 'hostname']):
-            d = {
-                'realname': self.answers['realname'],
-                'username': self.answers['username'],
-                'hostname': self.answers['hostname'],
-                'password': self.answers['password'],
-                }
-            self.done(d)
-
-    def cancel(self):
-        self.app.prev_screen()
-
-    def done(self, user_spec):
-        safe_spec = user_spec.copy()
-        safe_spec['password'] = '<REDACTED>'
-        log.debug(
-            "IdentityController.done next_screen user_spec=%s",
-            safe_spec)
-        self.model.add_user(user_spec)
-        self.configured()
-        self.app.next_screen()
-
     def make_autoinstall(self):
         if self.model.user is None:
             return {}
         r = attr.asdict(self.model.user)
         r['hostname'] = self.model.hostname
         return r
+
+    async def _get(self):
+        r = {}
+        if self.model.user is not None:
+            r.update(attr.asdict(self.model.user))
+        if self.model.hostname:
+            r['hostname'] = self.model.hostname
+        return r
+
+    async def _post(self, data):
+        self.model.add_user(data)

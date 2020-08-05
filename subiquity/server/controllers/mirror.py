@@ -28,7 +28,6 @@ from subiquitycore.async_helpers import (
 from subiquitycore.context import with_context
 
 from subiquity.server.controller import SubiquityController
-from subiquity.ui.views.mirror import MirrorView
 
 log = logging.getLogger('subiquity.controllers.mirror')
 
@@ -41,6 +40,8 @@ class CheckState(enum.IntEnum):
 
 
 class MirrorController(SubiquityController):
+
+    endpoint = '/mirror'
 
     autoinstall_key = "apt"
     autoinstall_schema = {  # This is obviously incomplete.
@@ -122,32 +123,19 @@ class MirrorController(SubiquityController):
         self.check_state = CheckState.DONE
         self.model.set_country(cc)
 
-    def start_ui(self):
-        self.check_state = CheckState.DONE
-        self.ui.set_body(MirrorView(self.model, self))
-        if 'mirror' in self.answers:
-            self.done(self.answers['mirror'])
-        elif 'country-code' in self.answers \
-             or 'accept-default' in self.answers:
-            self.done(self.model.get_mirror())
-
-    def cancel(self):
-        self.app.prev_screen()
-
     def serialize(self):
         return self.model.get_mirror()
 
     def deserialize(self, data):
         self.model.set_mirror(data)
 
-    def done(self, mirror):
-        log.debug("MirrorController.done next_screen mirror=%s", mirror)
-        if mirror != self.model.get_mirror():
-            self.model.set_mirror(mirror)
-        self.configured()
-        self.app.next_screen()
-
     def make_autoinstall(self):
         r = self.model.render()['apt']
         r['geoip'] = self.geoip_enabled
         return r
+
+    async def _get(self, context):
+        return {'mirror': self.model.get_mirror()}
+
+    async def _post(self, context, data):
+        self.model.set_mirror(data['mirror'])

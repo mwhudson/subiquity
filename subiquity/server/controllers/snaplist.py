@@ -103,6 +103,8 @@ class SnapdSnapInfoLoader:
 
 class SnapListController(SubiquityController):
 
+    endpoint = '/snaps'
+
     autoinstall_key = "snaps"
     autoinstall_default = []
     autoinstall_schema = {
@@ -152,36 +154,16 @@ class SnapListController(SubiquityController):
         self.loader = self._make_loader()
         self.loader.start()
 
-    def start_ui(self):
-        if self.loader.failed or not self.app.base_model.network.has_network:
-            # If loading snaps failed or the network is disabled, skip the
-            # screen.
-            self.configured()
-            raise Skip()
-        if 'snaps' in self.answers:
-            to_install = {}
-            for snap_name, selection in self.answers['snaps'].items():
-                to_install[snap_name] = SnapSelection(**selection)
-            self.done(to_install)
-            return
-        self.ui.set_body(SnapListView(self.model, self))
-
     def get_snap_list_task(self):
         return self.loader.get_snap_list_task()
 
     def get_snap_info_task(self, snap):
         return self.loader.get_snap_info_task(snap)
 
-    def done(self, snaps_to_install):
-        log.debug(
-            "SnapListController.done next_screen snaps_to_install=%s",
-            snaps_to_install)
-        self.model.set_installed_list(snaps_to_install)
-        self.configured()
-        self.app.next_screen()
-
-    def cancel(self, sender=None):
-        self.app.prev_screen()
-
     def make_autoinstall(self):
         return self.model.to_install
+
+    async def _get(self):
+        await self.get_snap_list_task()
+        XXX
+        return self.model.get_snap_list()
