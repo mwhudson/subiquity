@@ -29,8 +29,8 @@ from subiquitycore.tuicontroller import (
     Skip,
     )
 
-from subiquity.controller import (
-    SubiquityTuiController,
+from subiquity.server.controller import (
+    SubiquityController,
     )
 
 
@@ -43,7 +43,7 @@ class CheckState(enum.IntEnum):
     UNAVAILABLE = enum.auto()
 
 
-class RefreshController(SubiquityTuiController):
+class RefreshController(SubiquityController):
 
     autoinstall_key = "refresh-installer"
     autoinstall_schema = {

@@ -24,7 +24,7 @@ from urwid import Text
 from subiquitycore.ui.utils import Color
 from subiquitycore.utils import run_command
 
-from subiquity.controller import SubiquityTuiController
+from subiquity.server.controller import SubiquityController
 from subiquity.ui.views import ZdevView
 
 
@@ -631,7 +631,7 @@ class ZdevInfo:
         return self.type
 
 
-class ZdevController(SubiquityTuiController):
+class ZdevController(SubiquityController):
 
     def __init__(self, app):
         super().__init__(app)

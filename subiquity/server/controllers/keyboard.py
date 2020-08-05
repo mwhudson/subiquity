@@ -20,14 +20,14 @@ import attr
 from subiquitycore.async_helpers import schedule_task
 from subiquitycore.context import with_context
 
-from subiquity.controller import SubiquityTuiController
 from subiquity.models.keyboard import KeyboardSetting
+from subiquity.server.controller import SubiquityController
 from subiquity.ui.views import KeyboardView
 
 log = logging.getLogger('subiquity.controllers.keyboard')
 
 
-class KeyboardController(SubiquityTuiController):
+class KeyboardController(SubiquityController):
 
     autoinstall_key = model_name = "keyboard"
     autoinstall_schema = {

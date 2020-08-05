@@ -31,13 +31,13 @@ class SubiquityController(TuiController):
         super().__init__(app)
 
     async def post(self, data):
-        return await self.app.post(self.endpoint, data)
+        response = await self.app.post(self.endpoint, data)
+        if response['confirmation-needed']:
+            self.app.show_confirm_install()
 
     @with_context()
     async def start_ui(self, context):
         status = await self.app.get(self.endpoint)
-        if status.get('needs-confirmation'):
-            
         if not status['interactive']:
             raise Skip
         coro = self._start_ui(status['data'])

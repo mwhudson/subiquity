@@ -18,7 +18,7 @@ import os
 from subiquitycore.context import with_context
 from subiquitycore.utils import arun_command
 
-from subiquity.controller import SubiquityController
+from subiquity.server.controller import SubiquityController
 
 
 class CmdListController(SubiquityController):

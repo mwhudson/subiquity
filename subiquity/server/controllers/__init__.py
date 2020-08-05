@@ -26,7 +26,6 @@ from .mirror import MirrorController
 from .network import NetworkController
 from .reboot import RebootController
 from .refresh import RefreshController
-from ..controller import RepeatedController
 from .reporting import ReportingController
 from .snaplist import SnapListController
 from .ssh import SSHController
@@ -48,7 +47,6 @@ __all__ = [
     'NetworkController',
     'RefreshController',
     'RebootController',
-    'RepeatedController',
     'ReportingController',
     'SnapListController',
     'SSHController',

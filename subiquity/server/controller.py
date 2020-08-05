@@ -93,3 +93,10 @@ class SubiquityController(BaseController):
             'interactive': self.interactive(),
             'data': await self._get(),
             }
+
+    async def post(self, request):
+        await self._post(request)
+        self.configured()
+        request.write({
+            'confirmation-needed': self.app.base_model.confirmation_needed,
+            })

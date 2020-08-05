@@ -29,7 +29,7 @@ from curtin.reporter.handlers import (
     LogHandler,
     )
 
-from subiquity.controller import SubiquityController
+from subiquity.server.controller import SubiquityController
 
 
 class LogHandler(LogHandler):

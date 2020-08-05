@@ -27,7 +27,7 @@ from subiquitycore.async_helpers import (
     )
 from subiquitycore.context import with_context
 
-from subiquity.controller import SubiquityTuiController
+from subiquity.server.controller import SubiquityController
 from subiquity.ui.views.mirror import MirrorView
 
 log = logging.getLogger('subiquity.controllers.mirror')
@@ -40,7 +40,7 @@ class CheckState(enum.IntEnum):
     DONE = enum.auto()
 
 
-class MirrorController(SubiquityTuiController):
+class MirrorController(SubiquityController):
 
     autoinstall_key = "apt"
     autoinstall_schema = {  # This is obviously incomplete.

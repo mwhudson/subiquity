@@ -114,6 +114,8 @@ class Subiquity(TuiApplication):
             connection = SnapdConnection(self.root, self.snapd_socket_path)
         self.snapd = AsyncSnapd(connection)
 
+        self.confirmation_showing = False
+
         self.report_to_show = None
         self.show_progress_handle = None
         self.progress_shown_time = self.aio_loop.time()
@@ -245,6 +247,8 @@ class Subiquity(TuiApplication):
     async def _move_screen(self, increment, coro):
         if coro is not None:
             await coro
+        if self.confirmation_showing:
+            return
         cur_index = self.controllers.index
         while True:
             self.controllers.index += increment

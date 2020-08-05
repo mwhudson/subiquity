@@ -18,6 +18,8 @@ import os
 import shlex
 import traceback
 
+from aiohttp import web
+
 import jsonschema
 
 import yaml
@@ -76,21 +78,21 @@ class Subiquity(Application):
         "Userdata",
         "Package",
         "Debconf",
-        "Locale",
-        "Refresh",
-        "Keyboard",
-        "Zdev",
-        "Network",
-        "Proxy",
-        "Mirror",
-        "Refresh",
-        "Filesystem",
-        "Identity",
-        "SSH",
-        "SnapList",
-        "InstallProgress",
-        "Late",
-        "Reboot",
+        "Welcome",
+        ## "Refresh",
+        ## "Keyboard",
+        ## "Zdev",
+        ## "Network",
+        ## "Proxy",
+        ## "Mirror",
+        ## "Refresh",
+        ## "Filesystem",
+        ## "Identity",
+        ## "SSH",
+        ## "SnapList",
+        ## "InstallProgress",
+        ## "Late",
+        ## "Reboot",
     ]
 
     def __init__(self, opts, block_log_dir):
@@ -118,7 +120,6 @@ class Subiquity(Application):
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
 
         self.note_data_for_apport("SnapUpdated", str(self.updated))
-        self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
 
         self.install_confirmed = False
 
@@ -148,12 +149,32 @@ class Subiquity(Application):
             for controller in self.controllers.instances:
                 controller.setup_autoinstall()
 
+    async def _root(self, request):
+        return web.json_response({
+            'interactive': True,
+            })
+
+    async def start_serving(self):
+        app = web.Application()
+        app['app'] = self
+        routes = [web.get('/', self._root)]
+        for c in self.controllers.instances:
+            if c.endpoint:
+                routes.append(web.get(c.endpoint, c.get))
+                routes.append(web.post(c.endpoint, c.post))
+        app.add_routes(routes)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.UnixSite(runner, ".subiquity/run/subiquity/socket")
+        await site.start()
+
     def run(self):
         try:
             if self.opts.autoinstall is not None:
                 self.load_autoinstall_config()
                 if not self.interactive() and not self.opts.dry_run:
                     open('/run/casper-no-prompt', 'w').close()
+            self.aio_loop.create_task(self.start_serving())
             super().run()
         except Exception:
             print("generating crash report")
@@ -197,36 +218,6 @@ class Subiquity(Application):
             return True
         return bool(self.autoinstall_config.get('interactive-sections'))
 
-    def select_initial_screen(self, index):
-        self.error_reporter.start_loading_reports()
-        for report in self.error_reporter.reports:
-            if report.kind == ErrorReportKind.UI and not report.seen:
-                self.show_error_report(report)
-                break
-        super().select_initial_screen(index)
-
-    def select_screen(self, new):
-        if new.interactive():
-            self._cancel_show_progress()
-            if self.progress_showing:
-                shown_for = self.aio_loop.time() - self.progress_shown_time
-                remaining = 1.0 - shown_for
-                if remaining > 0.0:
-                    self.aio_loop.call_later(
-                        remaining, self.select_screen, new)
-                    return
-            self.progress_showing = False
-            super().select_screen(new)
-        elif self.autoinstall_config and not new.autoinstall_applied:
-            if self.interactive() and self.show_progress_handle is None:
-                self.ui.block_input = True
-                self.show_progress_handle = self.aio_loop.call_later(
-                    0.1, self._show_progress)
-            schedule_task(self._apply(new))
-        else:
-            new.configured()
-            raise Skip
-
     async def _apply(self, controller):
         await controller.apply_autoinstall_config()
         controller.autoinstall_applied = True
@@ -251,15 +242,6 @@ class Subiquity(Application):
         return self.error_reporter.make_apport_report(
             kind, thing, wait=wait, **kw)
 
-    def show_error_report(self, report):
-        log.debug("show_error_report %r", report.base)
-        if isinstance(self.ui.body, BaseView):
-            w = getattr(self.ui.body._w, 'stretchy', None)
-            if isinstance(w, ErrorReportStretchy):
-                # Don't show an error if already looking at one.
-                return
-        self.add_global_overlay(ErrorReportStretchy(self, report))
-
     def make_autoinstall(self):
         config = {'version': 1}
         for controller in self.controllers.instances:
@@ -267,3 +249,9 @@ class Subiquity(Application):
             if controller_conf:
                 config[controller.autoinstall_key] = controller_conf
         return config
+
+
+if __name__ == '__main__':
+    from subiquity.cmd.tui import parse_options
+    opts = parse_options(['--dry-run'])
+    Subiquity(opts, '').run()

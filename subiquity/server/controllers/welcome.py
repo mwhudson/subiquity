@@ -18,14 +18,14 @@ import os
 
 from subiquitycore.screen import is_linux_tty
 
-from subiquity.controller import SubiquityTuiController
+from subiquity.server.controller import SubiquityController
 from subiquity.ui.views import WelcomeView
 
 
 log = logging.getLogger('subiquity.controllers.welcome')
 
 
-class WelcomeController(SubiquityTuiController):
+class WelcomeController(SubiquityController):
 
     endpoint = '/locale'
 

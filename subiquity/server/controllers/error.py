@@ -15,7 +15,7 @@
 
 import logging
 
-from subiquity.controllers.cmdlist import CmdListController
+from subiquity.server.controllers.cmdlist import CmdListController
 
 
 log = logging.getLogger('subiquity.controllers.error')
