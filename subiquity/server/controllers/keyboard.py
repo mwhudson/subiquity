@@ -17,17 +17,17 @@ import logging
 
 import attr
 
-from subiquitycore.async_helpers import schedule_task
 from subiquitycore.context import with_context
 
 from subiquity.models.keyboard import KeyboardSetting
 from subiquity.server.controller import SubiquityController
-from subiquity.ui.views import KeyboardView
 
 log = logging.getLogger('subiquity.controllers.keyboard')
 
 
 class KeyboardController(SubiquityController):
+
+    endpoint = '/keyboard'
 
     autoinstall_key = model_name = "keyboard"
     autoinstall_schema = {
@@ -40,9 +40,6 @@ class KeyboardController(SubiquityController):
         'required': ['layout'],
         'additionalProperties': False,
         }
-    signals = [
-        ('l10n:language-selected', 'language_selected'),
-        ]
 
     def load_autoinstall_data(self, data):
         if data is not None:
@@ -52,36 +49,17 @@ class KeyboardController(SubiquityController):
     async def apply_autoinstall_config(self, context):
         await self.model.set_keyboard(self.model.setting)
 
-    def language_selected(self, code):
-        log.debug("language_selected %s", code)
-        if not self.model.has_language(code):
-            code = code.split('_')[0]
-        if not self.model.has_language(code):
-            code = 'C'
-        log.debug("loading launguage %s", code)
-        self.model.load_language(code)
-
-    def start_ui(self):
-        if self.model.current_lang is None:
-            self.model.load_language('C')
-        view = KeyboardView(self.model, self, self.opts)
-        self.ui.set_body(view)
-        if 'layout' in self.answers:
-            layout = self.answers['layout']
-            variant = self.answers.get('variant', '')
-            self.done(KeyboardSetting(layout=layout, variant=variant))
-
     async def apply_settings(self, setting):
         await self.model.set_keyboard(setting)
         log.debug("KeyboardController next_screen")
         self.configured()
         self.app.next_screen()
 
-    def done(self, setting):
-        schedule_task(self.apply_settings(setting))
-
-    def cancel(self):
-        self.app.prev_screen()
-
     def make_autoinstall(self):
         return attr.asdict(self.model.setting)
+
+    async def _get(self, context):
+        return attr.asdict(self.model.setting)
+
+    async def _post(self, context, data):
+        self.model.setting = KeyboardSetting(**data)

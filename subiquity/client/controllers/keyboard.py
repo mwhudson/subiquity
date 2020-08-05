@@ -15,10 +15,7 @@
 
 import logging
 
-import attr
-
 from subiquitycore.async_helpers import schedule_task
-from subiquitycore.context import with_context
 
 from subiquity.controller import SubiquityTuiController
 from subiquity.models.keyboard import KeyboardSetting
@@ -29,28 +26,9 @@ log = logging.getLogger('subiquity.controllers.keyboard')
 
 class KeyboardController(SubiquityTuiController):
 
-    autoinstall_key = model_name = "keyboard"
-    autoinstall_schema = {
-        'type': 'object',
-        'properties': {
-            'layout': {'type': 'string'},
-            'variant': {'type': 'string'},
-            'toggle': {'type': ['string', 'null']},
-            },
-        'required': ['layout'],
-        'additionalProperties': False,
-        }
     signals = [
         ('l10n:language-selected', 'language_selected'),
         ]
-
-    def load_autoinstall_data(self, data):
-        if data is not None:
-            self.model.setting = KeyboardSetting(**data)
-
-    @with_context()
-    async def apply_autoinstall_config(self, context):
-        await self.model.set_keyboard(self.model.setting)
 
     def language_selected(self, code):
         log.debug("language_selected %s", code)
@@ -71,17 +49,8 @@ class KeyboardController(SubiquityTuiController):
             variant = self.answers.get('variant', '')
             self.done(KeyboardSetting(layout=layout, variant=variant))
 
-    async def apply_settings(self, setting):
-        await self.model.set_keyboard(setting)
-        log.debug("KeyboardController next_screen")
-        self.configured()
-        self.app.next_screen()
-
     def done(self, setting):
         schedule_task(self.apply_settings(setting))
 
     def cancel(self):
         self.app.prev_screen()
-
-    def make_autoinstall(self):
-        return attr.asdict(self.model.setting)
