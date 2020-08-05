@@ -18,6 +18,8 @@ import enum
 import logging
 import os
 
+from aiohttp import web
+
 import requests.exceptions
 
 from subiquitycore.async_helpers import (
@@ -25,12 +27,10 @@ from subiquitycore.async_helpers import (
     SingleInstanceTask,
     )
 from subiquitycore.context import with_context
-from subiquitycore.tuicontroller import (
-    Skip,
-    )
 
 from subiquity.server.controller import (
     SubiquityController,
+    web_handler,
     )
 
 
@@ -217,6 +217,20 @@ class RefreshController(SubiquityController):
             {'action': 'refresh'})
         context.description = "change id: {}".format(change)
         return change
+
+    async def get_progress(self, change):
+        result = await self.app.snapd.get('v2/changes/{}'.format(change))
+        return result['result']
+
+    def add_routes(self, app):
+        super().add_routes(app)
+        app.router.add_get(
+            self.endpoint + '/progress/{change_id}', self._progress)
+
+    @web_handler
+    async def _progress(self, context):
+        change_id = context.get('request').match_info['change_id']
+        return await self.get_progress(change_id)
 
     async def _get(self, context):
         return {

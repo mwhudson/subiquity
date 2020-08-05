@@ -28,6 +28,20 @@ from subiquitycore.controller import (
 log = logging.getLogger("subiquity.controller")
 
 
+def web_handler(meth):
+    async def w(self, request):
+        with self.context.child(meth.__name__) as context:
+            context.set('request', request)
+            resp = await meth(self, context=context)
+            text = json.dumps(resp)
+            if len(text) > 80:
+                context.description = text[:77] + '...'
+            else:
+                context.description = text
+            return web.Response(text=text)
+    return w
+
+
 class SubiquityController(BaseController):
 
     autoinstall_key = None
@@ -90,6 +104,11 @@ class SubiquityController(BaseController):
 
     def make_autoinstall(self):
         return {}
+
+    def add_routes(self, app):
+        if self.endpoint:
+            app.router.add_get(self.endpoint, self.get)
+            app.router.add_post(self.endpoint, self.post)
 
     async def get(self, request):
         with self.context.child('get') as context:

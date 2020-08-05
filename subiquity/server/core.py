@@ -158,12 +158,9 @@ class Subiquity(Application):
     async def start_serving(self):
         app = web.Application()
         app['app'] = self
-        routes = [web.get('/', self._root)]
+        app.router.add_get('/', self._root)
         for c in self.controllers.instances:
-            if c.endpoint:
-                routes.append(web.get(c.endpoint, c.get))
-                routes.append(web.post(c.endpoint, c.post))
-        app.add_routes(routes)
+            c.add_routes(app)
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.UnixSite(runner, ".subiquity/run/subiquity/socket")
