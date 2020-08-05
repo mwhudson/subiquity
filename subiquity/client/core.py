@@ -28,11 +28,6 @@ from subiquitycore.async_helpers import (
 from subiquitycore.tuicontroller import Skip
 from subiquitycore.tui import TuiApplication
 from subiquitycore.screen import is_linux_tty
-from subiquitycore.snapd import (
-    AsyncSnapd,
-    FakeSnapdConnection,
-    SnapdConnection,
-    )
 from subiquitycore.view import BaseView
 
 from subiquity.common.errorreport import (
@@ -80,13 +75,13 @@ class Subiquity(TuiApplication):
 
     controllers = [
         "Welcome",
-        ## "Refresh",
+        "Refresh",
         "Keyboard",
         ## "Zdev",
         ## "Network",
         ## "Proxy",
         ## "Mirror",
-        ## "Refresh",
+        "Refresh",
         ## "Filesystem",
         ## "Identity",
         ## "SSH",
@@ -194,38 +189,6 @@ class Subiquity(TuiApplication):
             self.ui.block_input = False
             self.show_progress_handle.cancel()
             self.show_progress_handle = None
-
-    # def next_screen(self):
-    #     can_install = all(e.is_set() for e in self.base_model.install_events)
-    #     if can_install and not self.install_confirmed:
-    #         if self.interactive():
-    #             log.debug("showing InstallConfirmation over %s", self.ui.body)
-    #             from subiquity.ui.views.installprogress import (
-    #                 InstallConfirmation,
-    #                 )
-    #             self._cancel_show_progress()
-    #             self.add_global_overlay(
-    #                 InstallConfirmation(self.ui.body, self))
-    #         else:
-    #             yes = _('yes')
-    #             no = _('no')
-    #             answer = no
-    #             if 'autoinstall' in self.kernel_cmdline:
-    #                 answer = yes
-    #             else:
-    #                 print(_("Confirmation is required to continue."))
-    #                 print(_("Add 'autoinstall' to your kernel command line to"
-    #                         " avoid this"))
-    #                 print()
-    #             prompt = "\n\n{} ({}|{})".format(
-    #                 _("Continue with autoinstall?"), yes, no)
-    #             while answer != yes:
-    #                 print(prompt)
-    #                 answer = input()
-    #             self.confirm_install()
-    #             super().next_screen()
-    #     else:
-    #         super().next_screen()
 
     def add_global_overlay(self, overlay):
         self.global_overlays.append(overlay)

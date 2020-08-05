@@ -235,6 +235,7 @@ class RefreshController(SubiquityController):
     async def _get(self, context):
         return {
             'check_state': self.check_state.name,
+            'current_version': self.current_snap_version,
             'new_version': self.new_snap_version,
             }
 

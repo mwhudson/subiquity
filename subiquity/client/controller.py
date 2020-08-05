@@ -43,12 +43,19 @@ class SubiquityTuiController(TuiController):
             raise Skip
         coro = self._start_ui(status)
         if coro is not None:
-            self.app.aio_loop.create_task(coro)
+            await coro
 
 
 class RepeatedController(RepeatedController):
 
-    pass
+    @with_context()
+    async def start_ui(self, context):
+        status = await self.orig.app.get(self.orig.endpoint)
+        if not status['interactive']:
+            raise Skip
+        coro = self.orig._start_ui(status, self.index)
+        if coro is not None:
+            await coro
 
 
 def run_in_task(meth):
