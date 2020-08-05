@@ -173,11 +173,12 @@ class Subiquity(TuiApplication):
         return dict(input_filter=self.input_filter.filter)
 
     async def confirm_install(self):
-        await self.post("/confirm")
+        await self.post("/confirm", {})
 
     def show_confirm_install(self):
         self._cancel_show_progress()
         log.debug("showing InstallConfirmation over %s", self.ui.body)
+        self.confirmation_showing = True
         from subiquity.ui.views.installprogress import (
             InstallConfirmation,
             )
@@ -213,7 +214,6 @@ class Subiquity(TuiApplication):
             self.ui.block_input = True
             self.show_progress_handle = self.aio_loop.call_later(
                 0.1, self._show_progress)
-        self.save_state()
         old, self.cur_screen = self.cur_screen, None
         if old is not None:
             old.context.exit("completed")
@@ -380,7 +380,7 @@ class Subiquity(TuiApplication):
                     print("report saved to {path}".format(path=report.path))
             except Exception:
                 print("report generation failed")
-                traceback.print_exc()
+            traceback.print_exc()
             self._remove_last_screen()
 
 

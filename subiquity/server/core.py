@@ -122,8 +122,6 @@ class Subiquity(Application):
 
         self.note_data_for_apport("SnapUpdated", str(self.updated))
 
-        self.install_confirmed = False
-
     def restart(self, remove_last_screen=True):
         XXX
 
@@ -159,6 +157,7 @@ class Subiquity(Application):
         app = web.Application()
         app['app'] = self
         app.router.add_get('/', self._root)
+        app.router.add_post('/confirm', self._confirm)
         for c in self.controllers.instances:
             c.add_routes(app)
         runner = web.AppRunner(app)
@@ -201,9 +200,9 @@ class Subiquity(Application):
         for listener in self.event_listeners:
             listener.report_finish_event(context, description, status)
 
-    def confirm_install(self):
-        self.install_confirmed = True
-        self.controllers.InstallProgress.confirmation.set()
+    def _confirm(self, request):
+        self.base_model.configured(self.base_model.last_install_event)
+        return web.json_response({})
 
     def _cancel_show_progress(self):
         if self.show_progress_handle is not None:

@@ -66,12 +66,12 @@ ff02::2 ip6-allrouters
 
 # Models that contribute to the curtin config
 INSTALL_MODEL_NAMES = [
-    "debconf_selections",
-    "filesystem",
+#    "debconf_selections",
+#    "filesystem",
     "keyboard",
-    "mirror",
-    "network",
-    "proxy",
+#    "mirror",
+#    "network",
+#    "proxy",
     ]
 
 # Models that contribute to the cloud-init config (and other postinstall steps)
@@ -130,23 +130,17 @@ class SubiquityModel:
             self._events[name] for name in POSTINSTALL_MODEL_NAMES
             }
 
-    @property
-    def confirmation_needed(self):
-        return self.last_install_event is not None
-
-    def confirm(self):
-        self.last_install_event.set()
-
-    def configured(self, model_name):
-        log.debug("model %s is configured", model_name)
+    def is_last_install_event(self, model_name):
         ev = self._events[model_name]
         if model_name in INSTALL_MODEL_NAMES:
             if not ev.is_set():
                 configured_install_models = len(
                     [e for e in self.install_events if e.is_set()])
                 if configured_install_models == len(self.install_events) - 1:
-                    self.last_install_event = ev
-                    return
+                    return True
+
+    def configured(self, model_name):
+        log.debug("model %s is configured", model_name)
         self._events[model_name].set()
 
     def get_target_groups(self):

@@ -129,11 +129,17 @@ class SubiquityController(BaseController):
         with self.context.child('post', description=trim(payload)) as context:
             context.set('request', request)
             resp = await self._post(context, json.loads(payload))
-            self.configured()
             if resp is None:
                 resp = {}
-            resp['confirmation-needed'] = \
-                self.app.base_model.confirmation_needed
+            base_model = self.app.base_model
+            confirmation_needed = False
+            if self.model_name:
+                if base_model.is_last_install_event(self.model_name):
+                    base_model.last_install_event = self.model_name
+                    confirmation_needed = True
+                else:
+                    self.configured()
+            resp['confirmation-needed'] = confirmation_needed
             resp = web.json_response(resp)
             context.description = trim(resp.text)
             return resp

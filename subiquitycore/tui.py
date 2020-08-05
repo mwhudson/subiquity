@@ -110,7 +110,6 @@ class TuiApplication(Application):
             fp.write(new.name)
 
     def _move_screen(self, increment):
-        self.save_state()
         old, self.cur_screen = self.cur_screen, None
         if old is not None:
             old.context.exit("completed")
