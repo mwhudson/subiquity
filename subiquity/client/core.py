@@ -161,7 +161,7 @@ class Subiquity(TuiApplication):
         cmdline = ['snap', 'run', 'subiquity']
         if self.opts.dry_run:
             cmdline = [
-                sys.executable, '-m', 'subiquity.cmd.tui',
+                sys.executable, '-m', 'subiquity.client.core',
                 ] + sys.argv[1:]
         os.execvp(cmdline[0], cmdline)
 

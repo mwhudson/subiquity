@@ -145,50 +145,46 @@ class RefreshView(BaseView):
 
         super().__init__(self._w)
 
-    ## def check_state_checking(self):
-    ##     self.spinner.start()
+    def check_state_checking(self):
+        self.spinner.start()
 
-    ##     rows = [self.spinner]
+        rows = [self.spinner]
 
-    ##     buttons = [
-    ##         done_btn(_("Continue without updating"), on_press=self.done),
-    ##         other_btn(_("Back"), on_press=self.cancel),
-    ##         ]
+        buttons = [
+            done_btn(_("Continue without updating"), on_press=self.done),
+            other_btn(_("Back"), on_press=self.cancel),
+            ]
 
-    ##     self.title = self.checking_title
-    ##     self.controller.ui.set_header(self.title)
-    ##     self._w = screen(rows, buttons, excerpt=_(self.checking_excerpt))
-    ##     schedule_task(self._wait_check_result())
+        self.title = self.checking_title
+        self.controller.ui.set_header(self.title)
+        self._w = screen(rows, buttons, excerpt=_(self.checking_excerpt))
+        schedule_task(self._wait_check_result())
 
-    ## async def _wait_check_result(self):
-    ##     try:
-    ##         check_state = await self.controller.check_task.wait()
-    ##     except Exception as e:
-    ##         self.check_state_failed(e)
-    ##         return
-    ##     if check_state == CheckState.AVAILABLE:
-    ##         self.check_state_available()
-    ##     elif self.controller.showing:
-    ##         self.done()
+    async def _wait_check_result(self):
+        await self.controller.wait_for_check()
+        if self.controller.status['check_state'] == "AVAILABLE":
+            self.check_state_available()
+        elif self.controller.showing:
+            self.done()
 
-    ## def check_state_failed(self, exc):
-    ##     self.spinner.stop()
+    def check_state_failed(self, exc):
+        self.spinner.stop()
 
-    ##     rows = [Text(exc_message(exc))]
+        rows = [Text(exc_message(exc))]
 
-    ##     buttons = button_pile([
-    ##         done_btn(_("Try again"), on_press=self.try_check_again),
-    ##         done_btn(_("Continue without updating"), on_press=self.done),
-    ##         other_btn(_("Back"), on_press=self.cancel),
-    ##         ])
-    ##     buttons.base_widget.focus_position = 1
+        buttons = button_pile([
+            done_btn(_("Try again"), on_press=self.try_check_again),
+            done_btn(_("Continue without updating"), on_press=self.done),
+            other_btn(_("Back"), on_press=self.cancel),
+            ])
+        buttons.base_widget.focus_position = 1
 
-    ##     self.title = self.check_failed_title
-    ##     self._w = screen(rows, buttons, excerpt=_(self.failed_excerpt))
+        self.title = self.check_failed_title
+        self._w = screen(rows, buttons, excerpt=_(self.failed_excerpt))
 
-    ## def try_check_again(self, sender=None):
-    ##     self.controller.snapd_network_changed()
-    ##     self.check_state_checking()
+    def try_check_again(self, sender=None):
+        self.controller.snapd_network_changed()
+        self.check_state_checking()
 
     def check_state_available(self, sender=None):
         self.spinner.stop()

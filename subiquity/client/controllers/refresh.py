@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
-
 
 from subiquitycore.tuicontroller import (
     Skip,
@@ -38,8 +38,7 @@ class RefreshController(SubiquityTuiController):
         self.offered_first_time = False
 
     async def get_progress(self, change):
-        result = await self.app.snapd.get('v2/changes/{}'.format(change))
-        return result['result']
+        return await self.app.get('/refresh/progress/{}'.format(change))
 
     async def _start_ui(self, data, index=1):
         if self.app.updated:
@@ -60,6 +59,17 @@ class RefreshController(SubiquityTuiController):
             await self.app.set_body(RefreshView(self))
         else:
             raise Skip()
+
+    async def wait_for_check(self):
+        while 1:
+            self.status = await self.app.get(self.endpoint)
+            if self.status['check_state'] != 'UNKNOWN':
+                return
+            await asyncio.sleep(1)
+
+    async def start_update(self):
+        resp = await self.app.post(self.endpoint, {})
+        return resp['change-id']
 
     def done(self, sender=None):
         log.debug("RefreshController.done next_screen")
