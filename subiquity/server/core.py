@@ -80,7 +80,7 @@ class Subiquity(Application):
         "Package",
         "Debconf",
         "Welcome",
-        ## "Refresh",
+        "Refresh",
         "Keyboard",
         ## "Zdev",
         ## "Network",
@@ -104,7 +104,8 @@ class Subiquity(Application):
             connection = FakeSnapdConnection(
                 os.path.join(
                     os.path.dirname(
-                        os.path.dirname(__file__)),
+                        os.path.dirname(
+                            os.path.dirname(__file__))),
                     "examples", "snaps"),
                 self.scale_factor)
         else:
@@ -261,5 +262,5 @@ if __name__ == '__main__':
         logging.Formatter(
             "%(asctime)s %(levelname)s %(name)s:%(lineno)d %(message)s"))
     logger.addHandler(handler)
-    opts = parse_options(['--dry-run'])
+    opts = parse_options(['--dry-run', '--snaps-from-examples'])
     Subiquity(opts, '').run()

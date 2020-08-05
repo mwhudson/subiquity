@@ -45,6 +45,8 @@ class CheckState(enum.IntEnum):
 
 class RefreshController(SubiquityController):
 
+    endpoint = '/refresh'
+
     autoinstall_key = "refresh-installer"
     autoinstall_schema = {
         'type': 'object',
@@ -152,8 +154,6 @@ class RefreshController(SubiquityController):
 
     def get_refresh_channel(self):
         """Return the channel we should refresh subiquity to."""
-        if 'channel' in self.answers:
-            return self.answers['channel']
         prefix = "subiquity-channel="
         for arg in self.app.kernel_cmdline:
             if arg.startswith(prefix):
@@ -218,34 +218,14 @@ class RefreshController(SubiquityController):
         context.description = "change id: {}".format(change)
         return change
 
-    async def get_progress(self, change):
-        result = await self.app.snapd.get('v2/changes/{}'.format(change))
-        return result['result']
+    async def _get(self, context):
+        return {
+            'check_state': self.check_state.name,
+            'new_version': self.new_snap_version,
+            }
 
-    def start_ui(self, index=1):
-        from subiquity.ui.views.refresh import RefreshView
-        if self.app.updated:
-            raise Skip()
-        show = False
-        if index == 1:
-            if self.check_state == CheckState.AVAILABLE:
-                show = True
-                self.offered_first_time = True
-        elif index == 2:
-            if not self.offered_first_time:
-                if self.check_state in [CheckState.UNKNOWN,
-                                        CheckState.AVAILABLE]:
-                    show = True
-        else:
-            raise AssertionError("unexpected index {}".format(index))
-        if show:
-            self.ui.set_body(RefreshView(self))
-        else:
-            raise Skip()
-
-    def done(self, sender=None):
-        log.debug("RefreshController.done next_screen")
-        self.app.next_screen()
-
-    def cancel(self, sender=None):
-        self.app.prev_screen()
+    async def _post(self, context, data):
+        change = await self.start_update(context=context)
+        return {
+            'change-id': change,
+            }

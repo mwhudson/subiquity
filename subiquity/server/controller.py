@@ -108,8 +108,15 @@ class SubiquityController(BaseController):
     async def post(self, request):
         with self.context.child('post') as context:
             context.set('request', request)
-            await self._post(context, await request.json())
+            resp = await self._post(context, await request.json())
             self.configured()
-            return web.json_response({
-                'confirmation-needed': self.app.base_model.confirmation_needed,
-                })
+            if resp is None:
+                resp = {}
+            resp['confirmation-needed'] = \
+                self.app.base_model.confirmation_needed
+            text = json.dumps(resp)
+            if len(text) > 80:
+                context.description = text[:77] + '...'
+            else:
+                context.description = text
+            return web.Response(text=text)

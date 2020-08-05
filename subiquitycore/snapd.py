@@ -129,6 +129,7 @@ class FakeSnapdConnection:
         time.sleep(2/self.scale_factor)
 
     def post(self, path, body, **args):
+        time.sleep(1/self.scale_factor)
         if path == "v2/snaps/subiquity" and body['action'] == 'refresh':
             return _FakeMemoryResponse({
                 "type": "async",
