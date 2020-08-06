@@ -78,7 +78,7 @@ class Subiquity(TuiApplication):
         "Refresh",
         "Keyboard",
         ## "Zdev",
-        ## "Network",
+        "Network",
         ## "Proxy",
         ## "Mirror",
         "Refresh",
@@ -213,7 +213,7 @@ class Subiquity(TuiApplication):
         if self.show_progress_handle is None:
             self.ui.block_input = True
             self.show_progress_handle = self.aio_loop.call_later(
-                0.1, self._show_progress)
+                10.1, self._show_progress)
         old, self.cur_screen = self.cur_screen, None
         if old is not None:
             old.context.exit("completed")

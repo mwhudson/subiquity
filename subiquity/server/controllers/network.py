@@ -67,6 +67,8 @@ NETPLAN_SCHEMA = {
 
 class NetworkController(NetworkController, SubiquityController):
 
+    endpoint = '/network'
+
     ai_data = None
     autoinstall_key = "network"
     autoinstall_schema = {
@@ -85,6 +87,7 @@ class NetworkController(NetworkController, SubiquityController):
     def __init__(self, app):
         super().__init__(app)
         app.note_file_for_apport("NetplanConfig", self.netplan_path)
+        self.answers = {}
 
     def load_autoinstall_data(self, data):
         if data is not None:
@@ -171,9 +174,12 @@ class NetworkController(NetworkController, SubiquityController):
             if not self.interactive():
                 raise
 
-    def done(self):
-        self.configured()
-        super().done()
-
     def make_autoinstall(self):
         return self.model.render_config()['network']
+
+    async def _get(self, context):
+        return self.model.render_config()
+
+    async def _post(self, context, config):
+        self.model.override_config = config
+        self.apply_config()

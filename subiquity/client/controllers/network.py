@@ -16,13 +16,15 @@
 import asyncio
 import logging
 
-from subiquitycore.async_helpers import schedule_task
+import yaml
+
 from subiquitycore.context import with_context
 from subiquitycore.controllers.network import NetworkController
+from subiquitycore import netplan
+from subiquitycore.models.network import NetworkModel
+from subiquitycore.ui.views.network import NetworkView
 
 from subiquity.client.controller import SubiquityTuiController
-from subiquity.common.errorreport import ErrorReportKind
-
 
 log = logging.getLogger("subiquity.controllers.network")
 
@@ -65,115 +67,78 @@ NETPLAN_SCHEMA = {
     }
 
 
-class NetworkController(NetworkController, SubiquityTuiController):
+class NetworkController(SubiquityTuiController, NetworkController):
 
-    ai_data = None
-    autoinstall_key = "network"
-    autoinstall_schema = {
-        'oneOf': [
-            NETPLAN_SCHEMA,
-            {
-                'type': 'object',
-                'properties': {
-                    'network': NETPLAN_SCHEMA,
-                    },
-                'required': ['network'],
-            },
-            ],
-        }
+    model_name = None
+    endpoint = '/network'
 
     def __init__(self, app):
+        self.model = NetworkModel("subiquity-client", False)
+        self.model.config = netplan.Config()
         super().__init__(app)
-        app.note_file_for_apport("NetplanConfig", self.netplan_path)
 
-    def load_autoinstall_data(self, data):
-        if data is not None:
-            self.ai_data = data
-            # The version included with 20.04 accidentally required
-            # that you put:
-            #
-            # network:
-            #   network:
-            #     version: 2
-            #
-            # in your autoinstall config. Continue to support that for
-            # backwards compatibility.
-            if 'network' in self.ai_data:
-                self.ai_data = self.ai_data['network']
+    async def _start_ui(self, status):
+        self.model.config.parse_netplan_config(yaml.dump(status))
+        for netdev in self.model.get_all_netdevs(include_deleted=True):
+            netdev.config = self.model.config.config_for_device(netdev)
+            if netdev.config is None and netdev.info is None:
+                del self.model.devices_by_name[netdev.name]
+        self.view = NetworkView(self.model, self)
+        if not self.view_shown:
+            self.apply_config(silent=True)
+            self.view_shown = True
+        self.network_event_receiver.view = self.view
+        await self.app.set_body(self.view)
 
-    def start(self):
-        if self.ai_data is not None:
-            self.model.override_config = {'network': self.ai_data}
-            self.apply_config()
-            if self.interactive():
-                # If interactive, we want edits in the UI to override
-                # the provided config. If not, we just splat the
-                # autoinstall config onto the target system.
-                schedule_task(self.unset_override_config())
-        elif not self.interactive():
-            self.initial_config = schedule_task(self.wait_for_initial_config())
-        super().start()
+    def cancel(self):
+        self.app.prev_screen()
 
-    async def unset_override_config(self):
-        await self.apply_config_task.wait()
-        self.model.override_config = None
-
-    @with_context()
-    async def wait_for_initial_config(self, context):
-        # In interactive mode, we disable all nics that haven't got an
-        # address by the time we get to the network screen. But in
-        # non-interactive mode we might get to that screen much faster
-        # so we wait for up to 10 seconds for any device configured
-        # to use dhcp to get an address.
+    @with_context(
+        name="apply_config", description="silent={silent}", level="INFO")
+    async def _apply_config(self, *, context, silent):
+        dhcp_device_versions = []
         dhcp_events = set()
-        for dev in self.model.get_all_netdevs(include_deleted=True):
+        for dev in self.model.get_all_netdevs():
             dev.dhcp_events = {}
             for v in 4, 6:
-                if dev.dhcp_enabled(v) and not dev.dhcp_addresses()[v]:
+                if dev.dhcp_enabled(v):
+                    if not silent:
+                        dev.set_dhcp_state(v, "PENDING")
+                        self.network_event_receiver.update_link(
+                            dev.ifindex)
+                    else:
+                        dev.set_dhcp_state(v, "RECONFIGURE")
                     dev.dhcp_events[v] = e = asyncio.Event()
                     dhcp_events.add(e)
+
+        if not silent and self.view:
+            self.view.show_apply_spinner()
+
+        try:
+            await self.post(self.model.render_config())
+        finally:
+            if not silent and self.view:
+                self.view.hide_apply_spinner()
+
+        if self.answers.get('accept-default', False):
+            self.done()
+        elif self.answers.get('actions', False):
+            actions = self.answers['actions']
+            self.answers.clear()
+            self._run_iterator(self._run_actions(actions))
+
         if not dhcp_events:
             return
 
-        with context.child("wait_dhcp"):
-            try:
-                await asyncio.wait_for(
-                    asyncio.wait({e.wait() for e in dhcp_events}),
-                    10)
-            except asyncio.TimeoutError:
-                pass
-
-    @with_context()
-    async def apply_autoinstall_config(self, context):
-        if self.ai_data is None:
-            with context.child("wait_initial_config"):
-                await self.initial_config
-            self.update_initial_configs()
-            self.apply_config(context)
-        with context.child("wait_for_apply"):
-            await self.apply_config_task.wait()
-        self.model.has_network = bool(
-            self.network_event_receiver.default_routes)
-
-    async def _apply_config(self, *, context=None, silent=False):
         try:
-            await super()._apply_config(context=context, silent=silent)
-        except asyncio.CancelledError:
-            # asyncio.CancelledError is a subclass of Exception in
-            # Python 3.6 (sadface)
-            raise
-        except Exception:
-            log.exception("_apply_config failed")
-            self.model.has_network = False
-            self.app.make_apport_report(
-                ErrorReportKind.NETWORK_FAIL, "applying network",
-                interrupt=True)
-            if not self.interactive():
-                raise
+            await asyncio.wait_for(
+                asyncio.wait({e.wait() for e in dhcp_events}),
+                10)
+        except asyncio.TimeoutError:
+            pass
 
-    def done(self):
-        self.configured()
-        super().done()
-
-    def make_autoinstall(self):
-        return self.model.render_config()['network']
+        for dev, v in dhcp_device_versions:
+            dev.dhcp_events = {}
+            if not dev.dhcp_addresses()[v]:
+                dev.set_dhcp_state(v, "TIMEDOUT")
+                self.network_event_receiver.update_link(dev.ifindex)

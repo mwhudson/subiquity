@@ -282,10 +282,6 @@ class NetworkModel(object):
                 dev.info = link
         else:
             config = self.config.config_for_device(link)
-            if link.is_virtual and not config:
-                # If we see a virtual device without there already
-                # being a config for it, we just ignore it.
-                return
             dev = NetworkDev(self, link.name, link.type)
             dev.info = link
             dev.config = config

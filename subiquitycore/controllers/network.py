@@ -30,7 +30,7 @@ from subiquitycore.models.network import (
     NetDevAction,
     )
 from subiquitycore import netplan
-from subiquitycore.tuicontroller import TuiController
+from subiquitycore.controller import BaseController
 from subiquitycore.ui.stretchy import StretchyOverlay
 from subiquitycore.ui.views.network import (
     NetworkView,
@@ -134,7 +134,7 @@ network:
 '''
 
 
-class NetworkController(TuiController):
+class NetworkController(BaseController):
 
     model_name = "network"
     root = "/"
@@ -199,10 +199,10 @@ class NetworkController(TuiController):
             loop.call_later(0.1, self.start_watching)
             return
         self.observer.data_ready(fd)
-        v = self.ui.body
-        if isinstance(getattr(v, '_w', None), StretchyOverlay):
-            if hasattr(v._w.stretchy, 'refresh_model_inputs'):
-                v._w.stretchy.refresh_model_inputs()
+        #v = self.ui.body
+        #if isinstance(getattr(v, '_w', None), StretchyOverlay):
+        #    if hasattr(v._w.stretchy, 'refresh_model_inputs'):
+        #        v._w.stretchy.refresh_model_inputs()
 
     def start_scan(self, dev):
         self.observer.trigger_scan(dev.ifindex)
@@ -238,7 +238,6 @@ class NetworkController(TuiController):
         return [self._action_get(device) for device in devices]
 
     def _answers_action(self, action):
-        from subiquitycore.ui.stretchy import StretchyOverlay
         log.debug("_answers_action %r", action)
         if 'obj' in action:
             obj = self._action_get(action['obj'])

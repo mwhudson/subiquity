@@ -66,12 +66,12 @@ ff02::2 ip6-allrouters
 
 # Models that contribute to the curtin config
 INSTALL_MODEL_NAMES = [
-#    "debconf_selections",
-#    "filesystem",
+    "debconf_selections",
+    "filesystem",
     "keyboard",
-#    "mirror",
-#    "network",
-#    "proxy",
+    "mirror",
+    "network",
+    "proxy",
     ]
 
 # Models that contribute to the cloud-init config (and other postinstall steps)
