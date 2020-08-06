@@ -26,45 +26,7 @@ from subiquitycore.ui.views.network import NetworkView
 
 from subiquity.client.controller import SubiquityTuiController
 
-log = logging.getLogger("subiquity.controllers.network")
-
-MATCH = {
-    'type': 'object',
-    'properties': {
-        'name': {'type': 'string'},
-        'macaddress': {'type': 'string'},
-        'driver': {'type': 'string'},
-        },
-    'additionalProperties': False,
-    }
-
-NETPLAN_SCHEMA = {
-    'type': 'object',
-    'properties': {
-        'version': {
-            'type': 'integer',
-            'minimum': 2,
-            'maximum': 2,
-            },
-        'ethernets': {
-            'type': 'object',
-            'properties': {
-                'match': MATCH,
-                }
-            },
-        'wifis': {
-            'type': 'object',
-            'properties': {
-                'match': MATCH,
-                }
-            },
-        'bridges': {'type': 'object'},
-        'bonds': {'type': 'object'},
-        'tunnels': {'type': 'object'},
-        'vlans': {'type': 'object'},
-        },
-    'required': ['version'],
-    }
+log = logging.getLogger("subiquity.client.controllers.network")
 
 
 class NetworkController(SubiquityTuiController, NetworkController):

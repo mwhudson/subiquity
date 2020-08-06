@@ -20,9 +20,8 @@ import attr
 from subiquitycore.context import with_context
 
 from subiquity.server.controller import SubiquityController
-from subiquity.ui.views import IdentityView
 
-log = logging.getLogger('subiquity.controllers.identity')
+log = logging.getLogger('subiquity.server.controllers.identity')
 
 
 class IdentityController(SubiquityController):
@@ -59,7 +58,7 @@ class IdentityController(SubiquityController):
         r['hostname'] = self.model.hostname
         return r
 
-    async def _get(self):
+    async def _get(self, context):
         r = {}
         if self.model.user is not None:
             r.update(attr.asdict(self.model.user))
@@ -67,5 +66,5 @@ class IdentityController(SubiquityController):
             r['hostname'] = self.model.hostname
         return r
 
-    async def _post(self, data):
+    async def _post(self, context, data):
         self.model.add_user(data)

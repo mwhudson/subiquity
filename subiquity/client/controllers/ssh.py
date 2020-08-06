@@ -23,7 +23,7 @@ from subiquitycore import utils
 from subiquity.client.controller import SubiquityTuiController
 from subiquity.ui.views.ssh import SSHView
 
-log = logging.getLogger('subiquity.controllers.ssh')
+log = logging.getLogger('subiquity.client.controllers.ssh')
 
 
 class FetchSSHKeysFailure(Exception):
@@ -34,34 +34,14 @@ class FetchSSHKeysFailure(Exception):
 
 class SSHController(SubiquityTuiController):
 
-    autoinstall_key = model_name = "ssh"
-    autoinstall_schema = {
-        'type': 'object',
-        'properties': {
-            'install-server': {'type': 'boolean'},
-            'authorized-keys': {
-                'type': 'array',
-                'items': {'type': 'string'},
-                },
-            'allow-pw': {'type': 'boolean'},
-        },
-    }
+    endpoint = '/ssh'
 
     def __init__(self, app):
         super().__init__(app)
         self._fetch_task = None
 
-    def load_autoinstall_data(self, data):
-        if data is None:
-            return
-        self.model.install_server = data.get('install-server', False)
-        self.model.authorized_keys = data.get(
-            'authorized-keys', [])
-        self.model.pwauth = data.get(
-            'allow-pw', not self.model.authorized_keys)
-
-    def start_ui(self):
-        self.ui.set_body(SSHView(self.model, self))
+    async def _start_ui(self, status):
+        await self.app.set_body(SSHView(status, self))
         if self.answers:
             d = {
                 "install_server": self.answers.get("install_server", False),
@@ -136,16 +116,9 @@ class SSHController(SubiquityTuiController):
 
     def done(self, result):
         log.debug("SSHController.done next_screen result=%s", result)
-        self.model.install_server = result['install_server']
-        self.model.authorized_keys = result.get('authorized_keys', [])
-        self.model.pwauth = result.get('pwauth', True)
-        self.model.ssh_import_id = result.get('ssh_import_id', None)
-        self.configured()
-        self.app.next_screen()
-
-    def make_autoinstall(self):
-        return {
-            'install-server': self.model.install_server,
-            'authorized-keys': self.model.authorized_keys,
-            'allow-pw': self.model.pwauth,
+        data = {
+            'install-server': result['install_server'],
+            'authorized-keys': result.get('authorized_keys', []),
+            'allow-pw': result.get('pwauth', True),
             }
+        self.app.next_screen(self.post(data))

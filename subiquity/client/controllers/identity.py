@@ -15,43 +15,18 @@
 
 import logging
 
-import attr
-
-from subiquitycore.context import with_context
-
 from subiquity.client.controller import SubiquityTuiController
 from subiquity.ui.views import IdentityView
 
-log = logging.getLogger('subiquity.controllers.identity')
+log = logging.getLogger('subiquity.client.controllers.identity')
 
 
 class IdentityController(SubiquityTuiController):
 
-    autoinstall_key = model_name = "identity"
-    autoinstall_schema = {
-        'type': 'object',
-        'properties': {
-            'realname': {'type': 'string'},
-            'username': {'type': 'string'},
-            'hostname': {'type': 'string'},
-            'password': {'type': 'string'},
-            },
-        'required': ['username', 'hostname', 'password'],
-        'additionalProperties': False,
-        }
+    endpoint = '/identity'
 
-    def load_autoinstall_data(self, data):
-        if data is not None:
-            self.model.add_user(data)
-
-    @with_context()
-    async def apply_autoinstall_config(self, context=None):
-        if not self.model.user:
-            if 'user-data' not in self.app.autoinstall_config:
-                raise Exception("no identity data provided")
-
-    def start_ui(self):
-        self.ui.set_body(IdentityView(self.model, self))
+    async def _start_ui(self, status):
+        await self.app.set_body(IdentityView(status, self))
         if all(elem in self.answers for elem in
                ['realname', 'username', 'password', 'hostname']):
             d = {
@@ -71,13 +46,4 @@ class IdentityController(SubiquityTuiController):
         log.debug(
             "IdentityController.done next_screen user_spec=%s",
             safe_spec)
-        self.model.add_user(user_spec)
-        self.configured()
-        self.app.next_screen()
-
-    def make_autoinstall(self):
-        if self.model.user is None:
-            return {}
-        r = attr.asdict(self.model.user)
-        r['hostname'] = self.model.hostname
-        return r
+        self.app.next_screen(self.post(user_spec))

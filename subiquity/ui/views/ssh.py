@@ -223,18 +223,13 @@ class SSHView(BaseView):
     excerpt = _("You can choose to install the OpenSSH server package to "
                 "enable secure remote access to your server.")
 
-    def __init__(self, model, controller):
-        self.model = model
+    def __init__(self, status, controller):
         self.controller = controller
 
         initial = {
-            "install_server": self.model.install_server,
-            "pwauth": self.model.pwauth,
+            "install_server": status['install-server'],
+            "pwauth": status['allow-pw'],
             }
-        if self.model.ssh_import_id:
-            prefix, username = self.model.ssh_import_id.split(':', 1)
-            initial['ssh_import_id'] = prefix
-            initial['import_username'] = username
 
         self.form = SSHForm(initial=initial)
 
