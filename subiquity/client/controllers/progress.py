@@ -14,38 +14,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-import datetime
 import logging
-import os
-import re
-import shutil
-import sys
-import tempfile
-import traceback
 
-from curtin.commands.install import (
-    ERROR_TARFILE,
-    INSTALL_LOG,
-    )
-from curtin.util import write_file
-
-from systemd import journal
-
-import yaml
-
-from subiquitycore.async_helpers import (
-    run_in_thread,
-    schedule_task,
-    )
-from subiquitycore.context import Status, with_context
-from subiquitycore.utils import (
-    arun_command,
-    astart_command,
-    )
+from subiquitycore.context import with_context
 
 from subiquity.client.controller import SubiquityTuiController
-from subiquity.common.errorreport import ErrorReportKind
-from subiquity.journald import journald_listener
 from subiquity.ui.views.installprogress import ProgressView
 
 
@@ -81,6 +54,16 @@ class ProgressController(SubiquityTuiController):
 
     def cancel(self):
         pass
+
+    def start(self):
+        self.app.aio_loop.create_task(self._wait_status())
+
+    @with_context()
+    async def _wait_status(self, context):
+        status = await self.app.get('/install/wait')
+        self.progress_view.title = status['install_state']
+        if self.showing:
+            self.ui.set_header(self.progress_view.title)
 
     @with_context()
     async def start_ui(self, context):

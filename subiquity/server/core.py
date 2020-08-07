@@ -45,7 +45,6 @@ from subiquity.common.errorreport import (
     )
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.server.controller import web_handler
-from subiquity.server.installer import Installer
 
 
 log = logging.getLogger('subiquity.core')
@@ -94,6 +93,7 @@ class Subiquity(Application):
         ## "Filesystem",
         "Identity",
         "SSH",
+        "Install",
         ## "SnapList",
         ## "Late",
         ## "Reboot",
@@ -126,7 +126,6 @@ class Subiquity(Application):
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
 
         self.note_data_for_apport("SnapUpdated", str(self.updated))
-        self.installer = Installer(self)
         self.state = 'starting'
         self.early_commands_run = asyncio.Event()
         self.has_early_commands = asyncio.Event()
@@ -174,15 +173,15 @@ class Subiquity(Application):
 
     @web_handler
     async def _status(self, context, request):
+        log_id = self.controllers.Install._log_syslog_identifier
         return web.json_response({
             'state': self.state,
             'event_syslog_identifier': self.syslog_id,
-            'log_syslog_identifier': self.installer._log_syslog_identifier,
+            'log_syslog_identifier': log_id,
             })
 
     async def startup(self):
         self.aio_loop.create_task(self.load_autoinstall_config())
-        self.aio_loop.create_task(self.installer.install())
         await self.has_early_commands.wait()
         app = web.Application()
         app['app'] = self

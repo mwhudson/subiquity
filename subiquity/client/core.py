@@ -132,26 +132,6 @@ class Subiquity(TuiApplication):
             async with session.post('http://a' + path, json=data) as resp:
                 return await resp.json()
 
-    def subiquity_event(self, event):
-        if event["MESSAGE"] == "starting install":
-            if event["_PID"] == os.getpid():
-                return
-            if not self.install_lock_file.is_exclusively_locked():
-                return
-            from subiquity.ui.views.installprogress import (
-                InstallRunning,
-                )
-            tty = self.install_lock_file.read_content()
-            install_running = InstallRunning(self.ui.body, self, tty)
-            self.add_global_overlay(install_running)
-            schedule_task(self._hide_install_running(install_running))
-
-    async def _hide_install_running(self, install_running):
-        # Wait until the install has completed...
-        async with self.install_lock_file.shared():
-            # And remove the overlay.
-            self.remove_global_overlay(install_running)
-
     def restart(self, remove_last_screen=True):
         if remove_last_screen:
             self._remove_last_screen()

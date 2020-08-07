@@ -15,6 +15,7 @@
 
 import asyncio
 import datetime
+import enum
 import logging
 import os
 import re
@@ -22,18 +23,18 @@ import shutil
 import sys
 import tempfile
 
+from aiohttp import web
+
 from curtin.commands.install import (
     ERROR_TARFILE,
     INSTALL_LOG,
     )
 from curtin.util import write_file
 
-
 import yaml
 
 from subiquitycore.async_helpers import (
     run_in_thread,
-    schedule_task,
     )
 from subiquitycore.context import Status, with_context
 from subiquitycore.utils import (
@@ -42,15 +43,16 @@ from subiquitycore.utils import (
     )
 
 from subiquity.common.errorreport import ErrorReportKind
-from subiquity.server.controller import SubiquityController
+from subiquity.server.controller import (
+    SubiquityController,
+    web_handler,
+    )
 from subiquity.journald import journald_listener
-from subiquity.ui.views.installprogress import ProgressView
-
 
 log = logging.getLogger("subiquitycore.controller.installprogress")
 
 
-class InstallState:
+class InstallState(enum.Enum):
     NOT_STARTED = 0
     RUNNING = 1
     DONE = 2
@@ -76,11 +78,10 @@ class TracebackExtractor:
             self.traceback.append(line)
 
 
-class Installer:
+class InstallController(SubiquityController):
 
     def __init__(self, app):
-        self.app = app
-        self.context = self.app.context.child("Installer")
+        super().__init__(app)
         self.model = app.base_model
         self.install_state = InstallState.NOT_STARTED
 
@@ -90,12 +91,28 @@ class Installer:
         self._log_syslog_identifier = 'curtin_log.%s' % (os.getpid(),)
         self.tb_extractor = TracebackExtractor()
         self.curtin_event_contexts = {}
+        self.install_done_event = asyncio.Event()
+
+    def interactive(self):
+        return self.app.interactive()
+
+    def add_routes(self, app):
+        app.router.add_get('/install/wait', self._wait_install)
+
+    def start(self):
+        self.app.aio_loop.create_task(self.install())
+
+    @web_handler
+    async def _wait_install(self, context, request):
+        await self.install_done_event.wait()
+        return web.json_response({'install_state': self.install_state.name})
 
     def tpath(self, *path):
         return os.path.join(self.model.target, *path)
 
     def curtin_error(self):
         self.install_state = InstallState.ERROR
+        self.install_done_event.set()
         kw = {}
         if sys.exc_info()[0] is not None:
             log.exception("curtin_error")
@@ -245,9 +262,7 @@ class Installer:
 
             await self.postinstall(context=context)
 
-            self.ui.set_header(_("Installation complete!"))
-            self.progress_view.set_status(_("Finished install!"))
-            self.progress_view.show_complete()
+            self.install_done_event.set()
 
             if self.model.network.has_network:
                 await self.run_unattended_upgrades(context=context)
