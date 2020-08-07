@@ -222,7 +222,7 @@ class Subiquity(Application):
     def _maybe_push_to_journal(self, event_type, context, description):
         if context.get('hidden', False):
             return
-        if self.interactive():
+        if not context.get('is-install-context') and self.interactive():
             controller = context.get('controller')
             if controller is None or controller.interactive():
                 return
