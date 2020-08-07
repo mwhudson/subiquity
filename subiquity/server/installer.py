@@ -21,7 +21,6 @@ import re
 import shutil
 import sys
 import tempfile
-import traceback
 
 from curtin.commands.install import (
     ERROR_TARFILE,
@@ -29,7 +28,6 @@ from curtin.commands.install import (
     )
 from curtin.util import write_file
 
-from systemd import journal
 
 import yaml
 
@@ -112,8 +110,8 @@ class Installer:
         return ['systemd-cat', '--level-prefix=false',
                 '--identifier=' + self._log_syslog_identifier] + cmd
 
-    def _journal_event(self, event):
-        self.curtin_event(event)
+    def log_event(self, event):
+        self.tb_extractor.feed(event['MESSAGE'])
 
     def curtin_event(self, event):
         e = {
@@ -207,6 +205,10 @@ class Installer:
         journal_fd, watcher = journald_listener(
             [self._event_syslog_identifier],
             self.curtin_event)
+        self.app.aio_loop.add_reader(journal_fd, watcher)
+        journal_fd, watcher = journald_listener(
+            [self._log_syslog_identifier],
+            self.log_event)
         self.app.aio_loop.add_reader(journal_fd, watcher)
 
         curtin_cmd = self._get_curtin_command()

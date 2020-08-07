@@ -78,7 +78,6 @@ class ProgressController(SubiquityTuiController):
     def log_line(self, event):
         log_line = event['MESSAGE']
         self.progress_view.add_log_line(log_line)
-        self.tb_extractor.feed(log_line)
 
     def cancel(self):
         pass

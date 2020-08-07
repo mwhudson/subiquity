@@ -229,7 +229,7 @@ class Subiquity(Application):
         indent = context.full_name().count('/') - 2
         if context.get('is-install-context'):
             indent -= 1
-            msg = context.description()
+            msg = context.description
         else:
             msg = context.full_name()
             if description:
@@ -243,7 +243,7 @@ class Subiquity(Application):
             msg,
             PRIORITY=context.level,
             SYSLOG_IDENTIFIER=self.syslog_id,
-            SUBIQUITY_EVENT_TYPE='start',
+            SUBIQUITY_EVENT_TYPE=event_type,
             SUBIQUITY_CONTEXT_ID=str(context.id),
             SUBIQUITY_CONTEXT_PARENT_ID=parent_id)
 

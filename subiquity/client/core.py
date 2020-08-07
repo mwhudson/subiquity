@@ -81,10 +81,10 @@ class Subiquity(TuiApplication):
         ## "Network",
         "Proxy",
         "Mirror",
-        "Refresh",
+##        "Refresh",
         ## "Filesystem",
-        "Identity",
-        "SSH",
+##        "Identity",
+##        "SSH",
         ## "SnapList",
         "Progress",
     ]

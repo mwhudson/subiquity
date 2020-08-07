@@ -76,12 +76,12 @@ INSTALL_MODEL_NAMES = [
 
 # Models that contribute to the cloud-init config (and other postinstall steps)
 POSTINSTALL_MODEL_NAMES = [
-    "identity",
+#    "identity",
     "locale",
-    "packages",
+#    "packages",
 #    "snaplist",
-    "ssh",
-    "userdata",
+#    "ssh",
+#    "userdata",
     ]
 
 ALL_MODEL_NAMES = INSTALL_MODEL_NAMES + POSTINSTALL_MODEL_NAMES
