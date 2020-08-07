@@ -158,7 +158,7 @@ class Installer:
     def _get_curtin_command(self):
         config_file_name = 'subiquity-curtin-install.conf'
 
-        if self.opts.dry_run:
+        if self.app.opts.dry_run:
             config_location = os.path.join('.subiquity/', config_file_name)
             log_location = '.subiquity/install.log'
             event_file = "examples/curtin-events.json"
@@ -191,10 +191,10 @@ class Installer:
             sys.executable, '-m', 'curtin', 'unmount',
             '-t', target,
             ]
-        if self.opts.dry_run:
+        if self.app.opts.dry_run:
             cmd = ['sleep', str(0.2/self.app.scale_factor)]
         await arun_command(cmd)
-        if not self.opts.dry_run:
+        if not self.app.opts.dry_run:
             shutil.rmtree(target)
 
     @with_context(
@@ -228,7 +228,7 @@ class Installer:
             await asyncio.wait(
                 {e.wait() for e in self.model.install_events})
 
-            await self.confirmation.wait()
+            #await self.confirmation.wait()
 
             if os.path.exists(self.model.target):
                 await self.unmount_target(
@@ -286,7 +286,7 @@ class Installer:
         name="install_{package}",
         description="installing {package}")
     async def install_package(self, *, context, package):
-        if self.opts.dry_run:
+        if self.app.opts.dry_run:
             cmd = ["sleep", str(2/self.app.scale_factor)]
         else:
             cmd = [
@@ -298,7 +298,7 @@ class Installer:
 
     @with_context(description="restoring apt configuration")
     async def restore_apt_config(self, context):
-        if self.opts.dry_run:
+        if self.app.opts.dry_run:
             cmds = [["sleep", str(1/self.app.scale_factor)]]
         else:
             cmds = [
@@ -325,7 +325,7 @@ class Installer:
         env = os.environ.copy()
         env["APT_CONFIG"] = apt_conf.name[len(self.model.target):]
         self.unattended_upgrades_ctx = context
-        if self.opts.dry_run:
+        if self.app.opts.dry_run:
             self.unattended_upgrades_proc = await astart_command(
                 self.logged_command(
                     ["sleep", str(5/self.app.scale_factor)]), env=env)
@@ -344,7 +344,7 @@ class Installer:
         with self.unattended_upgrades_ctx.parent.child(
                 "stop_unattended_upgrades",
                 "cancelling update"):
-            if self.opts.dry_run:
+            if self.app.opts.dry_run:
                 await asyncio.sleep(1)
                 self.unattended_upgrades_proc.terminate()
             else:

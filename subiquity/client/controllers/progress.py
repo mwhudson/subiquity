@@ -52,18 +52,12 @@ from subiquity.ui.views.installprogress import ProgressView
 log = logging.getLogger("subiquity.client.controllers.installprogress")
 
 
-class InstallProgressController(SubiquityTuiController):
+class ProgressController(SubiquityTuiController):
 
     def __init__(self, app):
         super().__init__(app)
-        self.model = app.base_model
         self.progress_view = ProgressView(self)
-        app.add_event_listener(self)
 
-        journal_fd, watcher = journald_listener(
-            ["subiquity"],
-            self.curtin_event)
-        self.app.aio_loop.add_reader(journal_fd, watcher)
         self.reboot_clicked = asyncio.Event()
         if self.answers.get('reboot', False):
             self.reboot_clicked.set()
@@ -71,13 +65,17 @@ class InstallProgressController(SubiquityTuiController):
         self.curtin_event_contexts = {}
         self.confirmation = asyncio.Event()
 
-    def _journal_event(self, event):
-        if event['SYSLOG_IDENTIFIER'] == self._event_syslog_identifier:
-            self.curtin_event(event)
-        elif event['SYSLOG_IDENTIFIER'] == self._log_syslog_identifier:
-            self.curtin_log(event)
+    def event(self, event):
+        if event["SUBIQUITY_EVENT_TYPE"] == "start":
+            self.progress_view.event_start(
+                event["SUBIQUITY_CONTEXT_ID"],
+                event.get("SUBIQUITY_CONTEXT_PARENT_ID"),
+                event["MESSAGE"])
+        elif event["SUBIQUITY_EVENT_TYPE"] == "finish":
+            self.progress_view.event_finish(
+                event["SUBIQUITY_CONTEXT_ID"])
 
-    def curtin_log(self, event):
+    def log_line(self, event):
         log_line = event['MESSAGE']
         self.progress_view.add_log_line(log_line)
         self.tb_extractor.feed(log_line)
@@ -85,24 +83,16 @@ class InstallProgressController(SubiquityTuiController):
     def cancel(self):
         pass
 
-    async def _start_ui(self, status):
-        if self.install_state in [
-                InstallState.NOT_STARTED,
-                InstallState.RUNNING,
-                ]:
-            self.progress_view.title = _("Installing system")
-        elif self.install_state == InstallState.DONE:
-            self.progress_view.title = _("Install complete!")
-        elif self.install_state == InstallState.ERROR:
-            self.progress_view.title = (
-                _('An error occurred during installation'))
-        self.ui.set_body(self.progress_view)
-        schedule_task(self.move_on())
-
-
-uu_apt_conf = """\
-# Config for the unattended-upgrades run to avoid failing on battery power or
-# a metered connection.
-Unattended-Upgrade::OnlyOnACPower "false";
-Unattended-Upgrade::Skip-Updates-On-Metered-Connections "true";
-"""
+    @with_context()
+    async def start_ui(self, context):
+        ## if self.install_state in [
+        ##         InstallState.NOT_STARTED,
+        ##         InstallState.RUNNING,
+        ##         ]:
+        ##     self.progress_view.title = _("Installing system")
+        ## elif self.install_state == InstallState.DONE:
+        ##     self.progress_view.title = _("Install complete!")
+        ## elif self.install_state == InstallState.ERROR:
+        ##     self.progress_view.title = (
+        ##         _('An error occurred during installation'))
+        await self.app.set_body(self.progress_view)

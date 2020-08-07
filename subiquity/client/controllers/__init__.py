@@ -15,11 +15,11 @@
 
 from .filesystem import FilesystemController
 from .identity import IdentityController
-from .installprogress import InstallProgressController
 from .keyboard import KeyboardController
 from .proxy import ProxyController
 from .mirror import MirrorController
 from .network import NetworkController
+from .progress import ProgressController
 #from .reboot import RebootController
 from .refresh import RefreshController
 from ..controller import RepeatedController
@@ -30,11 +30,11 @@ from .zdev import ZdevController
 __all__ = [
     'FilesystemController',
     'IdentityController',
-    'InstallProgressController',
     'KeyboardController',
     'ProxyController',
     'MirrorController',
     'NetworkController',
+    'ProgressController',
     'RefreshController',
 #    'RebootController',
     'RepeatedController',

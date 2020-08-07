@@ -88,9 +88,9 @@ class Subiquity(Application):
         "Refresh",
         "Keyboard",
         ## "Zdev",
-        "Network",
-         "Proxy",
-         "Mirror",
+        ## "Network",
+        "Proxy",
+        "Mirror",
         ## "Filesystem",
         "Identity",
         "SSH",
@@ -173,11 +173,11 @@ class Subiquity(Application):
         return web.json_response({})
 
     @web_handler
-    async def _root(self, context, request):
+    async def _status(self, context, request):
         return web.json_response({
             'state': self.state,
-            'progress_id': self.syslog_id,
-            'log_id': self.installer._log_syslog_identifier,
+            'event_syslog_identifier': self.syslog_id,
+            'log_syslog_identifier': self.installer._log_syslog_identifier,
             })
 
     async def startup(self):
@@ -186,7 +186,7 @@ class Subiquity(Application):
         await self.has_early_commands.wait()
         app = web.Application()
         app['app'] = self
-        app.router.add_get('/', self._root)
+        app.router.add_get('/status', self._status)
         app.router.add_get('/wait-early', self._wait_early_commands)
         app.router.add_post('/confirm', self._confirm)
         for c in self.controllers.instances:
@@ -235,12 +235,17 @@ class Subiquity(Application):
             if description:
                 msg += ': ' + description
         msg = '  ' * indent + msg
+        if context.parent:
+            parent_id = str(context.parent.id)
+        else:
+            parent_id = ''
         journal.send(
             msg,
             PRIORITY=context.level,
             SYSLOG_IDENTIFIER=self.syslog_id,
             SUBIQUITY_EVENT_TYPE='start',
-            SUBIQUITY_CONTEXT_ID=str(context.id))
+            SUBIQUITY_CONTEXT_ID=str(context.id),
+            SUBIQUITY_CONTEXT_PARENT_ID=parent_id)
 
     def report_start_event(self, context, description):
         for listener in self.event_listeners:

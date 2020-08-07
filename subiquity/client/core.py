@@ -78,7 +78,7 @@ class Subiquity(TuiApplication):
         "Refresh",
         "Keyboard",
         ## "Zdev",
-        "Network",
+        ## "Network",
         "Proxy",
         "Mirror",
         "Refresh",
@@ -86,7 +86,7 @@ class Subiquity(TuiApplication):
         "Identity",
         "SSH",
         ## "SnapList",
-        ## "InstallProgress",
+        "Progress",
     ]
 
     def __init__(self, opts, block_log_dir):
@@ -98,8 +98,6 @@ class Subiquity(TuiApplication):
         else:
             self.input_filter = DummyKeycodesFilter()
 
-        self.journal_fd, self.journal_watcher = journald_listener(
-            ["subiquity"], self.subiquity_event, seek=True)
         self.help_menu = HelpMenu(self)
         super().__init__(opts)
         self.global_overlays = []
@@ -164,10 +162,6 @@ class Subiquity(TuiApplication):
                 sys.executable, '-m', 'subiquity.client.core',
                 ] + sys.argv[1:]
         os.execvp(cmdline[0], cmdline)
-
-    def new_event_loop(self):
-        super().new_event_loop()
-        #self.aio_loop.add_reader(self.journal_fd, self.journal_watcher)
 
     def extra_urwid_loop_args(self):
         return dict(input_filter=self.input_filter.filter)
@@ -349,7 +343,7 @@ class Subiquity(TuiApplication):
         print("connecting...", end='', flush=True)
         while True:
             try:
-                status = await self.get('/', timeout=1)
+                status = await self.get('/status', timeout=1)
             except aiohttp.ClientError:
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
@@ -359,8 +353,16 @@ class Subiquity(TuiApplication):
         if status['state'] == 'early-commands':
             print("waiting for early-commands")
             await self.get('/wait-early')
-            status = await self.get('/')
+            status = await self.get('/status')
         if status['state'] == 'interactive':
+            fd1, watcher1 = journald_listener(
+                [status["event_syslog_identifier"]],
+                self.controllers.Progress.event)
+            self.aio_loop.add_reader(fd1, watcher1)
+            fd2, watcher2 = journald_listener(
+                [status["log_syslog_identifier"]],
+                self.controllers.Progress.log_line)
+            self.aio_loop.add_reader(fd2, watcher2)
             self.start_urwid()
             self.next_screen()
         else:
