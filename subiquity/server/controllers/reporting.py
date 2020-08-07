@@ -42,7 +42,9 @@ class LogHandler(LogHandler):
 available_handlers.unregister_item('log')
 available_handlers.register_item('log', LogHandler)
 
-INITIAL_CONFIG = {'logging': {'type': 'log'}}
+INITIAL_CONFIG = {
+    'logging': {'type': 'log'},
+    }
 NON_INTERACTIVE_CONFIG = {'builtin': {'type': 'print'}}
 
 

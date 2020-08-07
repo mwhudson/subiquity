@@ -356,8 +356,11 @@ class Subiquity(TuiApplication):
             else:
                 print()
                 break
-        self.interactive = status['interactive']
-        if self.interactive:
+        if status['state'] == 'early-commands':
+            print("waiting for early-commands")
+            await self.get('/wait-early')
+            status = await self.get('/')
+        if status['state'] == 'interactive':
             self.start_urwid()
             self.next_screen()
         else:

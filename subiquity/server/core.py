@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 import os
 import shlex
@@ -22,6 +23,8 @@ import traceback
 from aiohttp import web
 
 import jsonschema
+
+from systemd import journal
 
 import yaml
 
@@ -41,6 +44,8 @@ from subiquity.common.errorreport import (
     ErrorReportKind,
     )
 from subiquity.models.subiquity import SubiquityModel
+from subiquity.server.controller import web_handler
+from subiquity.server.installer import Installer
 
 
 log = logging.getLogger('subiquity.core')
@@ -90,7 +95,6 @@ class Subiquity(Application):
         "Identity",
         "SSH",
         ## "SnapList",
-        ## "InstallProgress",
         ## "Late",
         ## "Reboot",
     ]
@@ -116,47 +120,74 @@ class Subiquity(Application):
             ('network-change', self._network_change),
             ])
 
+        self.syslog_id = 'subiquity.{}'.format(os.getpid())
         self.autoinstall_config = {}
         self.error_reporter = ErrorReporter(
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
 
         self.note_data_for_apport("SnapUpdated", str(self.updated))
+        self.installer = Installer(self)
+        self.state = 'starting'
+        self.early_commands_run = asyncio.Event()
+        self.has_early_commands = asyncio.Event()
 
     def restart(self, remove_last_screen=True):
         XXX
 
-    def load_autoinstall_config(self):
-        with open(self.opts.autoinstall) as fp:
-            self.autoinstall_config = yaml.safe_load(fp)
-        self.controllers.load("Reporting")
-        self.controllers.Reporting.start()
-        self.controllers.load("Error")
-        with self.context.child("core_validation", level="INFO"):
-            jsonschema.validate(self.autoinstall_config, self.base_schema)
-        self.controllers.load("Early")
-        if self.controllers.Early.cmds:
-            stamp_file = self.state_path("early-commands")
-            if not os.path.exists(stamp_file):
-                self.aio_loop.run_until_complete(
-                    self.controllers.Early.run())
-                self.new_event_loop()
-                open(stamp_file, 'w').close()
+    async def load_autoinstall_config(self):
+        if self.opts.autoinstall is not None:
             with open(self.opts.autoinstall) as fp:
                 self.autoinstall_config = yaml.safe_load(fp)
+            self.controllers.load("Reporting")
+            self.controllers.Reporting.start()
+            self.controllers.load("Error")
             with self.context.child("core_validation", level="INFO"):
                 jsonschema.validate(self.autoinstall_config, self.base_schema)
-            for controller in self.controllers.instances:
-                controller.setup_autoinstall()
+            self.controllers.load("Early")
+            if self.controllers.Early.cmds:
+                stamp_file = self.state_path("early-commands")
+                if not os.path.exists(stamp_file):
+                    self.state = 'early-commands'
+                    self.has_early_commands.set()
+                    await self.controllers.Early.run()
+                    open(stamp_file, 'w').close()
+                    with open(self.opts.autoinstall) as fp:
+                        self.autoinstall_config = yaml.safe_load(fp)
+                    with self.context.child("core_validation", level="INFO"):
+                        jsonschema.validate(
+                            self.autoinstall_config, self.base_schema)
+                    for controller in self.controllers.instances:
+                        controller.setup_autoinstall()
+        if self.interactive():
+            self.state = 'interactive'
+        else:
+            if not self.opts.dry_run:
+                open('/run/casper-no-prompt', 'w').close()
+            self.state = 'non-interactive'
+        self.has_early_commands.set()
+        self.early_commands_run.set()
 
-    async def _root(self, request):
+    @web_handler
+    async def _wait_early_commands(self, request):
+        await self.early_commands_run.wait()
+        return web.json_response({})
+
+    @web_handler
+    async def _root(self, context, request):
         return web.json_response({
-            'interactive': self.interactive(),
+            'state': self.state,
+            'progress_id': self.syslog_id,
+            'log_id': self.installer._log_syslog_identifier,
             })
 
-    async def start_serving(self):
+    async def startup(self):
+        self.aio_loop.create_task(self.load_autoinstall_config())
+        self.aio_loop.create_task(self.installer.install())
+        await self.has_early_commands.wait()
         app = web.Application()
         app['app'] = self
         app.router.add_get('/', self._root)
+        app.router.add_get('/wait-early', self._wait_early_commands)
         app.router.add_post('/confirm', self._confirm)
         for c in self.controllers.instances:
             c.add_routes(app)
@@ -167,11 +198,7 @@ class Subiquity(Application):
 
     def run(self):
         try:
-            if self.opts.autoinstall is not None:
-                self.load_autoinstall_config()
-                if not self.interactive() and not self.opts.dry_run:
-                    open('/run/casper-no-prompt', 'w').close()
-            self.aio_loop.create_task(self.start_serving())
+            self.aio_loop.create_task(self.startup())
             super().run()
         except Exception:
             print("generating crash report")
@@ -192,13 +219,38 @@ class Subiquity(Application):
     def add_event_listener(self, listener):
         self.event_listeners.append(listener)
 
+    def _maybe_push_to_journal(self, event_type, context, description):
+        if context.get('hidden', False):
+            return
+        if self.interactive():
+            controller = context.get('controller')
+            if controller is None or controller.interactive():
+                return
+        indent = context.full_name().count('/') - 2
+        if context.get('is-install-context'):
+            indent -= 1
+            msg = context.description()
+        else:
+            msg = context.full_name()
+            if description:
+                msg += ': ' + description
+        msg = '  ' * indent + msg
+        journal.send(
+            msg,
+            PRIORITY=context.level,
+            SYSLOG_IDENTIFIER=self.syslog_id,
+            SUBIQUITY_EVENT_TYPE='start',
+            SUBIQUITY_CONTEXT_ID=str(context.id))
+
     def report_start_event(self, context, description):
         for listener in self.event_listeners:
             listener.report_start_event(context, description)
+        self._maybe_push_to_journal('start', context, description)
 
     def report_finish_event(self, context, description, status):
         for listener in self.event_listeners:
             listener.report_finish_event(context, description, status)
+        self._maybe_push_to_journal('finish', context, description)
 
     def _confirm(self, request):
         self.base_model.configured(self.base_model.last_install_event)

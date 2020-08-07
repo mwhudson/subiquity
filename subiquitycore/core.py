@@ -78,6 +78,7 @@ class Application:
         self.controllers = ControllerSet(
             self.controllers_mod, self.controllers, init_args=(self,))
         self.context = Context.new(self)
+        self.base_model = self.make_model()
 
     def _exception_handler(self, loop, context):
         exc = context.get('exception')
@@ -141,7 +142,6 @@ class Application:
 
     def run(self):
         log.debug("Application.run")
-        self.base_model = self.make_model()
         try:
             self.controllers.load_all()
             self.load_serialized_state()

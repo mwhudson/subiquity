@@ -37,9 +37,11 @@ def trim(text):
 
 def web_handler(meth):
     async def w(self, request):
-        with self.context.child(meth.__name__) as context:
+        context = self.context.child(meth.__name__, trim(await request.text()))
+        with context:
             context.set('request', request)
-            resp = web.json_response(await meth(self, context=context))
+            resp = await meth(
+                self, request=request, context=context)
             context.description = trim(resp.text)
             return resp
     return w
@@ -113,33 +115,25 @@ class SubiquityController(BaseController):
             app.router.add_get(self.endpoint, self.get)
             app.router.add_post(self.endpoint, self.post)
 
-    async def get(self, request):
-        with self.context.child('get') as context:
-            context.set('request', request)
-            resp = {
-                'interactive': self.interactive(),
-                }
-            resp.update(await self._get(context))
-            resp = web.json_response(resp)
-            context.description = trim(resp.text)
-            return resp
+    @web_handler
+    async def get(self, context, request):
+        resp = await self._get(context)
+        resp['interactive'] = self.interactive()
+        return web.json_response(resp)
 
-    async def post(self, request):
+    @web_handler
+    async def post(self, context, request):
         payload = await request.text()
-        with self.context.child('post', description=trim(payload)) as context:
-            context.set('request', request)
-            resp = await self._post(context, json.loads(payload))
-            if resp is None:
-                resp = {}
-            base_model = self.app.base_model
-            confirmation_needed = False
-            if self.model_name:
-                if base_model.is_last_install_event(self.model_name):
-                    base_model.last_install_event = self.model_name
-                    confirmation_needed = True
-                else:
-                    self.configured()
-            resp['confirmation-needed'] = confirmation_needed
-            resp = web.json_response(resp)
-            context.description = trim(resp.text)
-            return resp
+        resp = await self._post(context, json.loads(payload))
+        if resp is None:
+            resp = {}
+        base_model = self.app.base_model
+        confirmation_needed = False
+        if self.model_name:
+            if base_model.is_last_install_event(self.model_name):
+                base_model.last_install_event = self.model_name
+                confirmation_needed = True
+            else:
+                self.configured()
+        resp['confirmation-needed'] = confirmation_needed
+        return web.json_response(resp)

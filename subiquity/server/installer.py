@@ -1,4 +1,4 @@
-# Copyright 2015 Canonical, Ltd.
+# Copyright 2020 Canonical, Ltd.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -78,18 +78,13 @@ class TracebackExtractor:
             self.traceback.append(line)
 
 
-class InstallProgressController(SubiquityController):
+class Installer:
 
     def __init__(self, app):
-        super().__init__(app)
+        self.app = app
+        self.context = self.app.context.child("Installer")
         self.model = app.base_model
-        self.progress_view = ProgressView(self)
-        app.add_event_listener(self)
         self.install_state = InstallState.NOT_STARTED
-
-        self.reboot_clicked = asyncio.Event()
-        if self.answers.get('reboot', False):
-            self.reboot_clicked.set()
 
         self.unattended_upgrades_proc = None
         self.unattended_upgrades_ctx = None
@@ -97,43 +92,6 @@ class InstallProgressController(SubiquityController):
         self._log_syslog_identifier = 'curtin_log.%s' % (os.getpid(),)
         self.tb_extractor = TracebackExtractor()
         self.curtin_event_contexts = {}
-        self.confirmation = asyncio.Event()
-
-    def interactive(self):
-        return self.app.interactive()
-
-    def start(self):
-        self.install_task = schedule_task(self.install())
-
-    @with_context()
-    async def apply_autoinstall_config(self, context):
-        await self.install_task
-        self.app.reboot_on_exit = True
-
-    def _push_to_progress(self, context):
-        if not self.app.interactive():
-            return False
-        if context.get('hidden', False):
-            return False
-        controller = context.get('controller')
-        if controller is None or controller.interactive():
-            return False
-        return True
-
-    def report_start_event(self, context, description):
-        if self._push_to_progress(context):
-            msg = context.full_name()
-            if description:
-                msg += ': ' + description
-            self.progress_view.event_start(context, msg)
-        if context.get('is-install-context'):
-            self.progress_view.event_start(context, context.description)
-
-    def report_finish_event(self, context, description, status):
-        if self._push_to_progress(context):
-            self.progress_view.event_finish(context)
-        if context.get('is-install-context'):
-            self.progress_view.event_finish(context)
 
     def tpath(self, *path):
         return os.path.join(self.model.target, *path)
@@ -143,28 +101,19 @@ class InstallProgressController(SubiquityController):
         kw = {}
         if sys.exc_info()[0] is not None:
             log.exception("curtin_error")
-            self.progress_view.add_log_line(traceback.format_exc())
+            # send traceback.format_exc() to journal?
         if self.tb_extractor.traceback:
             kw["Traceback"] = "\n".join(self.tb_extractor.traceback)
-        crash_report = self.app.make_apport_report(
+        self.app.make_apport_report(
             ErrorReportKind.INSTALL_FAIL, "install failed", interrupt=False,
             **kw)
-        self.progress_view.finish_all()
-        self.progress_view.set_status(('info_error',
-                                       _("An error has occurred")))
-        self.start_ui()
-        if crash_report is not None:
-            self.progress_view.show_error(crash_report)
 
     def logged_command(self, cmd):
         return ['systemd-cat', '--level-prefix=false',
                 '--identifier=' + self._log_syslog_identifier] + cmd
 
     def _journal_event(self, event):
-        if event['SYSLOG_IDENTIFIER'] == self._event_syslog_identifier:
-            self.curtin_event(event)
-        elif event['SYSLOG_IDENTIFIER'] == self._log_syslog_identifier:
-            self.curtin_log(event)
+        self.curtin_event(event)
 
     def curtin_event(self, event):
         e = {
@@ -198,11 +147,6 @@ class InstallProgressController(SubiquityController):
             curtin_ctx = self.curtin_event_contexts.pop(e["NAME"], None)
             if curtin_ctx is not None:
                 curtin_ctx.exit(status)
-
-    def curtin_log(self, event):
-        log_line = event['MESSAGE']
-        self.progress_view.add_log_line(log_line)
-        self.tb_extractor.feed(log_line)
 
     def _write_config(self, path, config):
         with open(path, 'w') as conf:
@@ -261,32 +205,21 @@ class InstallProgressController(SubiquityController):
         self.curtin_event_contexts[''] = context
 
         journal_fd, watcher = journald_listener(
-            [self._event_syslog_identifier, self._log_syslog_identifier],
-            self._journal_event)
+            [self._event_syslog_identifier],
+            self.curtin_event)
         self.app.aio_loop.add_reader(journal_fd, watcher)
 
         curtin_cmd = self._get_curtin_command()
 
         log.debug('curtin install cmd: {}'.format(curtin_cmd))
 
-        async with self.app.install_lock_file.exclusive():
-            try:
-                our_tty = os.ttyname(0)
-            except OSError:
-                # This is a gross hack for testing in travis.
-                our_tty = "/dev/not a tty"
-            self.app.install_lock_file.write_content(our_tty)
-            journal.send("starting install", SYSLOG_IDENTIFIER="subiquity")
-            cp = await arun_command(
-                self.logged_command(curtin_cmd), check=True)
+        cp = await arun_command(
+            self.logged_command(curtin_cmd), check=True)
 
         log.debug('curtin_install completed: %s', cp.returncode)
 
         self.install_state = InstallState.DONE
         log.debug('After curtin install OK')
-
-    def cancel(self):
-        pass
 
     @with_context()
     async def install(self, *, context):
@@ -315,22 +248,13 @@ class InstallProgressController(SubiquityController):
             self.progress_view.show_complete()
 
             if self.model.network.has_network:
-                self.progress_view.update_running()
                 await self.run_unattended_upgrades(context=context)
-                self.progress_view.update_done()
-
         except Exception:
             self.curtin_error()
-            if not self.interactive():
-                raise
-
-    async def move_on(self):
-        await self.install_task
-        self.app.next_screen()
 
     async def drain_curtin_events(self, *, context):
         waited = 0.0
-        while self.progress_view.ongoing and waited < 5.0:
+        while len(self.curtin_event_contexts) > 1 and waited < 5.0:
             await asyncio.sleep(0.1)
             waited += 0.1
         log.debug("waited %s seconds for events to drain", waited)
@@ -417,7 +341,6 @@ class InstallProgressController(SubiquityController):
         os.remove(apt_conf.name)
 
     async def stop_unattended_upgrades(self):
-        self.progress_view.event_finish(self.unattended_upgrades_ctx)
         with self.unattended_upgrades_ctx.parent.child(
                 "stop_unattended_upgrades",
                 "cancelling update"):
@@ -431,28 +354,6 @@ class InstallProgressController(SubiquityController):
                     'unattended-upgrade-shutdown',
                     '--stop-only',
                     ]), check=True)
-
-    async def _click_reboot(self):
-        if self.unattended_upgrades_ctx is not None:
-            await self.stop_unattended_upgrades()
-        self.reboot_clicked.set()
-
-    def click_reboot(self):
-        schedule_task(self._click_reboot())
-
-    def start_ui(self):
-        if self.install_state in [
-                InstallState.NOT_STARTED,
-                InstallState.RUNNING,
-                ]:
-            self.progress_view.title = _("Installing system")
-        elif self.install_state == InstallState.DONE:
-            self.progress_view.title = _("Install complete!")
-        elif self.install_state == InstallState.ERROR:
-            self.progress_view.title = (
-                _('An error occurred during installation'))
-        self.ui.set_body(self.progress_view)
-        schedule_task(self.move_on())
 
 
 uu_apt_conf = """\

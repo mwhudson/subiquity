@@ -60,40 +60,16 @@ class InstallProgressController(SubiquityTuiController):
         self.progress_view = ProgressView(self)
         app.add_event_listener(self)
 
+        journal_fd, watcher = journald_listener(
+            ["subiquity"],
+            self.curtin_event)
+        self.app.aio_loop.add_reader(journal_fd, watcher)
         self.reboot_clicked = asyncio.Event()
         if self.answers.get('reboot', False):
             self.reboot_clicked.set()
 
         self.curtin_event_contexts = {}
         self.confirmation = asyncio.Event()
-
-    def interactive(self):
-        return self.app.interactive()
-
-    def _push_to_progress(self, context):
-        if not self.app.interactive():
-            return False
-        if context.get('hidden', False):
-            return False
-        controller = context.get('controller')
-        if controller is None or controller.interactive():
-            return False
-        return True
-
-    def report_start_event(self, context, description):
-        if self._push_to_progress(context):
-            msg = context.full_name()
-            if description:
-                msg += ': ' + description
-            self.progress_view.event_start(context, msg)
-        if context.get('is-install-context'):
-            self.progress_view.event_start(context, context.description)
-
-    def report_finish_event(self, context, description, status):
-        if self._push_to_progress(context):
-            self.progress_view.event_finish(context)
-        if context.get('is-install-context'):
-            self.progress_view.event_finish(context)
 
     def _journal_event(self, event):
         if event['SYSLOG_IDENTIFIER'] == self._event_syslog_identifier:
