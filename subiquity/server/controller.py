@@ -42,6 +42,10 @@ def web_handler(meth):
             context.set('request', request)
             resp = await meth(
                 self, request=request, context=context)
+            if resp is None:
+                resp = {}
+            if not isinstance(resp, web.Response):
+                resp = web.json_response(resp)
             context.description = trim(resp.text)
             return resp
     return w
@@ -119,7 +123,7 @@ class SubiquityController(BaseController):
     async def get(self, context, request):
         resp = await self._get(context)
         resp['interactive'] = self.interactive()
-        return web.json_response(resp)
+        return resp
 
     @web_handler
     async def post(self, context, request):
@@ -136,4 +140,4 @@ class SubiquityController(BaseController):
             else:
                 self.configured()
         resp['confirmation-needed'] = confirmation_needed
-        return web.json_response(resp)
+        return resp

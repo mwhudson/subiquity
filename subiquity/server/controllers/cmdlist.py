@@ -13,12 +13,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import os
 
 from subiquitycore.context import with_context
 from subiquitycore.utils import arun_command
 
 from subiquity.server.controller import SubiquityController
+from subiquity.server.controllers.install import InstallState
 
 
 class CmdListController(SubiquityController):
@@ -33,6 +35,10 @@ class CmdListController(SubiquityController):
         }
     cmds = ()
     cmd_check = True
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.run_event = asyncio.Event()
 
     def load_autoinstall_data(self, data):
         self.cmds = data
@@ -51,6 +57,7 @@ class CmdListController(SubiquityController):
                     cmd, env=env,
                     stdin=None, stdout=None, stderr=None,
                     check=self.cmd_check)
+        self.run_event.set()
 
 
 class EarlyController(CmdListController):
@@ -67,6 +74,17 @@ class LateController(CmdListController):
         env['TARGET_MOUNT_POINT'] = self.app.base_model.target
         return env
 
-    @with_context()
-    async def apply_autoinstall_config(self, context):
-        await self.run(context=context)
+    def start(self):
+        self.aio_loop.create_task(self._run)
+
+    async def _run(self):
+        Install = self.controllers.Install
+        await self.controllers.Install.install_task
+        if Install.install_state == InstallState.DONE:
+            await self.run()
+
+
+class ErrorController(CmdListController):
+
+    autoinstall_key = 'error-commands'
+    cmd_check = False

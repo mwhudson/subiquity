@@ -35,9 +35,6 @@ class ProgressController(SubiquityTuiController):
         if self.answers.get('reboot', False):
             self.reboot_clicked.set()
 
-        self.curtin_event_contexts = {}
-        self.confirmation = asyncio.Event()
-
     def event(self, event):
         if event["SUBIQUITY_EVENT_TYPE"] == "start":
             self.progress_view.event_start(

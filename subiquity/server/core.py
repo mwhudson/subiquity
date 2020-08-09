@@ -93,8 +93,8 @@ class Subiquity(Application):
         ## "Filesystem",
         "Identity",
         "SSH",
-        "Install",
         ## "SnapList",
+        "Install",
         ## "Late",
         ## "Reboot",
     ]
