@@ -125,7 +125,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
     def add_routes(self, app):
         super().add_routes(app)
         app.router.add_get('/storage/wait', self._get_wait)
-        app.router.add_get('/storage/reset', self._reset)
+        app.router.add_post('/storage/reset', self._reset)
 
     @web_handler
     async def _get_wait(self, request, context):
