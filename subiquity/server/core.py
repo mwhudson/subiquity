@@ -90,7 +90,7 @@ class Subiquity(Application):
         ## "Network",
         "Proxy",
         "Mirror",
-        ## "Filesystem",
+        "Filesystem",
         "Identity",
         "SSH",
         ## "SnapList",

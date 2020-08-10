@@ -82,7 +82,7 @@ class Subiquity(TuiApplication):
         "Proxy",
         "Mirror",
 ##        "Refresh",
-        ## "Filesystem",
+        "Filesystem",
 ##        "Identity",
 ##        "SSH",
         ## "SnapList",

@@ -107,6 +107,7 @@ class InstallController(SubiquityController):
         return self.app.interactive()
 
     def add_routes(self, app):
+        super().add_routes(app)
         app.router.add_get('/install/status', self._wait_install)
 
     @web_handler
