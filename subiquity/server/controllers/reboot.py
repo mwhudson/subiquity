@@ -33,7 +33,8 @@ class RebootController(SubiquityController):
     def __init__(self, app):
         super().__init__(app)
         self.context.set('hidden', True)
-        self.reboot_event = asyncio.Event()
+        self.user_reboot_event = asyncio.Event()
+        self.rebooting_event = asyncio.Event()
 
     def add_routes(self, app):
         app.router.add_post('/reboot', self._reboot)
@@ -41,7 +42,8 @@ class RebootController(SubiquityController):
     @web_handler
     async def _reboot(self, context, request):
         self.app.controllers.Install.stop_uu()
-        self.reboot_event.set()
+        self.user_reboot_event.set()
+        await self.rebooting_event.wait()
 
     def start(self):
         self.app.aio_loop.create_task(self._run())
@@ -52,7 +54,7 @@ class RebootController(SubiquityController):
         await self.app.controllers.Late.run_event.wait()
         await self.copy_logs_to_target()
         if self.app.interactive():
-            await self.reboot_event.wait()
+            await self.user_reboot_event.wait()
             self.reboot()
         elif Install.install_state == InstallState.DONE:
             self.reboot()
@@ -78,6 +80,7 @@ class RebootController(SubiquityController):
             log.exception("saving journal failed")
 
     def reboot(self):
+        self.rebooting_event.set()
         if self.opts.dry_run:
             self.app.exit()
         else:

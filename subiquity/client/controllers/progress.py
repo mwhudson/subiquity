@@ -54,7 +54,11 @@ class ProgressController(SubiquityTuiController):
         self.app.aio_loop.create_task(self._wait_status())
 
     def click_reboot(self):
-        self.app.aio_loop.create_task(self.app.post('/reboot', {}))
+        self.app.aio_loop.create_task(self.send_reboot_and_wait())
+
+    async def send_reboot_and_wait(self):
+        await self.app.post('/reboot', {})
+        self.app.exit()
 
     @with_context()
     async def _wait_status(self, context):
