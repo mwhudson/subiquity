@@ -1371,7 +1371,9 @@ class FilesystemModel(object):
         self.grub = None
 
     def load_server_data(self, status):
+        log.debug('load_server_data %s', status)
         self._orig_config = status['orig-config']
+        self._probe_data = {'blockdev': status['blockdev']}
         self._actions = self._actions_from_config(
             status['config'],
             status['blockdev'])
@@ -1561,7 +1563,7 @@ class FilesystemModel(object):
 
         return objs
 
-    def _render_actions(self):
+    def _render_actions(self, include_all=False):
         # The curtin storage config has the constraint that an action must be
         # preceded by all the things that it depends on.  We handle this by
         # repeatedly iterating over all actions and checking if we can emit
@@ -1617,7 +1619,7 @@ class FilesystemModel(object):
 
         work = [
             a for a in self._actions
-            if not getattr(a, 'preserve', False)
+            if not getattr(a, 'preserve', False) or include_all
             ]
 
         while work:

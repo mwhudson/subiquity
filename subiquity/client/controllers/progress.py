@@ -67,7 +67,7 @@ class ProgressController(SubiquityTuiController):
             self.progress_view.update_for_status(status['install_state'])
             if self.ui.body is self.progress_view:
                 self.ui.set_header(self.progress_view.title)
-            if status in ["DONE", "ERROR"]:
+            if status['install_state'] in ["DONE", "ERROR"]:
                 return
 
     @with_context()

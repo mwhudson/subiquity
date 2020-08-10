@@ -113,13 +113,13 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 'status': "DONE",
                 'error-report-path': erp,
                 'orig-config': self.model._orig_config,
-                'config': self.model._render_actions(),
+                'config': self.model._render_actions(include_all=True),
                 'blockdev': self.model._probe_data['blockdev'],
                 'bootloader': self.model.bootloader.name,
                 }
 
     async def _post(self, context, data):
-        self.model._actions = self._actions_from_config(
+        self.model._actions = self.model._actions_from_config(
             data, self.model._probe_data['blockdev'], is_probe_data=False)
 
     def add_routes(self, app):
