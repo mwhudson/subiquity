@@ -60,13 +60,15 @@ class ProgressController(SubiquityTuiController):
     async def _wait_status(self, context):
         while True:
             try:
-                status = await self.app.get('/install/wait/status')
+                status = await self.app.get('/install/status')
             except aiohttp.ClientError:
                 await asyncio.sleep(1)
                 continue
             self.progress_view.update_for_status(status['install_state'])
             if self.ui.body is self.progress_view:
                 self.ui.set_header(self.progress_view.title)
+            if status in ["DONE", "ERROR"]:
+                return
 
     @with_context()
     async def start_ui(self, context):
