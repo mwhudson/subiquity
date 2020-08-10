@@ -212,13 +212,19 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
 
     def reset(self):
         log.info("Resetting Filesystem model")
-        XXX
+        self.app.ui.block_input = True
+        self.app.aio_loop.create_task(self._reset)
         self.model.reset()
         self.manual()
+
+    async def _reset(self):
+        status = await self.app.post('/storage/reset', {})
+        self.app.ui.block_input = False
+        await self.start_ui_real(status)
 
     def cancel(self):
         self.app.prev_screen()
 
     def finish(self):
         log.debug("FilesystemController.finish next_screen")
-        self.app.next_screen()
+        self.app.next_screen(self.post(self.model._render_actions()))

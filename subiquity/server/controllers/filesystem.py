@@ -117,14 +117,25 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 'blockdev': self.model._probe_data['blockdev'],
                 }
 
+    async def _post(self, context, data):
+        self.model._actions = self._actions_from_config(
+            data, self.model._probe_data['blockdev'], is_probe_data=False)
+
     def add_routes(self, app):
         super().add_routes(app)
         app.router.add_get('/storage/wait', self._wait_install)
+        app.router.add_get('/storage/reset', self._reset)
 
     @web_handler
     def _get_wait(self, request, context):
         await self._start_task
         await self._probe_task.wait()
+        return self._get(context)
+
+    @web_handler
+    def _reset(self, context, request):
+        log.info("Resetting Filesystem model")
+        self.model.reset()
         return self._get(context)
 
     @with_context(name='probe_once', description='restricted={restricted}')
@@ -225,22 +236,6 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             action, dev = self._monitor.receive_device()
             log.debug("_udev_event %s %s", action, dev)
         self._probe_task.start_sync()
-
-    async def _wait_for_probing(self):
-        await self._start_task
-        await self._probe_task.wait()
-
-    def reset(self):
-        log.info("Resetting Filesystem model")
-        self.model.reset()
-
-    def cancel(self):
-        self.app.prev_screen()
-
-    def finish(self):
-        log.debug("FilesystemController.finish next_screen")
-        self.configured()
-        self.app.next_screen()
 
     def make_autoinstall(self):
         rendered = self.model.render()
