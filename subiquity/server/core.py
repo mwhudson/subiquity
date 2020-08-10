@@ -314,5 +314,8 @@ if __name__ == '__main__':
         logging.Formatter(
             "%(asctime)s %(levelname)s %(name)s:%(lineno)d %(message)s"))
     logger.addHandler(handler)
-    opts = parse_options(['--dry-run', '--snaps-from-examples'])
+    opts = parse_options([
+        '--dry-run',
+        '--snaps-from-examples',
+        '--machine-config=examples/simple.json'])
     Subiquity(opts, '').run()

@@ -96,7 +96,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 "autoinstall config did not create needed bootloader "
                 "partition")
 
-    def _get(self, context):
+    async def _get(self, context):
         if self._probe_task.task is None or not self._probe_task.task.done():
             return {'status': "PROBING"}
         elif True in self._crash_reports:
@@ -115,6 +115,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 'orig-config': self.model._orig_config,
                 'config': self.model._render_actions(),
                 'blockdev': self.model._probe_data['blockdev'],
+                'bootloader': self.model.bootloader.name,
                 }
 
     async def _post(self, context, data):
@@ -123,20 +124,20 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
 
     def add_routes(self, app):
         super().add_routes(app)
-        app.router.add_get('/storage/wait', self._wait_install)
+        app.router.add_get('/storage/wait', self._get_wait)
         app.router.add_get('/storage/reset', self._reset)
 
     @web_handler
-    def _get_wait(self, request, context):
+    async def _get_wait(self, request, context):
         await self._start_task
         await self._probe_task.wait()
-        return self._get(context)
+        return await self._get(context)
 
     @web_handler
-    def _reset(self, context, request):
+    async def _reset(self, context, request):
         log.info("Resetting Filesystem model")
         self.model.reset()
-        return self._get(context)
+        return await self._get(context)
 
     @with_context(name='probe_once', description='restricted={restricted}')
     async def _probe_once(self, *, context, restricted):
@@ -158,32 +159,31 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
 
     @with_context()
     async def _probe(self, *, context=None):
-        async with self.app.install_lock_file.shared():
-            self._crash_reports = {}
-            for (restricted, kind) in [
-                    (False, ErrorReportKind.BLOCK_PROBE_FAIL),
-                    (True,  ErrorReportKind.DISK_PROBE_FAIL),
-                    ]:
-                try:
-                    await self._probe_once_task.start(
-                        context=context, restricted=restricted)
-                    # We wait on the task directly here, not
-                    # self._probe_once_task.wait as if _probe_once_task
-                    # gets cancelled, we should be cancelled too.
-                    await asyncio.wait_for(self._probe_once_task.task, 15.0)
-                except asyncio.CancelledError:
-                    # asyncio.CancelledError is a subclass of Exception in
-                    # Python 3.6 (sadface)
-                    raise
-                except Exception:
-                    block_discover_log.exception(
-                        "block probing failed restricted=%s", restricted)
-                    report = self.app.make_apport_report(
-                        kind, "block probing", interrupt=False)
-                    if report is not None:
-                        self._crash_reports[restricted] = report
-                    continue
-                break
+        self._crash_reports = {}
+        for (restricted, kind) in [
+                (False, ErrorReportKind.BLOCK_PROBE_FAIL),
+                (True,  ErrorReportKind.DISK_PROBE_FAIL),
+                ]:
+            try:
+                await self._probe_once_task.start(
+                    context=context, restricted=restricted)
+                # We wait on the task directly here, not
+                # self._probe_once_task.wait as if _probe_once_task
+                # gets cancelled, we should be cancelled too.
+                await asyncio.wait_for(self._probe_once_task.task, 15.0)
+            except asyncio.CancelledError:
+                # asyncio.CancelledError is a subclass of Exception in
+                # Python 3.6 (sadface)
+                raise
+            except Exception:
+                block_discover_log.exception(
+                    "block probing failed restricted=%s", restricted)
+                report = self.app.make_apport_report(
+                    kind, "block probing", interrupt=False)
+                if report is not None:
+                    self._crash_reports[restricted] = report
+                continue
+            break
 
     @with_context()
     def convert_autoinstall_config(self, context=None):

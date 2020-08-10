@@ -47,7 +47,6 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
 
     autoinstall_key = "storage"
     autoinstall_schema = {'type': 'object'}  # ...
-    model_name = "filesystem"
 
     def __init__(self, app):
         super().__init__(app)
@@ -64,7 +63,7 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
             await self.app.set_body(ProbingFailed(self))
             self.app.show_error_report(status['error-report-path'])
         else:
-            await self.start_ui_real(status['data'])
+            await self.start_ui_real(status)
 
     async def _wait_for_probing(self):
         status = self.app.get('/storage/wait')
@@ -79,7 +78,7 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
         else:
             release = lsb_release()['release']
             self.supports_resilient_boot = release >= '20.04'
-        await self.ui.set_body(GuidedDiskSelectionView(self))
+        await self.app.set_body(GuidedDiskSelectionView(self))
         if status['error-report-path']:
             self.app.show_error_report(status['error-report-path'])
         if self.answers['guided']:
