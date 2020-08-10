@@ -44,16 +44,17 @@ class RebootController(SubiquityController):
         self.reboot_event.set()
 
     def start(self):
-        self.aio_loop.create_task(self._run())
+        self.app.aio_loop.create_task(self._run())
 
     async def _run(self):
         Install = self.app.controllers.Install
         await Install.install_task
-        await self.app.controllers.LateController.run_event.wait()
+        await self.app.controllers.Late.run_event.wait()
+        await self.copy_logs_to_target()
         if self.app.interactive():
             await self.reboot_event.wait()
-        await self.copy_logs_to_target()
-        if Install.install_state == InstallState.DONE:
+            self.reboot()
+        elif Install.install_state == InstallState.DONE:
             self.reboot()
 
     @with_context()

@@ -95,8 +95,8 @@ class Subiquity(Application):
         "SSH",
         ## "SnapList",
         "Install",
-        ## "Late",
-        ## "Reboot",
+        "Late",
+        "Reboot",
     ]
 
     def __init__(self, opts, block_log_dir):

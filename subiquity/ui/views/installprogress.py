@@ -135,19 +135,46 @@ class ProgressView(BaseView):
         p.contents[:] = [(b, p.options('pack')) for b in buttons]
         self._set_button_width()
 
-    def update_running(self):
-        self.reboot_btn.base_widget.set_label(_("Cancel update and reboot"))
-        self._set_button_width()
-
-    def update_done(self):
-        self.reboot_btn.base_widget.set_label(_("Reboot"))
-        self._set_button_width()
-
-    def show_complete(self):
-        btns = [self.view_log_btn, self.reboot_btn]
+    def update_for_status(self, status):
+        if status == "NOT_STARTED":
+            self.title = _("Install progress")
+            btns = []
+        elif status == "RUNNING":
+            self.title = _("Install progress")
+            btns = [self.view_log_btn]
+        elif status == "UU_RUNNING":
+            self.title = _("Install complete!")
+            self.reboot_btn.base_widget.set_label(
+                _("Cancel update and reboot"))
+            btns = [
+                self.view_log_btn,
+                self.reboot_btn,
+                ]
+        elif status == "UU_CANCELLING":
+            self.title = _("Install complete!")
+            self.reboot_btn.base_widget.set_label(_("Rebooting..."))
+            self.reboot_btn.enabled = False
+            btns = [
+                self.view_log_btn,
+                self.reboot_btn,
+                ]
+        elif status == "DONE":
+            self.title = _("Install complete!")
+            self.reboot_btn.base_widget.set_label(_("Reboot"))
+            btns = [
+                self.view_log_btn,
+                self.reboot_btn,
+                ]
+        elif status == "ERROR":
+            self.title = _('An error occurred during installation')
+            self.reboot_btn.base_widget.set_label(_("Reboot"))
+            self.reboot_btn.enabled = True
+            btns = [
+                self.view_log_btn,
+                self.view_error_btn,
+                self.reboot_btn,
+                ]
         self._set_buttons(btns)
-        self.event_buttons.base_widget.focus_position = 1
-        self.event_pile.base_widget.focus_position = 2
 
     def show_continue(self):
         btns = [self.continue_btn, self.reboot_btn]
@@ -163,14 +190,6 @@ class ProgressView(BaseView):
         self._set_buttons(btns)
         self.event_buttons.base_widget.focus_position = 0
         self.event_pile.base_widget.focus_position = 2
-
-    def show_error(self, crash_report):
-        btns = [self.view_log_btn, self.view_error_btn, self.reboot_btn]
-        self._set_buttons(btns)
-        self.event_buttons.base_widget.focus_position = 1
-        self.event_pile.base_widget.focus_position = 2
-        self.crash_report = crash_report
-        self.controller.app.show_error_report(crash_report)
 
     def reboot(self, btn):
         self.reboot_btn.base_widget.set_label(_("Rebooting..."))

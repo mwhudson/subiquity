@@ -16,6 +16,8 @@
 import asyncio
 import logging
 
+import aiohttp
+
 from subiquitycore.context import with_context
 
 from subiquity.client.controller import SubiquityTuiController
@@ -30,10 +32,6 @@ class ProgressController(SubiquityTuiController):
     def __init__(self, app):
         super().__init__(app)
         self.progress_view = ProgressView(self)
-
-        self.reboot_clicked = asyncio.Event()
-        if self.answers.get('reboot', False):
-            self.reboot_clicked.set()
 
     def event(self, event):
         if event["SUBIQUITY_EVENT_TYPE"] == "start":
@@ -55,23 +53,21 @@ class ProgressController(SubiquityTuiController):
     def start(self):
         self.app.aio_loop.create_task(self._wait_status())
 
+    def click_reboot(self):
+        self.app.aio_loop.create_task(self.app.post('/reboot', {}))
+
     @with_context()
     async def _wait_status(self, context):
-        status = await self.app.get('/install/wait')
-        self.progress_view.title = status['install_state']
-        if self.showing:
-            self.ui.set_header(self.progress_view.title)
+        while True:
+            try:
+                status = await self.app.get('/install/wait/status')
+            except aiohttp.ClientError:
+                await asyncio.sleep(1)
+                continue
+            self.progress_view.update_for_status(status['install_state'])
+            if self.ui.body is self.progress_view:
+                self.ui.set_header(self.progress_view.title)
 
     @with_context()
     async def start_ui(self, context):
-        ## if self.install_state in [
-        ##         InstallState.NOT_STARTED,
-        ##         InstallState.RUNNING,
-        ##         ]:
-        ##     self.progress_view.title = _("Installing system")
-        ## elif self.install_state == InstallState.DONE:
-        ##     self.progress_view.title = _("Install complete!")
-        ## elif self.install_state == InstallState.ERROR:
-        ##     self.progress_view.title = (
-        ##         _('An error occurred during installation'))
         await self.app.set_body(self.progress_view)

@@ -56,6 +56,7 @@ class InstallState(enum.Enum):
     NOT_STARTED = enum.auto()
     RUNNING = enum.auto()
     UU_RUNNING = enum.auto()
+    UU_CANCELLING = enum.auto()
     DONE = enum.auto()
     ERROR = enum.auto()
 
@@ -98,8 +99,8 @@ class InstallController(SubiquityController):
         self.curtin_event_contexts = {}
 
     def update_status(self, status):
-        self.install_state.set()
-        self.install_state.clear()
+        self.install_status_event.set()
+        self.install_status_event.clear()
         self.install_state = status
 
     def interactive(self):
@@ -107,16 +108,16 @@ class InstallController(SubiquityController):
 
     def add_routes(self, app):
         app.router.add_get('/install/wait/status', self._wait_install)
-        app.router.add_post('/install/stop_uu', self._stop_uu)
 
     @web_handler
     async def _wait_install(self, context, request):
         if not self.install_state.is_terminal():
-            await self.install_done_event.wait()
+            await self.install_status_event.wait()
         return web.json_response({'install_state': self.install_state.name})
 
     def stop_uu(self):
         if self.install_state == InstallState.UU_RUNNING:
+            self.update_status(InstallState.UU_CANCELLING)
             self.app.aio_loop.create_task(self.stop_unattended_upgrades())
 
     def start(self):
@@ -273,7 +274,7 @@ class InstallController(SubiquityController):
 
             await self.postinstall(context=context)
 
-            if self.model.network.has_network:
+            if 1 or self.model.network.has_network:
                 self.update_status(InstallState.UU_RUNNING)
                 await self.run_unattended_upgrades(context=context)
 
