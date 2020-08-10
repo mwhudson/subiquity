@@ -37,25 +37,18 @@ class SubiquityTuiController(TuiController):
             self.app.show_confirm_install()
 
     @with_context()
-    async def start_ui(self, context):
+    async def start_ui(self, context, **kw):
         status = await self.app.get(self.endpoint)
         if not status['interactive']:
             raise Skip
-        coro = self._start_ui(status)
-        if coro is not None:
-            await coro
+        await self._start_ui(status, **kw)
 
 
 class RepeatedController(RepeatedController):
 
     @with_context()
     async def start_ui(self, context):
-        status = await self.orig.app.get(self.orig.endpoint)
-        if not status['interactive']:
-            raise Skip
-        coro = self.orig._start_ui(status, self.index)
-        if coro is not None:
-            await coro
+        return await self.orig.start_ui(context=context, index=2)
 
 
 def run_in_task(meth):
