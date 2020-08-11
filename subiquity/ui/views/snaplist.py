@@ -16,6 +16,7 @@
 import asyncio
 import datetime
 import logging
+import time
 
 import yaml
 
@@ -313,10 +314,21 @@ class SnapCheckBox(CheckBox):
     def __init__(self, parent, snap, state):
         self.parent = parent
         self.snap = snap
+        self.show_fi_time = None
+        self.fi = None
         super().__init__(
             snap.name, state=state, on_state_change=self.state_change)
 
-    def loaded(self):
+    async def _load(self, handle):
+        await self.parent.controller.get_info(self.snap)
+        if self.fi is not None:
+            remaining = time.time() - self.show_fi_time
+            if remaining > 0:
+                await asyncio.sleep(remaining)
+            self.fi.close()
+            self.fi = None
+        else:
+            handle.cancel()
         if len(self.snap.channels) == 0:  # or other indication of failure
             ff = FetchingFailed(self, self.snap)
             self.parent.show_overlay(ff, width=ff.width)
@@ -332,14 +344,18 @@ class SnapCheckBox(CheckBox):
                     on_press=self.parent.show_main_screen)],
                 focus_buttons=False))
 
-    async def wait(self, t, fi):
-        await t
-        fi.close()
-        self.loaded()
+    def _show_fi(self):
+        self.fi = FetchingInfo(
+            self.parent, self.snap, self.parent.controller.app.aio_loop)
+        self.parent.show_overlay(self.fi, width=self.fi.width)
+        self.show_fi_time = time.time() + 1
 
     def load_info(self):
+        self.show_fi_time = None
+        loop = self.parent.controller.app.aio_loop
+        handle = loop.call_later(0.1, self._show_fi)
+        self.controller.app.aio_loop.create_task(self._load(handle))
         t = self.parent.controller.get_snap_info_task(self.snap)
-
         if t.done():
             self.loaded()
             return

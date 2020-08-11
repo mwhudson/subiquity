@@ -22,6 +22,9 @@ import attr
 log = logging.getLogger("subiquity.models.snaplist")
 
 
+TIME_FMT = '%Y-%m-%dT%H:%M:%S.%fZ'
+
+
 @attr.s(cmp=False)
 class SnapInfo:
     name = attr.ib()
@@ -44,7 +47,10 @@ class SnapInfo:
         self.partial = False
 
     def serialize(self):
-        return attr.asdict(self)
+        r = attr.asdict(self)
+        for d in r['channels']:
+            d['released_at'] = d['released_at'].strftime(TIME_FMT)
+        return r
 
     @classmethod
     def deserialize(cls, data):
@@ -73,6 +79,13 @@ class ChannelSnapInfo:
     version = attr.ib()
     size = attr.ib()
     released_at = attr.ib()
+
+    @classmethod
+    def deserialize(cls, data):
+        data = data.copy()
+        data['released-at'] = datetime.datetime.strptime(
+            data['released-at'], TIME_FMT)
+        return cls(**data)
 
 
 @attr.s(cmp=False)
@@ -149,8 +162,7 @@ class SnapListModel:
                         version=channel_data['version'],
                         size=channel_data['size'],
                         released_at=datetime.datetime.strptime(
-                            channel_data['released-at'],
-                            '%Y-%m-%dT%H:%M:%S.%fZ'),
+                            channel_data['released-at'], TIME_FMT),
                     ))
         return snap
 

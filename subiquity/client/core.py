@@ -85,7 +85,7 @@ class Subiquity(TuiApplication):
         "Filesystem",
         "Identity",
         "SSH",
-        ## "SnapList",
+        "SnapList",
         "Progress",
     ]
 

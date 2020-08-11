@@ -81,5 +81,6 @@ class SnapListController(SubiquityTuiController):
             await self.app.get('/snaplist/wait'))
 
     async def get_info(self, snap):
-        data = await self.app.get('/snaplist/info/' + snap.name)
-        return SnapInfo.deserialize(data)
+        if not snap.channels:
+            data = await self.app.get('/snaplist/info/' + snap.name)
+            snap.channels = SnapInfo.deserialize(data).channels

@@ -15,8 +15,6 @@
 
 import logging
 
-import attr
-
 import requests.exceptions
 
 from subiquitycore.async_helpers import (
@@ -29,7 +27,10 @@ from subiquity.server.controller import (
     web_handler,
     )
 
-from subiquity.models.snaplist import SnapSelection
+from subiquity.models.snaplist import (
+    SnapSelection,
+    SnapSelectionDict,
+    )
 
 log = logging.getLogger('subiquity.controllers.snaplist')
 
@@ -46,7 +47,7 @@ class SnapdSnapInfoLoader:
         self.failed = False
 
         self.snapd = snapd
-        self.pending_info_snaps = []
+        self.pending_snaps = []
         self.tasks = {}  # {snap:task}
 
     def start(self):
@@ -105,7 +106,7 @@ class SnapdSnapInfoLoader:
 
 class SnapListController(SubiquityController):
 
-    endpoint = '/snaps'
+    endpoint = '/snaplist'
 
     autoinstall_key = "snaps"
     autoinstall_default = []
@@ -136,6 +137,9 @@ class SnapListController(SubiquityController):
         super().__init__(app)
         self.loader = self._make_loader()
 
+    def start(self):
+        self.snapd_network_changed()
+
     def load_autoinstall_data(self, ai_data):
         to_install = {}
         for snap in ai_data:
@@ -160,13 +164,14 @@ class SnapListController(SubiquityController):
         return self.model.to_install
 
     def add_routes(self, app):
+        super().add_routes(app)
         app.router.add_get(
             self.endpoint + '/info/{snap_name}', self._snap_info)
         app.router.add_get(
             self.endpoint + '/wait', self._get_wait)
 
     async def _get(self, context):
-        if self.loader.failed or not self.app.base_model.network.has_network:
+        if self.loader.failed:# or not self.app.base_model.network.has_network:
             return {'status': 'failed'}
         if not self.loader.snap_list_fetched:
             return {
@@ -192,7 +197,8 @@ class SnapListController(SubiquityController):
         return await self._get(context)
 
     @web_handler
-    async def _snap_info(self, context):
-        snap_name = context.get('request').match_info['snap_name']
-        await self.loader.get_snap_info_task(snap_name)
-        return attr.asdict(
+    async def _snap_info(self, context, request):
+        snap_name = request.match_info['snap_name']
+        snap = self.model._snap_for_name(snap_name)
+        await self.loader.get_snap_info_task(snap)
+        return snap.serialize()
