@@ -15,6 +15,8 @@
 
 import logging
 
+import attr
+
 import requests.exceptions
 
 from subiquitycore.async_helpers import (
@@ -24,10 +26,10 @@ from subiquitycore.context import with_context
 
 from subiquity.server.controller import (
     SubiquityController,
+    web_handler,
     )
 
 from subiquity.models.snaplist import SnapSelection
-from subiquity.ui.views.snaplist import SnapListView
 
 log = logging.getLogger('subiquity.controllers.snaplist')
 
@@ -154,16 +156,43 @@ class SnapListController(SubiquityController):
         self.loader = self._make_loader()
         self.loader.start()
 
-    def get_snap_list_task(self):
-        return self.loader.get_snap_list_task()
-
-    def get_snap_info_task(self, snap):
-        return self.loader.get_snap_info_task(snap)
-
     def make_autoinstall(self):
         return self.model.to_install
 
-    async def _get(self):
-        await self.get_snap_list_task()
-        XXX
-        return self.model.get_snap_list()
+    def add_routes(self, app):
+        app.router.add_get(
+            self.endpoint + '/info/{snap_name}', self._snap_info)
+        app.router.add_get(
+            self.endpoint + '/wait', self._get_wait)
+
+    async def _get(self, context):
+        if self.loader.failed or not self.app.base_model.network.has_network:
+            return {'status': 'failed'}
+        if not self.loader.snap_list_fetched:
+            return {
+                'status': 'loading',
+                'snaps': [],
+                'selections': {},
+                }
+        else:
+            return {
+                'status': 'done',
+                'snaps': self.model.get_snap_list().serialize(),
+                'selections': self.model.to_install.serialize(),
+                }
+
+    async def _post(self, context, data):
+        self.model.set_installed_list(SnapSelectionDict.deserialize(data))
+
+    @web_handler
+    async def _get_wait(self, context):
+        if self.loader.failed or not self.app.base_model.network.has_network:
+            return {'status': 'failed'}
+        await self.loader.get_snap_list_task()
+        return await self._get(context)
+
+    @web_handler
+    async def _snap_info(self, context):
+        snap_name = context.get('request').match_info['snap_name']
+        await self.loader.get_snap_info_task(snap_name)
+        return attr.asdict(

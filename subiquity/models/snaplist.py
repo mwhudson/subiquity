@@ -43,6 +43,27 @@ class SnapInfo:
         self.license = data['license']
         self.partial = False
 
+    def serialize(self):
+        return attr.asdict(self)
+
+    @classmethod
+    def deserialize(cls, data):
+        inst = cls(**data)
+        inst.channels = [
+            ChannelSnapInfo.deserialize(chan) for chan in inst.channels
+            ]
+        return inst
+
+
+class SnapInfoList(list):
+
+    def serialize(self):
+        return [snap.serialize() for snap in self]
+
+    @classmethod
+    def deserialize(cls, data):
+        return cls([SnapInfo.deserialize(datum) for datum in data])
+
 
 @attr.s(cmp=False)
 class ChannelSnapInfo:
@@ -56,20 +77,41 @@ class ChannelSnapInfo:
 
 @attr.s(cmp=False)
 class SnapSelection:
+    name = attr.ib()
     channel = attr.ib()
     is_classic = attr.ib()
+
+    def serialize(self):
+        return attr.asdict(self)
+
+    @classmethod
+    def deserialize(cls, data):
+        inst = cls(**data)
+        inst.channels = [
+            ChannelSnapInfo.deserialize(chan) for chan in inst.channels
+            ]
+        return inst
+
+
+class SnapSelectionDict(dict):
+
+    def serialize(self):
+        return {k: v.serialize() for k, v in self.items()}
+
+    @classmethod
+    def deserialize(cls, data):
+        return cls({k: SnapSelection.deserialize(v) for k, v in data.items()})
 
 
 risks = ["stable", "candidate", "beta", "edge"]
 
 
 class SnapListModel:
-    """The overall model for subiquity."""
 
     def __init__(self):
-        self._snap_info = []
+        self._snap_info = SnapInfoList()
         self._snaps_by_name = {}
-        self.to_install = {}  # snap_name -> SnapSelection
+        self.to_install = SnapSelectionDict()  # snap_name -> SnapSelection
 
     def _snap_for_name(self, name):
         s = self._snaps_by_name.get(name)
@@ -113,7 +155,7 @@ class SnapListModel:
         return snap
 
     def get_snap_list(self):
-        return self._snap_info[:]
+        return self._snap_info
 
     def set_installed_list(self, to_install):
         for name in to_install.keys():

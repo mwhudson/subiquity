@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import datetime
 import logging
 
@@ -368,42 +369,43 @@ class SnapListView(BaseView):
 
     title = _("Featured Server Snaps")
 
-    def __init__(self, model, controller):
-        self.model = model
+    def __init__(self, controller, data):
         self.controller = controller
-        self.to_install = model.to_install.copy()
-        self.load()
-
-    def loaded(self):
-        snap_list = self.model.get_snap_list()
-        if len(snap_list) == 0:
-            self.offer_retry()
+        if data.status == 'loading':
+            self.wait_load()
         else:
-            self.make_main_screen(snap_list)
-            self.show_main_screen()
+            self.loaded(data.snaps, data.to_install)
 
-    async def _wait(self, t, spinner):
-        spinner.stop()
-        await t
-        self.loaded()
+    def loaded(self, snaps, to_install):
+        self.snaps = snaps
+        self.to_install = to_install
+        self.make_main_screen()
+        self.show_main_screen()
 
-    def load(self, sender=None):
-        t = self.controller.get_snap_list_task()
-        if t.done():
-            self.loaded()
-            return
+    def wait_load(self):
         spinner = Spinner(self.controller.app.aio_loop, style='dots')
         spinner.start()
         self._w = screen(
             [spinner], [ok_btn(label=_("Continue"), on_press=self.done)],
             excerpt=_("Loading server snaps from store, please wait..."))
-        schedule_task(self._wait(t, spinner))
+        schedule_task(self._wait_load(spinner))
+
+    async def _wait_load(self, spinner):
+        data_task = self.controller.aio_loop.create_task(
+            self.controller._get_wait())
+        await asyncio.wait(data_task, asyncio.sleep(1))
+        data = data_task.result()
+        spinner.stop()
+        if data.status == 'error':
+            self.offer_retry()
+        else:
+            self.loaded(data.snaps, data.to_install)
 
     def offer_retry(self):
         self._w = screen(
             [Text(_("Sorry, loading snaps from the store failed."))],
             [
-                other_btn(label=_("Try again"), on_press=self.load),
+                other_btn(label=_("Try again"), on_press=self.wait_load),
                 ok_btn(label=_("Continue"), on_press=self.done),
             ])
 
@@ -448,11 +450,11 @@ class SnapListView(BaseView):
         log.debug("pre-seeded snaps %s", names)
         return names
 
-    def make_main_screen(self, snap_list):
+    def make_main_screen(self, status):
         self.snap_boxes = {}
         body = []
         preinstalled = self.get_preinstalled_snaps()
-        for snap in snap_list:
+        for snap in status['snaps']:
             if snap.name in preinstalled:
                 log.debug("not offering preseeded snap %r", snap.name)
                 continue
