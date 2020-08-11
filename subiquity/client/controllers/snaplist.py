@@ -56,7 +56,7 @@ class SnapListController(SubiquityTuiController):
     endpoint = '/snaplist'
 
     async def _start_ui(self, data):
-        data = SnapListController.deserialize(data)
+        data = SnapListResponse.deserialize(data)
         if data.status == 'failed':
             raise Skip()
         if 'snaps' in self.answers:
@@ -71,7 +71,7 @@ class SnapListController(SubiquityTuiController):
         log.debug(
             "SnapListController.done next_screen snaps_to_install=%s",
             snaps_to_install)
-        self.app.next_screen(self.app.post(snaps_to_install.serialize()))
+        self.app.next_screen(self.post(snaps_to_install.serialize()))
 
     def cancel(self, sender=None):
         self.app.prev_screen()

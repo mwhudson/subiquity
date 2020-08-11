@@ -79,7 +79,7 @@ POSTINSTALL_MODEL_NAMES = [
     "identity",
     "locale",
 #    "packages",
-#    "snaplist",
+    "snaplist",
     "ssh",
 #    "userdata",
     ]

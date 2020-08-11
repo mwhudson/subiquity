@@ -171,7 +171,7 @@ class SnapListController(SubiquityController):
             self.endpoint + '/wait', self._get_wait)
 
     async def _get(self, context):
-        if self.loader.failed:# or not self.app.base_model.network.has_network:
+        if self.loader.failed:  # or not self.app.base_model.network.has_network:
             return {'status': 'failed'}
         if not self.loader.snap_list_fetched:
             return {

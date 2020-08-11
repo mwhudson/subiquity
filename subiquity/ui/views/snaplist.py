@@ -354,15 +354,7 @@ class SnapCheckBox(CheckBox):
         self.show_fi_time = None
         loop = self.parent.controller.app.aio_loop
         handle = loop.call_later(0.1, self._show_fi)
-        self.controller.app.aio_loop.create_task(self._load(handle))
-        t = self.parent.controller.get_snap_info_task(self.snap)
-        if t.done():
-            self.loaded()
-            return
-        fi = FetchingInfo(
-            self.parent, self.snap, self.parent.controller.app.aio_loop)
-        self.parent.show_overlay(fi, width=fi.width)
-        schedule_task(self.wait(t, fi))
+        loop.create_task(self._load(handle))
 
     def keypress(self, size, key):
         if key.startswith("enter"):
@@ -466,11 +458,11 @@ class SnapListView(BaseView):
         log.debug("pre-seeded snaps %s", names)
         return names
 
-    def make_main_screen(self, status):
+    def make_main_screen(self,):
         self.snap_boxes = {}
         body = []
         preinstalled = self.get_preinstalled_snaps()
-        for snap in status['snaps']:
+        for snap in self.snaps:
             if snap.name in preinstalled:
                 log.debug("not offering preseeded snap %r", snap.name)
                 continue

@@ -83,14 +83,13 @@ class ChannelSnapInfo:
     @classmethod
     def deserialize(cls, data):
         data = data.copy()
-        data['released-at'] = datetime.datetime.strptime(
-            data['released-at'], TIME_FMT)
+        data['released_at'] = datetime.datetime.strptime(
+            data['released_at'], TIME_FMT)
         return cls(**data)
 
 
 @attr.s(cmp=False)
 class SnapSelection:
-    name = attr.ib()
     channel = attr.ib()
     is_classic = attr.ib()
 
@@ -99,11 +98,7 @@ class SnapSelection:
 
     @classmethod
     def deserialize(cls, data):
-        inst = cls(**data)
-        inst.channels = [
-            ChannelSnapInfo.deserialize(chan) for chan in inst.channels
-            ]
-        return inst
+        return cls(**data)
 
 
 class SnapSelectionDict(dict):
@@ -167,7 +162,7 @@ class SnapListModel:
         return snap
 
     def get_snap_list(self):
-        return self._snap_info
+        return SnapInfoList(self._snap_info)
 
     def set_installed_list(self, to_install):
         for name in to_install.keys():
