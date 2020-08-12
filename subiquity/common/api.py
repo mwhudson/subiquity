@@ -226,7 +226,11 @@ class API:
         def post(self, data: dict): pass
 
         class nic:
-            path = '{nic}'
+            class path:
+                path = '{nic}'
+                def get(self) -> dict: pass
+
+        class new:
             def get(self) -> dict: pass
 
     proxy = simple_endpoint(str)
@@ -237,7 +241,7 @@ class API:
         def post(self): pass
 
         class wait:
-            def get(self) -> RefreshStatus: pass
+            def get(self): pass
 
     identity = simple_endpoint(Identity)
     ssh = simple_endpoint(SSH)
