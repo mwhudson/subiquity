@@ -18,59 +18,77 @@ import datetime
 import enum
 import inspect
 from typing import List, Optional
+import typing
 
 import attr
 
 
-def asdict(inst):
-    r = collections.OrderedDict()
-    for field in attr.fields(type(inst)):
-        if field.name.startswith('_'):
-            continue
-        m = getattr(inst, 'serialize_' + field.name, None)
-        if m:
-            r.update(m())
-        else:
-            v = getattr(inst, field.name)
-            if v is not None:
-                if issubclass(field.type, enum.Enum):
-                    r[field.name] = v.name
-                elif attr.has(field.type):
-                    r[field.name] = asdict(v)
-                else:
-                    r[field.name] = v
-    return r
-
-
-def serialize(annotation, value):
+def serialize(annotation, value, metadata={}):
     if annotation is inspect.Signature.empty:
         return value
     elif attr.has(annotation):
-        return asdict(value)
-    elif annotation in (str, int):
-        return value
+        return {
+            field.name: serialize(
+                field.type,
+                getattr(value, field.name),
+                field.metadata)
+            for field in attr.fields(annotation)
+            }
+    elif typing.get_origin(annotation):
+        t = typing.get_origin(annotation)
+        if t is list:
+            list_anns = typing.get_args(annotation)
+            if list_anns:
+                return [serialize(list_anns[0], v) for v in value]
+            else:
+                return value
+        elif t is typing.Union:
+            pass
+        else:
+            raise Exception("don't understand {}".format(t))
+    elif annotation in (str, int, bool):
+        return annotation(value)
+    elif annotation is datetime.datetime:
+        if 'time_fmt' in metadata:
+            return value.strftime(metadata['time_fmt'])
+        else:
+            return str(value)
+    elif isinstance(annotation, type) and issubclass(annotation, enum.Enum):
+        return value.name
     else:
         raise Exception(str(annotation))
 
 
-def deserialize(annotation, value):
+def deserialize(annotation, value, metadata={}):
     if annotation is inspect.Signature.empty:
         return value
     elif attr.has(annotation):
-        d = {}
-        for field in attr.fields(annotation):
-            if field.name not in value:
-                continue
-            v = value[field.name]
-            if issubclass(field.type, enum.Enum):
-                d[field.name] = getattr(field.type, v)
-            elif attr.has(field.type):
-                d[field.name] = deserialize(field.type, v)
-            else:
-                d[field.name] = v
-        return annotation(**d)
-    elif annotation in (str, int):
-        return value
+        return annotation(**{
+            field.name: deserialize(
+                field.type,
+                value[field.name],
+                field.metadata)
+            for field in attr.fields(annotation)
+            if field.name in value
+            })
+    elif typing.get_origin(annotation):
+        t = typing.get_origin(annotation)
+        if t is list:
+            list_ann = typing.get_args(annotation)[0]
+            return [deserialize(list_ann, v) for v in value]
+        elif t is typing.Union:
+            return value
+        else:
+            raise Exception("don't understand {}".format(t))
+    elif annotation in (str, int, bool):
+        return annotation(value)
+    elif annotation is datetime.datetime:
+        if 'time_fmt' in metadata:
+            return value.strptime(metadata['time_fmt'])
+        else:
+            1/0
+    elif isinstance(annotation, type) and issubclass(annotation, enum.Enum):
+        return getattr(annotation, value)
     else:
         raise Exception(str(annotation))
 
@@ -141,11 +159,11 @@ class SnapCheckState(enum.Enum):
 
 @attr.s(auto_attribs=True)
 class ChannelSnapInfo:
-    channel_name = attr.ib()
-    revision = attr.ib()
-    confinement = attr.ib()
-    version = attr.ib()
-    size = attr.ib()
+    channel_name: str
+    revision: str
+    confinement: str
+    version: str
+    size: str
     released_at: datetime.datetime = attr.ib(
         metadata={'time_fmt': '%Y-%m-%dT%H:%M:%S.%fZ'})
 
