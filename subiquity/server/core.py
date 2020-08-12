@@ -130,9 +130,6 @@ class Subiquity(Application):
         self.early_commands_run = asyncio.Event()
         self.has_early_commands = asyncio.Event()
 
-    def restart(self, remove_last_screen=True):
-        XXX
-
     async def load_autoinstall_config(self):
         if self.opts.autoinstall is not None:
             with open(self.opts.autoinstall) as fp:

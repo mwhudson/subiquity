@@ -16,6 +16,7 @@
 import logging
 import os
 
+from subiquity.common.api import API, Locale
 from subiquity.server.controller import SubiquityController
 
 
@@ -24,7 +25,7 @@ log = logging.getLogger('subiquity.controllers.welcome')
 
 class WelcomeController(SubiquityController):
 
-    endpoint = '/locale'
+    endpoint_cls = API.locale
 
     autoinstall_key = model_name = "locale"
     autoinstall_schema = {'type': 'string'}
@@ -51,8 +52,8 @@ class WelcomeController(SubiquityController):
     def make_autoinstall(self):
         return self.model.selected_language
 
-    async def _get(self, context):
-        return {'language': self.model.selected_language}
+    async def get(self, context):
+        return Locale(language=self.model.selected_language)
 
-    async def _post(self, context, data):
-        self.model.switch_language(data['language'])
+    async def post(self, context, data):
+        self.model.switch_language(data.language)
