@@ -95,12 +95,35 @@ class KeyboardSetting:
     toggle: Optional[str] = None
 
 
+class ProbeStatus(enum.Enum):
+    PROBING = enum.auto()
+    FAILED = enum.auto()
+    DONE = enum.auto()
+
+
+class Bootloader(enum.Enum):
+    NONE = "NONE"  # a system where the bootloader is external, e.g. s390x
+    BIOS = "BIOS"  # BIOS, where the bootloader dd-ed to the start of a device
+    UEFI = "UEFI"  # UEFI, ESPs and /boot/efi and all that (amd64 and arm64)
+    PREP = "PREP"  # ppc64el, which puts grub on a PReP partition
+
+
+@attr.s(auto_attribs=True)
+class StorageResponse:
+    status: ProbeStatus
+    bootloader: Bootloader
+    error_report_path: Optional[str] = None
+    orig_config: Optional[list] = None
+    config: Optional[list] = None
+    blockdev: Optional[dict] = None
+
+
 @attr.s(auto_attribs=True)
 class Identity:
-    realname: str
-    username: str
-    crypted_password: str = attr.ib(repr=False)
-    hostname: str
+    realname: str = ''
+    username: str = ''
+    crypted_password: str = attr.ib(default='', repr=False)
+    hostname: str = ''
 
 
 @attr.s(auto_attribs=True)
@@ -169,6 +192,7 @@ def api(cls):
     for k, v in cls.__dict__.items():
         if isinstance(v, type):
             v.__name__ = k
+            api(v)
     return cls
 
 
@@ -196,8 +220,25 @@ class API:
             def get(self) -> RefreshStatus: pass
 
     keyboard = simple_endpoint(KeyboardSetting)
+
+    class network:
+        def get(self) -> dict: pass
+        def post(self, data: dict): pass
+
+        class nic:
+            path = '{nic}'
+            def get(self) -> dict: pass
+
     proxy = simple_endpoint(str)
     mirror = simple_endpoint(str)
+
+    class storage:
+        def get(self): pass
+        def post(self): pass
+
+        class wait:
+            def get(self) -> RefreshStatus: pass
+
     identity = simple_endpoint(Identity)
     ssh = simple_endpoint(SSH)
 

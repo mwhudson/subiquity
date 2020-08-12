@@ -16,6 +16,7 @@
 import logging
 
 from subiquity.client.controller import SubiquityTuiController
+from subiquity.common.api import API
 from subiquity.ui.views.mirror import MirrorView
 
 log = logging.getLogger('subiquity.controllers.mirror')
@@ -23,16 +24,16 @@ log = logging.getLogger('subiquity.controllers.mirror')
 
 class MirrorController(SubiquityTuiController):
 
-    endpoint = '/mirror'
+    endpoint = API.mirror
 
     def __init__(self, app):
         super().__init__(app)
         if 'country-code' in self.answers:
-            self.check_state = CheckState.DONE
             self.model.set_country(self.answers['country-code'])
 
-    async def _start_ui(self, status):
-        await self.app.set_body(MirrorView(status['mirror'], self))
+    async def start_ui(self):
+        mirror = await self.endpoint.get()
+        await self.app.set_body(MirrorView(mirror, self))
         if 'mirror' in self.answers:
             self.done(self.answers['mirror'])
         elif 'country-code' in self.answers \
@@ -44,4 +45,4 @@ class MirrorController(SubiquityTuiController):
 
     def done(self, mirror):
         log.debug("MirrorController.done next_screen mirror=%s", mirror)
-        self.app.next_screen(self.post({'mirror': mirror}))
+        self.app.next_screen(self.endpoint.post(mirror))

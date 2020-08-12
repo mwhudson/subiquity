@@ -14,9 +14,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import os
 
 from subiquity.client.controller import SubiquityTuiController
+from subiquity.common.api import API
 from subiquity.ui.views.proxy import ProxyView
 
 log = logging.getLogger('subiquity.client.controllers.proxy')
@@ -24,10 +24,11 @@ log = logging.getLogger('subiquity.client.controllers.proxy')
 
 class ProxyController(SubiquityTuiController):
 
-    endpoint = '/proxy'
+    endpoint = API.proxy
 
-    async def _start_ui(self, status):
-        await self.app.set_body(ProxyView(status['proxy'], self))
+    async def start_ui(self):
+        proxy = await self.endpoint.get()
+        await self.app.set_body(ProxyView(proxy, self))
         if 'proxy' in self.answers:
             self.done(self.answers['proxy'])
 
@@ -36,4 +37,4 @@ class ProxyController(SubiquityTuiController):
 
     def done(self, proxy):
         log.debug("ProxyController.done next_screen proxy=%s", proxy)
-        self.app.next_screen(self.post({'proxy': proxy}))
+        self.app.next_screen(self.endpoint.post(proxy))

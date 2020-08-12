@@ -16,6 +16,7 @@
 import logging
 
 from subiquity.client.controller import SubiquityTuiController
+from subiquity.common.api import API, Identity
 from subiquity.ui.views import IdentityView
 
 log = logging.getLogger('subiquity.client.controllers.identity')
@@ -23,27 +24,25 @@ log = logging.getLogger('subiquity.client.controllers.identity')
 
 class IdentityController(SubiquityTuiController):
 
-    endpoint = '/identity'
+    endpoint = API.identity
 
-    async def _start_ui(self, status):
-        await self.app.set_body(IdentityView(status, self))
+    async def start_ui(self):
+        identity = await self.endpoint.get()
+        await self.app.set_body(IdentityView(identity, self))
         if all(elem in self.answers for elem in
                ['realname', 'username', 'password', 'hostname']):
-            d = {
-                'realname': self.answers['realname'],
-                'username': self.answers['username'],
-                'hostname': self.answers['hostname'],
-                'password': self.answers['password'],
-                }
-            self.done(d)
+            identity = Identity(
+                realname=self.answers['realname'],
+                username=self.answers['username'],
+                hostname=self.answers['hostname'],
+                crypted_password=self.answers['password'])
+            self.done(identity)
 
     def cancel(self):
         self.app.prev_screen()
 
-    def done(self, user_spec):
-        safe_spec = user_spec.copy()
-        safe_spec['password'] = '<REDACTED>'
+    def done(self, identity):
         log.debug(
             "IdentityController.done next_screen user_spec=%s",
-            safe_spec)
-        self.app.next_screen(self.post(user_spec))
+            identity)
+        self.app.next_screen(self.endpoint.post(identity))

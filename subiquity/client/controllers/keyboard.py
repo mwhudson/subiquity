@@ -16,11 +16,9 @@
 
 import logging
 
-import attr
-
 from subiquity.client.controller import SubiquityTuiController
 from subiquity.client.keyboard import KeyboardList
-from subiquity.common.api import KeyboardSetting
+from subiquity.common.api import API, KeyboardSetting
 from subiquity.common.keyboard import (
     set_keyboard,
     )
@@ -31,7 +29,7 @@ log = logging.getLogger('subiquity.client.controllers.keyboard')
 
 class KeyboardController(SubiquityTuiController):
 
-    endpoint = '/keyboard'
+    endpoint = API.keyboard
 
     signals = [
         ('l10n:language-selected', 'language_selected'),
@@ -50,13 +48,10 @@ class KeyboardController(SubiquityTuiController):
         log.debug("loading language %s", code)
         self.keyboard_list.load_language(code)
 
-    async def _start_ui(self, status):
-        initial_setting = KeyboardSetting(
-            status['layout'],
-            status['variant'],
-            status['toggle'])
+    async def start_ui(self):
         if self.keyboard_list.current_lang is None:
             self.keyboard_list.load_language('C')
+        initial_setting = await self.endpoint.get()
         view = KeyboardView(self, initial_setting)
         await self.app.set_body(view)
         if 'layout' in self.answers:
@@ -66,14 +61,14 @@ class KeyboardController(SubiquityTuiController):
 
     async def set_keyboard(self, setting):
         await set_keyboard(setting, self.opts.dry_run)
-        self.app.next_screen(self.post(attr.asdict(setting)))
+        self.done(setting, False)
 
     def done(self, setting, apply):
         log.debug("KeyboardController.done %s next_screen", setting)
         if apply:
             self.app.aio_loop.create_task(self.set_keyboard(setting))
         else:
-            self.app.next_screen(self.post(attr.asdict(setting)))
+            self.app.next_screen(self.endpoint.post(setting))
 
     def cancel(self):
         self.app.prev_screen()

@@ -21,6 +21,7 @@ from subiquitycore.context import with_context
 from subiquitycore import utils
 
 from subiquity.client.controller import SubiquityTuiController
+from subiquity.common.api import API, SSH
 from subiquity.ui.views.ssh import SSHView
 
 log = logging.getLogger('subiquity.client.controllers.ssh')
@@ -34,21 +35,21 @@ class FetchSSHKeysFailure(Exception):
 
 class SSHController(SubiquityTuiController):
 
-    endpoint = '/ssh'
+    endpoint = API.ssh
 
     def __init__(self, app):
         super().__init__(app)
         self._fetch_task = None
 
-    async def _start_ui(self, status):
-        await self.app.set_body(SSHView(status, self))
+    async def start_ui(self):
+        ssh = await self.endpoint.get()
+        await self.app.set_body(SSHView(ssh, self))
         if self.answers:
-            d = {
-                "install_server": self.answers.get("install_server", False),
-                "authorized_keys": self.answers.get("authorized_keys", []),
-                "pwauth": self.answers.get("pwauth", True),
-            }
-            self.done(d)
+            ssh = SSH(
+                install_server=self.answers.get("install_server", False),
+                authorized_keys=self.answers.get("authorized_keys", []),
+                pwauth=self.answers.get("pwauth", True))
+            self.done(ssh)
         elif 'ssh-import-id' in self.app.answers.get('Identity', {}):
             import_id = self.app.answers['Identity']['ssh-import-id']
             d = {
@@ -116,9 +117,4 @@ class SSHController(SubiquityTuiController):
 
     def done(self, result):
         log.debug("SSHController.done next_screen result=%s", result)
-        data = {
-            'install-server': result['install_server'],
-            'authorized-keys': result.get('authorized_keys', []),
-            'allow-pw': result.get('pwauth', True),
-            }
-        self.app.next_screen(self.post(data))
+        self.app.next_screen(self.endpoint.post(result))

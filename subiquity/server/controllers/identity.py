@@ -19,6 +19,7 @@ import attr
 
 from subiquitycore.context import with_context
 
+from subiquity.common.api import API, Identity
 from subiquity.server.controller import SubiquityController
 
 log = logging.getLogger('subiquity.server.controllers.identity')
@@ -26,7 +27,7 @@ log = logging.getLogger('subiquity.server.controllers.identity')
 
 class IdentityController(SubiquityController):
 
-    endpoint = '/identity'
+    endpoint_cls = API.identity
 
     autoinstall_key = model_name = "identity"
     autoinstall_schema = {
@@ -58,13 +59,13 @@ class IdentityController(SubiquityController):
         r['hostname'] = self.model.hostname
         return r
 
-    async def _get(self, context):
+    async def get(self, context):
         r = {}
         if self.model.user is not None:
             r.update(attr.asdict(self.model.user))
         if self.model.hostname:
             r['hostname'] = self.model.hostname
-        return r
+        return Identity(**r)
 
-    async def _post(self, context, data):
-        self.model.add_user(data)
+    async def post(self, context, data):
+        self.model.add_user(attr.asdict(Identity))
