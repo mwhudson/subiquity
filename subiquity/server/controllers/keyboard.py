@@ -19,8 +19,8 @@ import attr
 
 from subiquitycore.context import with_context
 
+from subiquity.common.api import KeyboardSetting
 from subiquity.common.keyboard import (
-    KeyboardSetting,
     set_keyboard,
     )
 from subiquity.server.controller import SubiquityController

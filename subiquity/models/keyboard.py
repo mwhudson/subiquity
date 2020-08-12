@@ -17,7 +17,7 @@ import logging
 import os
 import re
 
-from subiquity.common.keyboard import KeyboardSetting
+from subiquity.common.api import KeyboardSetting
 
 log = logging.getLogger("subiquity.models.keyboard")
 

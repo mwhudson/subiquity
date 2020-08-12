@@ -44,7 +44,7 @@ from subiquitycore.ui.stretchy import (
 from subiquitycore.ui.utils import button_pile, Color, Padding, screen
 from subiquitycore.view import BaseView
 
-from subiquity.common.keyboard import KeyboardSetting
+from subiquity.common.api import KeyboardSetting
 from subiquity.client.keyboard import latinizable, for_ui
 from subiquity.ui.views import pc105
 

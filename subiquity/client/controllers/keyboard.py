@@ -20,8 +20,8 @@ import attr
 
 from subiquity.client.controller import SubiquityTuiController
 from subiquity.client.keyboard import KeyboardList
+from subiquity.common.api import KeyboardSetting
 from subiquity.common.keyboard import (
-    KeyboardSetting,
     set_keyboard,
     )
 from subiquity.ui.views import KeyboardView

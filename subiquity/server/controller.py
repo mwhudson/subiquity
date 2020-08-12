@@ -26,7 +26,7 @@ from subiquitycore.controller import (
     BaseController,
     )
 
-from subiquity.common.api import deserializer, serializer
+from subiquity.common.api import deserialize, serialize
 
 log = logging.getLogger("subiquity.controller")
 
@@ -121,11 +121,11 @@ class SubiquityController(BaseController):
     def make_handler(self, definition, implementation, is_post):
         sig = inspect.signature(definition)
 
-        conv_r = serializer(sig.return_annotation)
+        r_ann = sig.return_annotation
 
         if is_post:
             arg_name = list(sig.parameters.keys())[0]
-            conv_arg = deserializer(sig.parameters[arg_name].annotation)
+            arg_ann = sig.parameters[arg_name].annotation
 
         async def handler(request):
             context = self.context.child(
@@ -136,10 +136,10 @@ class SubiquityController(BaseController):
                 if is_post:
                     payload = await request.text()
                     payload = json.loads(payload)
-                    args[arg_name] = conv_arg(payload)
+                    args[arg_name] = deserialize(arg_ann, payload['data'])
                 resp = await implementation(context=context, **args)
                 resp = {
-                    'result': conv_r(resp),
+                    'result': serialize(r_ann, resp),
                     'interactive': self.interactive(),
                     }
                 if not isinstance(resp, web.Response):

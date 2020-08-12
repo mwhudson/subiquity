@@ -17,7 +17,7 @@ import logging
 
 from subiquity.client.controller import SubiquityTuiController
 from subiquity.ui.views import WelcomeView
-from subiquity.common.api import API, Locale
+from subiquity.common.api import API
 
 log = logging.getLogger('subiquity.controllers.welcome')
 
@@ -27,8 +27,8 @@ class WelcomeController(SubiquityTuiController):
     endpoint_cls = API.locale
 
     async def start_ui(self):
-        data = await self.endpoint.get()
-        view = WelcomeView(self, data.language)
+        language = await self.endpoint.get()
+        view = WelcomeView(self, language)
         await self.app.set_body(view)
         if 'lang' in self.answers:
             self.done(self.answers['lang'])
@@ -36,7 +36,7 @@ class WelcomeController(SubiquityTuiController):
     def done(self, code):
         log.debug("WelcomeController.done %s next_screen", code)
         self.signal.emit_signal('l10n:language-selected', code)
-        self.app.next_screen(self.endpoint.post(Locale(language=code)))
+        self.app.next_screen(self.endpoint.post(code))
 
     def cancel(self):
         # Can't go back from here!

@@ -16,7 +16,7 @@
 import logging
 import os
 
-from subiquity.common.api import API, Locale
+from subiquity.common.api import API
 from subiquity.server.controller import SubiquityController
 
 
@@ -53,7 +53,7 @@ class WelcomeController(SubiquityController):
         return self.model.selected_language
 
     async def get(self, context):
-        return Locale(language=self.model.selected_language)
+        return self.model.selected_language
 
     async def post(self, context, data):
-        self.model.switch_language(data.language)
+        self.model.switch_language(data)

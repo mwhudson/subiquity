@@ -16,7 +16,7 @@
 from collections import defaultdict
 import os
 
-from subiquity.common.keyboard import KeyboardSetting
+from subiquity.common.api import KeyboardSetting
 
 
 # Non-latin keyboard layouts that are handled in a uniform way

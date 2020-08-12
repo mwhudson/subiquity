@@ -13,17 +13,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import attr
 import os
 
 from subiquitycore.utils import arun_command
-
-
-@attr.s
-class KeyboardSetting:
-    layout = attr.ib()
-    variant = attr.ib(default='')
-    toggle = attr.ib(default=None)
 
 
 async def set_keyboard(setting, dry_run):

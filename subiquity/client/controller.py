@@ -24,7 +24,7 @@ from subiquitycore.tuicontroller import (
     TuiController,
     )
 
-from subiquity.common.api import deserializer, serializer
+from subiquity.common.api import deserialize, serialize
 
 log = logging.getLogger("subiquity.controller")
 
@@ -38,26 +38,27 @@ def make_client(app, endpoint_cls, path_prefix=''):
 
     if hasattr(endpoint_cls, 'get'):
         sig = inspect.signature(endpoint_cls.get)
-        conv_r = deserializer(sig.return_annotation)
+        r_ann = sig.return_annotation
 
         async def impl_get(**args):
             r = await app.get(path.format(**args))
             if not r['interactive']:
                 raise Skip
-            return conv_r(r['result'])
+            return deserialize(r_ann, r['result'])
         C.get = staticmethod(impl_get)
 
     if hasattr(endpoint_cls, 'post'):
         sig = inspect.signature(endpoint_cls.post)
-        conv_r_p = deserializer(sig.return_annotation)
+        r_ann = sig.return_annotation
         arg_name = list(sig.parameters.keys())[0]
-        conv_arg = serializer(sig.parameters[arg_name].annotation)
+        arg_ann = sig.parameters[arg_name].annotation
 
         async def impl_post(data, **args):
-            r = await app.post(path.format(**args), conv_arg(data))
+            data = {'data': serialize(arg_ann, data)}
+            r = await app.post(path.format(**args), data)
             if not r['interactive']:
                 raise Skip
-            return conv_r_p(r['result'])
+            return deserialize(r_ann, r['result'])
         C.post = staticmethod(impl_post)
 
     for k, v in endpoint_cls.__dict__.items():
