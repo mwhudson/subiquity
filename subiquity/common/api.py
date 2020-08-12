@@ -16,6 +16,7 @@
 import attr
 import collections
 import enum
+import inspect
 
 
 def asdict(inst):
@@ -36,9 +37,36 @@ def asdict(inst):
     return r
 
 
+def identity(x):
+    return x
+
+
+def serializer(annotation):
+    if annotation is inspect.Signature.empty:
+        return lambda x: x
+    elif attr.has(annotation):
+        return asdict
+    else:
+        raise Exception(str(annotation))
+
+
+def deserializer(annotation):
+    if annotation is inspect.Signature.empty:
+        return identity
+    elif attr.has(annotation):
+        return lambda x: annotation(**x)
+    else:
+        raise Exception(str(annotation))
+
+
 def enumfield(enum_cls):
+    def conv(a):
+        if isinstance(a, enum_cls):
+            return a
+        else:
+            return getattr(enum_cls, a)
     return attr.ib(
-        converter=lambda a: getattr(enum_cls, a),
+        converter=conv,
         metadata={'enum_cls': enum_cls})
 
 
@@ -53,8 +81,9 @@ class CheckState(enum.Enum):
     UNAVAILABLE = enum.auto()
 
 
-class RefreshResponse:
-    status = enumfield(CheckState)
+@attr.s
+class RefreshStatus:
+    availability = enumfield(CheckState)
     current_snap_version = attr.ib()
     new_snap_version = attr.ib()
 
@@ -67,8 +96,8 @@ class API:
 
     class refresh:
 
-        def get() -> RefreshResponse: pass
-        def post(data: None) -> None: pass
+        def get() -> RefreshStatus: pass
+        def post(data): pass
 
         class progress:
             class id:
@@ -76,4 +105,4 @@ class API:
                 def get(self): pass
 
         class wait:
-            def get(self) -> RefreshResponse: pass
+            def get(self) -> RefreshStatus: pass

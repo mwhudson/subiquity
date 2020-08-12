@@ -23,6 +23,7 @@ from subiquitycore.tuicontroller import (
 from subiquity.client.controller import (
     SubiquityTuiController,
     )
+from subiquity.common.api import API, CheckState
 from subiquity.ui.views.refresh import RefreshView
 
 
@@ -31,27 +32,29 @@ log = logging.getLogger('subiquity.controllers.refresh')
 
 class RefreshController(SubiquityTuiController):
 
-    endpoint = '/refresh'
+    endpoint_cls = API.refresh
 
     def __init__(self, app):
         super().__init__(app)
         self.offered_first_time = False
 
     async def get_progress(self, change):
-        return await self.app.get('/refresh/progress/{}'.format(change))
+        return await self.endpoint.progress.id.get(id=change)
 
-    async def _start_ui(self, data, index=1):
+    async def start_ui(self, index=1):
+        status = await self.endpoint.wait.get()
         if self.app.updated:
             raise Skip()
         show = False
-        self.status = data
+        self.status = status
         if index == 1:
-            if data['check_state'] == 'AVAILABLE':
+            if status.availability == CheckState.AVAILABLE:
                 show = True
                 self.offered_first_time = True
         elif index == 2:
             if not self.offered_first_time:
-                if data['check_state'] in ('UNKNOWN', 'AVAILABLE'):
+                if status.availability in (CheckState.UNKNOWN,
+                                           CheckState.AVAILABLE):
                     show = True
         else:
             raise AssertionError("unexpected index {}".format(index))
@@ -63,12 +66,12 @@ class RefreshController(SubiquityTuiController):
     async def wait_for_check(self):
         while 1:
             self.status = await self.app.get(self.endpoint)
-            if self.status['check_state'] != 'UNKNOWN':
+            if self.status.status != CheckState.UNKNOWN:
                 return
             await asyncio.sleep(1)
 
     async def start_update(self):
-        resp = await self.app.post(self.endpoint, {})
+        resp = await self.endpoint.post({})
         return resp['change-id']
 
     def done(self, sender=None):

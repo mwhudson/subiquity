@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import attr
 import inspect
 import json
 import logging
@@ -27,7 +26,7 @@ from subiquitycore.controller import (
     BaseController,
     )
 
-from subiquity.common.api import asdict
+from subiquity.common.api import deserializer, serializer
 
 log = logging.getLogger("subiquity.controller")
 
@@ -119,26 +118,16 @@ class SubiquityController(BaseController):
     def make_autoinstall(self):
         return {}
 
-    def wrap(self, definition, implementation, is_post):
+    def make_handler(self, definition, implementation, is_post):
         sig = inspect.signature(definition)
 
-        r_ann = sig.return_annotation
-        if r_ann is inspect.Signature.empty:
-            def conv_r(x): return x
-        elif attr.has(r_ann):
-            def conv_r(x): return asdict(x)
-        else:
-            raise Exception(str(r_ann))
+        conv_r = serializer(sig.return_annotation)
 
         if is_post:
             arg_name = list(sig.parameters.keys())[0]
-            arg_ann = sig.parameters[arg_name].annotation
-            if arg_ann is inspect.Signature.empty:
-                def conv_arg(x): return x
-            else:
-                def conv_arg(x): return arg_ann(**x)
+            conv_arg = deserializer(sig.parameters[arg_name].annotation)
 
-        async def w(request):
+        async def handler(request):
             context = self.context.child(
                 implementation.__name__, trim(await request.text()))
             with context:
@@ -149,43 +138,42 @@ class SubiquityController(BaseController):
                     payload = json.loads(payload)
                     args[arg_name] = conv_arg(payload)
                 resp = await implementation(context=context, **args)
-                if resp is None:
-                    resp = {}
-                resp = conv_r(resp)
+                resp = {
+                    'result': conv_r(resp),
+                    'interactive': self.interactive(),
+                    }
                 if not isinstance(resp, web.Response):
                     resp = web.json_response(resp)
                 context.description = trim(resp.text)
                 return resp
 
-        return w
+        return handler
 
-    def add_routes_for_endpoint(self, app, endpoint_cls, prefix=None):
-        if prefix is None:
-            prefix = []
+    def add_routes_for_endpoint(self, app, endpoint_cls,
+                                path_prefix=None, meth_prefix=()):
+        if path_prefix is None:
+            path_prefix = ('', endpoint_cls.__name__)
         for k, v in endpoint_cls.__dict__.items():
             if k in ('get', 'post'):
-                meth_name = "_".join(prefix[1:] + [k])
+                meth_name = "_".join(meth_prefix + (k,))
                 meth = getattr(self, meth_name)
-                path = '/' + '/'.join(prefix)
+                path = '/'.join(path_prefix)
                 log.debug('path %s %s', k.upper(), path)
                 app.router.add_route(
                     method=k.upper(),
                     path=path,
-                    handler=self.wrap(v, meth, k == 'post'))
+                    handler=self.make_handler(v, meth, k == 'post'))
             if isinstance(v, type):
-                n = getattr(v, 'path', v.__name__)
-                new_prefix = prefix + [n]
-                self.add_routes_for_endpoint(app, v, new_prefix)
+                pn = getattr(v, 'path', k)
+                self.add_routes_for_endpoint(
+                    app, v, path_prefix + (pn,), meth_prefix + (k,))
 
     def add_routes(self, app):
         if self.endpoint:
             app.router.add_get(self.endpoint, self.get)
             app.router.add_post(self.endpoint, self.post)
         if self.endpoint_cls:
-            self.add_routes_for_endpoint(
-                app,
-                self.endpoint_cls,
-                [self.endpoint_cls.__name__])
+            self.add_routes_for_endpoint(app, self.endpoint_cls)
 
     @web_handler
     async def get(self, context, request):

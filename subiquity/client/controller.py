@@ -24,63 +24,45 @@ from subiquitycore.tuicontroller import (
     TuiController,
     )
 
-from subiquity.common.api import asdict
+from subiquity.common.api import deserializer, serializer
 
 log = logging.getLogger("subiquity.controller")
 
 
-def identity(x):
-    return x
-
-
-def instantiator(cls):
-    return lambda x: cls(**x)
-
-
-def make_client(app, endpoint_cls, prefix=None):
-    if prefix is None:
-        prefix = []
-
+def make_client(app, endpoint_cls, path_prefix=''):
     class C:
         pass
 
     n = getattr(endpoint_cls, 'path', endpoint_cls.__name__)
-    path = '/' + '/'.join(prefix + [n])
+    path = path_prefix + '/' + n
 
     if hasattr(endpoint_cls, 'get'):
         sig = inspect.signature(endpoint_cls.get)
-        r_ann = sig.return_annotation
-        if r_ann is inspect.Signature.empty:
-            conv_r = identity
-        elif attr.has(r_ann):
-            conv_r = instantiator(r_ann)
-        else:
-            1/0
+        conv_r = deserializer(sig.return_annotation)
 
-        async def impl_get():
-            return conv_r(await app.get(path))
+        async def impl_get(**args):
+            r = await app.get(path.format(**args))
+            if not r['interactive']:
+                raise Skip
+            return conv_r(r['result'])
         C.get = staticmethod(impl_get)
+
     if hasattr(endpoint_cls, 'post'):
         sig = inspect.signature(endpoint_cls.post)
-        r_ann = sig.return_annotation
-        if r_ann is inspect.Signature.empty:
-            conv_r_p = identity
-        elif attr.has(r_ann):
-            conv_r_p = instantiator(r_ann)
-        else:
-            1/0
+        conv_r_p = deserializer(sig.return_annotation)
         arg_name = list(sig.parameters.keys())[0]
-        arg_ann = sig.parameters[arg_name].annotation
-        if arg_ann is inspect.Signature.empty:
-            conv_arg = identity
-        elif attr.has(arg_ann):
-            conv_arg = asdict
-        else:
-            1/0
+        conv_arg = serializer(sig.parameters[arg_name].annotation)
 
-        async def impl_post(data):
-            return conv_r_p(await app.post(path, conv_arg(data)))
+        async def impl_post(data, **args):
+            r = await app.post(path.format(**args), conv_arg(data))
+            if not r['interactive']:
+                raise Skip
+            return conv_r_p(r['result'])
         C.post = staticmethod(impl_post)
+
+    for k, v in endpoint_cls.__dict__.items():
+        if isinstance(v, type):
+            setattr(C, k, make_client(app, v, path))
     return C
 
 

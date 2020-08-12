@@ -14,11 +14,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-import enum
 import logging
 import os
-
-from aiohttp import web
 
 import requests.exceptions
 
@@ -28,24 +25,18 @@ from subiquitycore.async_helpers import (
     )
 from subiquitycore.context import with_context
 
+from subiquity.common.api import API, CheckState, RefreshStatus
 from subiquity.server.controller import (
     SubiquityController,
-    web_handler,
     )
 
 
 log = logging.getLogger('subiquity.controllers.refresh')
 
 
-class CheckState(enum.IntEnum):
-    UNKNOWN = enum.auto()
-    AVAILABLE = enum.auto()
-    UNAVAILABLE = enum.auto()
-
-
 class RefreshController(SubiquityController):
 
-    endpoint = '/refresh'
+    endpoint_cls = API.refresh
 
     autoinstall_key = "refresh-installer"
     autoinstall_schema = {
@@ -222,25 +213,21 @@ class RefreshController(SubiquityController):
         result = await self.app.snapd.get('v2/changes/{}'.format(change))
         return result['result']
 
-    def add_routes(self, app):
-        super().add_routes(app)
-        app.router.add_get(
-            self.endpoint + '/progress/{change_id}', self._progress)
+    async def get(self, context):
+        return RefreshStatus(
+            availability=self.check_state,
+            current_snap_version=self.current_snap_version,
+            new_snap_version=self.new_snap_version)
 
-    @web_handler
-    async def _progress(self, context):
-        change_id = context.get('request').match_info['change_id']
-        return await self.get_progress(change_id)
-
-    async def _get(self, context):
-        return {
-            'check_state': self.check_state.name,
-            'current_version': self.current_snap_version,
-            'new_version': self.new_snap_version,
-            }
-
-    async def _post(self, context, data):
+    async def post(self, context, data):
         change = await self.start_update(context=context)
         return {
             'change-id': change,
             }
+
+    async def progress_id_get(self, context):
+        change_id = context.get('request').match_info['id']
+        return await self.get_progress(change_id)
+
+    async def wait_get(self, context):
+        return await self.get(context)
