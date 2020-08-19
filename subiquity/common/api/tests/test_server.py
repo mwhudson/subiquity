@@ -15,6 +15,7 @@
 
 import asyncio
 import contextlib
+import json
 import unittest
 
 from aiohttp.test_utils import TestClient, TestServer
@@ -31,8 +32,6 @@ def run_coro(coro):
 
 
 class TestApp:
-    def __init__(self):
-        self.context = Context.new(self)
 
     def report_start_event(self, context, description):
         pass
@@ -47,8 +46,7 @@ class TestControllerBase:
 
     def __init__(self, generic={}):
         self.generic = generic
-        self.app = TestApp()
-        self.context = self.app.context.child('test')
+        self.context = Context.new(TestApp())
 
     def generic_result(self):
         return self.generic
@@ -71,17 +69,16 @@ class TestBind(unittest.TestCase):
     def test_simple(self):
         @api
         class API:
-            class endpoint:
-                def get(): pass
+            def get() -> str: pass
 
         class Impl(TestControllerBase):
             async def get(self):
                 return 'value'
 
         async def make_request():
-            async with self.makeClient(API.endpoint, Impl()) as client:
+            async with self.makeClient(API, Impl()) as client:
                 await self.assertResponse(
-                    client.get("/endpoint"), {'result': 'value'})
+                    client.get("/"), {'result': 'value'})
 
         run_coro(make_request())
 
@@ -118,5 +115,23 @@ class TestBind(unittest.TestCase):
             async with self.makeClient(API.endpoint, Impl()) as client:
                 await self.assertResponse(
                     client.get("/whut"), {'result': 'whut'})
+
+        run_coro(make_request())
+
+    def test_post(self):
+        @api
+        class API:
+            def post(data): pass
+
+        class Impl(TestControllerBase):
+            async def post(self, data):
+                return data['key']
+
+        async def make_request():
+            async with self.makeClient(API, Impl()) as client:
+                await self.assertResponse(
+                    client.post(
+                        "/", data=json.dumps({'data': {'key': 'value'}})),
+                    {'result': 'value'})
 
         run_coro(make_request())
