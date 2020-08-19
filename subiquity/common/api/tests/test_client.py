@@ -43,8 +43,8 @@ class TestClient(unittest.TestCase):
             gets.append(path)
             return {'result': 'value'}
 
-        async def poster(path, data):
-            posts.append((path, data))
+        async def poster(path, *, json):
+            posts.append((path, json))
             return {'result': None}
 
         client = make_client(API, getter, poster)

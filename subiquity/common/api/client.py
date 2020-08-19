@@ -37,7 +37,7 @@ def _wrap_post(poster, path, meth):
 
     async def impl_post(data, **args):
         data = {'data': serialize(arg_ann, data)}
-        r = await poster(path.format(**args), data)
+        r = await poster(path.format(**args), json=data)
         return deserialize(r_ann, r['result'])
     return impl_post
 

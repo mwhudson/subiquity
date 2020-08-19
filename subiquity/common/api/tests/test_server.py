@@ -15,7 +15,6 @@
 
 import asyncio
 import contextlib
-import json
 import unittest
 
 from aiohttp.test_utils import TestClient, TestServer
@@ -52,14 +51,15 @@ class TestControllerBase:
         return self.generic
 
 
-class TestBind(unittest.TestCase):
+@contextlib.asynccontextmanager
+async def makeTestClient(api, impl):
+    app = web.Application()
+    bind(app.router, api, impl)
+    async with TestClient(TestServer(app)) as client:
+        yield client
 
-    @contextlib.asynccontextmanager
-    async def makeClient(self, api, impl):
-        app = web.Application()
-        bind(app.router, api, impl)
-        async with TestClient(TestServer(app)) as client:
-            yield client
+
+class TestBind(unittest.TestCase):
 
     async def assertResponse(self, coro, value):
         resp = await coro
@@ -76,7 +76,7 @@ class TestBind(unittest.TestCase):
                 return 'value'
 
         async def make_request():
-            async with self.makeClient(API, Impl()) as client:
+            async with makeTestClient(API, Impl()) as client:
                 await self.assertResponse(
                     client.get("/"), {'result': 'value'})
 
@@ -94,7 +94,7 @@ class TestBind(unittest.TestCase):
                 return 'nested'
 
         async def make_request():
-            async with self.makeClient(API.endpoint, Impl()) as client:
+            async with makeTestClient(API.endpoint, Impl()) as client:
                 await self.assertResponse(
                     client.get("/endpoint/nested"), {'result': 'nested'})
 
@@ -112,7 +112,7 @@ class TestBind(unittest.TestCase):
                 return request.match_info['arg']
 
         async def make_request():
-            async with self.makeClient(API.endpoint, Impl()) as client:
+            async with makeTestClient(API.endpoint, Impl()) as client:
                 await self.assertResponse(
                     client.get("/whut"), {'result': 'whut'})
 
@@ -128,10 +128,10 @@ class TestBind(unittest.TestCase):
                 return data['key']
 
         async def make_request():
-            async with self.makeClient(API, Impl()) as client:
+            async with makeTestClient(API, Impl()) as client:
                 await self.assertResponse(
                     client.post(
-                        "/", data=json.dumps({'data': {'key': 'value'}})),
+                        "/", json={'data': {'key': 'value'}}),
                     {'result': 'value'})
 
         run_coro(make_request())
