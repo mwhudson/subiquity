@@ -14,14 +14,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-def api(cls, name_prefix=(), path_prefix=''):
+def api(cls, name_prefix=(), path_prefix=()):
+    cls.fullpath = '/' + '/'.join(path_prefix)
+    cls.fullname = name_prefix
     for k, v in cls.__dict__.items():
         if isinstance(v, type):
             v.__name__ = k
-            v.fullname = name_prefix + (k,)
             n = getattr(v, 'path', k)
-            v.fullpath = path_prefix + '/' + n
-            api(v, v.fullname, v.fullpath)
+            api(v, name_prefix + (k,), path_prefix + (n,))
     return cls
 
 
