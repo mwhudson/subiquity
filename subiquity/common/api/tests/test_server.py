@@ -14,9 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import contextlib
 import unittest
 
-from aiohttp.test_utils import TestClient, TestServer, loop_context
+from aiohttp.test_utils import TestClient, TestServer
 from aiohttp import web
 
 from subiquitycore.context import Context
@@ -55,6 +56,18 @@ class TestControllerBase:
 
 class TestBind(unittest.TestCase):
 
+    @contextlib.asynccontextmanager
+    async def makeClient(self, api, impl):
+        app = web.Application()
+        bind(app.router, api, impl)
+        async with TestClient(TestServer(app)) as client:
+            yield client
+
+    async def assertResponse(self, coro, value):
+        resp = await coro
+        self.assertEqual(resp.status, 200)
+        self.assertEqual(await resp.json(), value)
+
     def test_simple(self):
         @api
         class API:
@@ -65,15 +78,10 @@ class TestBind(unittest.TestCase):
             async def get(self):
                 return 'value'
 
-        app = web.Application()
-
-        bind(app.router, API.endpoint, Impl())
-
         async def make_request():
-            async with TestClient(TestServer(app)) as client:
-                resp = await client.get("/endpoint")
-                assert resp.status == 200
-                self.assertEqual(await resp.json(), {'result': 'value'})
+            async with self.makeClient(API.endpoint, Impl()) as client:
+                await self.assertResponse(
+                    client.get("/endpoint"), {'result': 'value'})
 
         run_coro(make_request())
 
@@ -88,15 +96,10 @@ class TestBind(unittest.TestCase):
             async def nested_get(self, request, context):
                 return 'nested'
 
-        app = web.Application()
-
-        bind(app.router, API.endpoint, Impl())
-
         async def make_request():
-            async with TestClient(TestServer(app)) as client:
-                resp = await client.get("/endpoint/nested")
-                assert resp.status == 200
-                self.assertEqual(await resp.json(), {'result': 'nested'})
+            async with self.makeClient(API.endpoint, Impl()) as client:
+                await self.assertResponse(
+                    client.get("/endpoint/nested"), {'result': 'nested'})
 
         run_coro(make_request())
 
@@ -111,14 +114,9 @@ class TestBind(unittest.TestCase):
             async def get(self, request):
                 return request.match_info['arg']
 
-        app = web.Application()
-
-        bind(app.router, API.endpoint, Impl())
-
         async def make_request():
-            async with TestClient(TestServer(app)) as client:
-                resp = await client.get("/what")
-                assert resp.status == 200
-                self.assertEqual(await resp.json(), {'result': 'what'})
+            async with self.makeClient(API.endpoint, Impl()) as client:
+                await self.assertResponse(
+                    client.get("/whut"), {'result': 'whut'})
 
         run_coro(make_request())
