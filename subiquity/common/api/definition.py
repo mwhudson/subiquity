@@ -65,8 +65,8 @@ class API:
         def post(self, data: dict): pass
 
         class nic:
-            class path:
-                path = '{nic}'
+            class ifindex:
+                path = '{ifindex}'
                 def get(self) -> dict: pass
 
         class new:
