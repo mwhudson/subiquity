@@ -17,6 +17,7 @@ from typing import List
 
 from .defs import api, simple_endpoint
 from subiquity.common.types import (
+    ApplicationState,
     IdentityData,
     InstallState,
     KeyboardSetting,
@@ -40,6 +41,12 @@ class API:
     ssh = simple_endpoint(SSHData)
 
     # More complex cases:
+
+    class status:
+        def get() -> ApplicationState: pass
+
+        class wait_early:
+            def get(): pass
 
     class refresh:
         def get() -> RefreshStatus: pass

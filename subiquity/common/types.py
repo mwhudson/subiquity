@@ -24,6 +24,19 @@ from typing import List
 import attr
 
 
+class ApplicationStatus(enum.Enum):
+    EARLY_COMMANDS = enum.auto()
+    INTERACTIVE = enum.auto()
+    NON_INTERACTIVE = enum.auto()
+
+
+@attr.s(auto_attribs=True)
+class ApplicationState:
+    status: ApplicationStatus
+    event_syslog_identifier: str
+    log_syslog_identifier: str
+
+
 class RefreshCheckState(enum.Enum):
     UNKNOWN = enum.auto()
     AVAILABLE = enum.auto()
