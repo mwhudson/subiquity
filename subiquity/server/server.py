@@ -47,7 +47,8 @@ class SubiquityServer:
 
     project = "subiquity-server"
 
-    def __init__(self):
+    def __init__(self, opts, block_log_dir):
+        self.opts = opts
         self.context = Context.new(self)
 
     def report_start_event(self, context, description):
@@ -63,14 +64,10 @@ class SubiquityServer:
         bind(app.router, API.status, StateController(self))
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.UnixSite(runner, ".subiquity/run/subiquity/socket")
+        site = web.UnixSite(runner, self.opts.socket)
         await site.start()
 
     def run(self):
         loop = asyncio.get_event_loop()
         loop.create_task(self.startup())
         loop.run_forever()
-
-
-if __name__ == '__main__':
-    SubiquityServer().run()

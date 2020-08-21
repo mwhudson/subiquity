@@ -28,8 +28,8 @@ log = logging.getLogger('subiquity.client.client')
 
 class SubiquityClient:
 
-    def __init__(self):
-        self.conn = aiohttp.UnixConnector(path=".subiquity/run/subiquity/socket")
+    def __init__(self, opts):
+        self.conn = aiohttp.UnixConnector(path=opts.socket)
         self.client = make_client(API, self.get, self.post)
 
     @contextlib.asynccontextmanager
@@ -71,7 +71,3 @@ class SubiquityClient:
         finally:
             self.aio_loop.run_until_complete(
                 self.aio_loop.shutdown_asyncgens())
-
-
-if __name__ == '__main__':
-    SubiquityClient().run()
