@@ -52,7 +52,9 @@ class SubiquityServer(Application):
     project = "subiquity-server"
 
     from subiquity.server import controllers as controllers_mod
-    controllers = []
+    controllers = [
+        "Welcome",
+        ]
 
     def make_model(self):
         root = '/'
@@ -63,13 +65,19 @@ class SubiquityServer(Application):
     def __init__(self, opts, block_log_dir):
         super().__init__(opts)
         self.prober = Prober(opts.machine_config, self.debug_flags)
-        self.opts = opts
-        self.context = Context.new(self)
+        self.autoinstall_config = {}
+
+    def interactive(self):
+        if not self.autoinstall_config:
+            return True
+        return bool(self.autoinstall_config.get('interactive-sections'))
 
     async def startup(self):
         app = web.Application()
         app['app'] = self
         bind(app.router, API.status, StateController(self))
+        for controller in self.controllers.instances:
+            controller.add_routes(app)
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.UnixSite(runner, self.opts.socket)
