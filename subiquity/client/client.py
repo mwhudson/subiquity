@@ -29,6 +29,14 @@ log = logging.getLogger('subiquity.client.client')
 
 class SubiquityClient(AsyncTuiApplication):
 
+    project = "subiquity"
+
+    from subiquity.client import controllers as controllers_mod
+    controllers = []
+
+    def make_model(self, **args):
+        return None
+
     def __init__(self, opts):
         super().__init__(opts)
         self.conn = aiohttp.UnixConnector(path=opts.socket)
@@ -67,6 +75,8 @@ class SubiquityClient(AsyncTuiApplication):
     async def shutdown(self):
         await self.conn.close()
         await self.aio_loop.shutdown_asyncgens()
+
+    auto_start_urwid = False
 
     def run(self):
         self.aio_loop.create_task(self.connect())

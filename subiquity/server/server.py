@@ -18,6 +18,7 @@ import asyncio
 from aiohttp import web
 
 from subiquitycore.context import Context
+from subiquitycore.prober import Prober
 
 from subiquity.common.api.definition import API
 from subiquity.common.api.server import bind
@@ -48,6 +49,7 @@ class SubiquityServer:
     project = "subiquity-server"
 
     def __init__(self, opts, block_log_dir):
+        self.prober = Prober(opts.machine_config, self.debug_flags)
         self.opts = opts
         self.context = Context.new(self)
 
