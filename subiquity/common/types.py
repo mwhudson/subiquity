@@ -25,6 +25,7 @@ import attr
 
 
 class ApplicationStatus(enum.Enum):
+    STARTING = enum.auto()
     EARLY_COMMANDS = enum.auto()
     INTERACTIVE = enum.auto()
     NON_INTERACTIVE = enum.auto()

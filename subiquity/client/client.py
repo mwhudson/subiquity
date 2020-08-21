@@ -72,6 +72,13 @@ class SubiquityClient(AsyncTuiApplication):
             else:
                 print()
                 break
+        if state.status == ApplicationStatus.STARTING:
+            print("server is starting...", end='', flush=True)
+            while state.status == ApplicationStatus.STARTING:
+                await asyncio.sleep(1)
+                print(".", end='', flush=True)
+                state = await self.client.status.get()
+            print()
         if state.status == ApplicationStatus.INTERACTIVE:
             self.start_urwid()
             self.next_screen()
@@ -82,6 +89,9 @@ class SubiquityClient(AsyncTuiApplication):
     async def shutdown(self):
         await self.conn.close()
         await self.aio_loop.shutdown_asyncgens()
+
+    def load_serialized_state(self):
+        pass
 
     auto_start_urwid = False
 

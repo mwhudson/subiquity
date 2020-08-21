@@ -13,12 +13,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import asyncio
 import os
 
 from aiohttp import web
 
-from subiquitycore.context import Context
 from subiquitycore.core import Application
 from subiquitycore.prober import Prober
 
@@ -41,7 +39,7 @@ class StateController:
         return {}
 
     async def get(self):
-        return ApplicationState(ApplicationStatus.INTERACTIVE)
+        return ApplicationState(self.app.status)
 
     async def wait_early_get(self):
         pass
@@ -65,6 +63,7 @@ class SubiquityServer(Application):
     def __init__(self, opts, block_log_dir):
         super().__init__(opts)
         self.prober = Prober(opts.machine_config, self.debug_flags)
+        self.status = ApplicationStatus.STARTING
         self.autoinstall_config = {}
 
     def interactive(self):
@@ -82,6 +81,7 @@ class SubiquityServer(Application):
         await runner.setup()
         site = web.UnixSite(runner, self.opts.socket)
         await site.start()
+        self.status = ApplicationStatus.INTERACTIVE
 
     def run(self):
         self.aio_loop.create_task(self.startup())
