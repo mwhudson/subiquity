@@ -22,6 +22,7 @@ import aiohttp
 from subiquity.client.asyncapp import AsyncTuiApplication
 from subiquity.common.api.client import make_client
 from subiquity.common.api.definition import API
+from subiquity.common.types import ApplicationStatus
 
 
 log = logging.getLogger('subiquity.client.client')
@@ -32,7 +33,9 @@ class SubiquityClient(AsyncTuiApplication):
     project = "subiquity"
 
     from subiquity.client import controllers as controllers_mod
-    controllers = []
+    controllers = [
+        "Welcome",
+        ]
 
     def make_model(self, **args):
         return None
@@ -69,8 +72,12 @@ class SubiquityClient(AsyncTuiApplication):
             else:
                 print()
                 break
-        print(state.status)
-        self.aio_loop.stop()
+        if state.status == ApplicationStatus.INTERACTIVE:
+            self.start_urwid()
+            self.next_screen()
+        else:
+            print(state.status)
+            self.aio_loop.stop()
 
     async def shutdown(self):
         await self.conn.close()
