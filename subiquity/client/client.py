@@ -19,6 +19,7 @@ import logging
 
 import aiohttp
 
+from subiquity.client.asyncapp import AsyncTuiApplication
 from subiquity.common.api.client import make_client
 from subiquity.common.api.definition import API
 
@@ -26,9 +27,10 @@ from subiquity.common.api.definition import API
 log = logging.getLogger('subiquity.client.client')
 
 
-class SubiquityClient:
+class SubiquityClient(AsyncTuiApplication):
 
     def __init__(self, opts):
+        super().__init__(opts)
         self.conn = aiohttp.UnixConnector(path=opts.socket)
         self.client = make_client(API, self.get, self.post)
 
@@ -60,14 +62,15 @@ class SubiquityClient:
                 print()
                 break
         print(state.status)
-        await self.conn.close()
         self.aio_loop.stop()
 
+    async def shutdown(self):
+        await self.conn.close()
+        await self.aio_loop.shutdown_asyncgens()
+
     def run(self):
-        self.aio_loop = asyncio.get_event_loop()
         self.aio_loop.create_task(self.connect())
         try:
-            self.aio_loop.run_forever()
+            super().run()
         finally:
-            self.aio_loop.run_until_complete(
-                self.aio_loop.shutdown_asyncgens())
+            self.aio_loop.run_until_complete(self.shutdown())
