@@ -14,10 +14,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import os
 
 from aiohttp import web
 
 from subiquitycore.context import Context
+from subiquitycore.core import Application
 from subiquitycore.prober import Prober
 
 from subiquity.common.api.definition import API
@@ -26,6 +28,7 @@ from subiquity.common.types import (
     ApplicationState,
     ApplicationStatus,
     )
+from subiquity.models.subiquity import SubiquityModel
 
 
 class StateController:
@@ -44,21 +47,24 @@ class StateController:
         pass
 
 
-class SubiquityServer:
+class SubiquityServer(Application):
 
     project = "subiquity-server"
 
+    from subiquity.server import controllers as controllers_mod
+    controllers = []
+
+    def make_model(self):
+        root = '/'
+        if self.opts.dry_run:
+            root = os.path.abspath('.subiquity')
+        return SubiquityModel(root, self.opts.sources)
+
     def __init__(self, opts, block_log_dir):
+        super().__init__(opts)
         self.prober = Prober(opts.machine_config, self.debug_flags)
         self.opts = opts
         self.context = Context.new(self)
-
-    def report_start_event(self, context, description):
-        print("{} start: {}".format(context.full_name(), description))
-
-    def report_finish_event(self, context, description, result):
-        print("{} finish: {} {}".format(
-            context.full_name(), result, description))
 
     async def startup(self):
         app = web.Application()
@@ -70,6 +76,5 @@ class SubiquityServer:
         await site.start()
 
     def run(self):
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.startup())
-        loop.run_forever()
+        self.aio_loop.create_task(self.startup())
+        super().run()
