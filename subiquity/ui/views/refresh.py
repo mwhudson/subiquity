@@ -164,7 +164,7 @@ class RefreshView(BaseView):
 
     async def _wait_check_result(self):
         try:
-            status = await self.controller.status_wait()
+            status = await self.controller.wait_for_check()
         except Exception as e:
             self.check_state_failed(e)
             return

@@ -139,11 +139,7 @@ class TuiApplication(Application):
         self._move_screen(-1)
 
     def select_initial_screen(self, controller_index):
-        for controller in self.controllers.instances[:controller_index]:
-            controller.configured()
         self.controllers.index = controller_index - 1
-        for controller in self.controllers.instances[:controller_index]:
-            controller.configured()
         self.next_screen()
 
     def run_scripts(self, scripts):

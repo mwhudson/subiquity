@@ -17,6 +17,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import sys
 
 import aiohttp
 
@@ -55,8 +56,10 @@ class SubiquityClient(AsyncTuiApplication):
     project = "subiquity"
 
     from subiquity.client import controllers as controllers_mod
+
     controllers = [
         "Welcome",
+        "Refresh",
         ]
 
     def make_model(self, **args):
@@ -112,7 +115,7 @@ class SubiquityClient(AsyncTuiApplication):
             print()
         if state.status == ApplicationStatus.INTERACTIVE:
             self.start_urwid()
-            self.next_screen()
+            self.select_initial_screen(self.initial_controller_index())
         else:
             print(state.status)
             self.aio_loop.stop()
@@ -207,3 +210,18 @@ class SubiquityClient(AsyncTuiApplication):
                 # Don't show an error if already looking at one.
                 return
         self.add_global_overlay(ErrorReportStretchy(self, report))
+
+    def restart(self, remove_last_screen=True):
+        if remove_last_screen:
+            self._remove_last_screen()
+        self.urwid_loop.stop()
+        cmdline = ['snap', 'run', 'subiquity']
+        if self.opts.dry_run:
+            if self.server_proc is not None:
+                print('killing server {}'.format(self.server_proc.pid))
+                self.server_proc.send_signal(2)
+                self.server_proc.wait()
+            cmdline = [
+                sys.executable, '-m', 'subiquity.cmd.tui',
+                ] + sys.argv[1:]
+        os.execvp(cmdline[0], cmdline)

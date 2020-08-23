@@ -92,6 +92,7 @@ def main():
     if '--dry-run' in args:
         opts, unknown = parser.parse_known_args(args)
         if opts.socket is None:
+            os.makedirs('.subiquity', exist_ok=True)
             sock_path = '.subiquity/socket'
             opts.socket = sock_path
             server_args = ['--dry-run', '--socket=' + sock_path] + unknown
@@ -156,6 +157,7 @@ def main():
             opts.answers = None
 
     subiquity_interface = SubiquityClient(opts)
+    subiquity_interface.server_proc = server_proc
 
     # subiquity_interface.note_file_for_apport(
     #     "InstallerClientLog", logfiles['debug'])

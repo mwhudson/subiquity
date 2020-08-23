@@ -50,7 +50,7 @@ class API:
 
     class refresh:
         def get() -> RefreshStatus: pass
-        def post(data): pass
+        def post(data) -> str: pass
 
         class progress:
             class id:
