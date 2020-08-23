@@ -47,24 +47,10 @@ from subiquity.common.errorreport import (
 from subiquity.journald import journald_listener
 from subiquity.lockfile import Lockfile
 from subiquity.models.subiquity import SubiquityModel
-from subiquity.ui.frame import SubiquityUI
-from subiquity.ui.views.error import ErrorReportStretchy
 from subiquity.ui.views.help import HelpMenu
 
 
 log = logging.getLogger('subiquity.core')
-
-
-DEBUG_SHELL_INTRO = _("""\
-Installer shell session activated.
-
-This shell session is running inside the installer environment.  You
-will be returned to the installer when this shell is exited, for
-example by typing Control-D or 'exit'.
-
-Be aware that this is an ephemeral environment.  Changes to this
-environment will not survive a reboot. If the install has started, the
-installed system will be mounted at /target.""")
 
 
 class Subiquity(TuiApplication):
@@ -92,9 +78,6 @@ class Subiquity(TuiApplication):
         if self.opts.dry_run:
             root = os.path.abspath('.subiquity')
         return SubiquityModel(root, self.opts.sources)
-
-    def make_ui(self):
-        return SubiquityUI(self, self.help_menu)
 
     controllers = [
         "Early",
@@ -130,7 +113,6 @@ class Subiquity(TuiApplication):
         super().__init__(opts)
         self.event_listeners = []
         self.install_lock_file = Lockfile(self.state_path("installing"))
-        self.global_overlays = []
         self.block_log_dir = block_log_dir
         self.kernel_cmdline = shlex.split(opts.kernel_cmdline)
         if opts.snaps_from_examples:
@@ -153,11 +135,6 @@ class Subiquity(TuiApplication):
         self.show_progress_handle = None
         self.progress_shown_time = self.aio_loop.time()
         self.progress_showing = False
-        self.error_reporter = ErrorReporter(
-            self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
-
-        self.note_data_for_apport("SnapUpdated", str(self.updated))
-        self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
 
         self.install_confirmed = False
 
@@ -353,24 +330,6 @@ class Subiquity(TuiApplication):
             return True
         return bool(self.autoinstall_config.get('interactive-sections'))
 
-    def add_global_overlay(self, overlay):
-        self.global_overlays.append(overlay)
-        if isinstance(self.ui.body, BaseView):
-            self.ui.body.show_stretchy_overlay(overlay)
-
-    def remove_global_overlay(self, overlay):
-        self.global_overlays.remove(overlay)
-        if isinstance(self.ui.body, BaseView):
-            self.ui.body.remove_overlay(overlay)
-
-    def select_initial_screen(self, index):
-        self.error_reporter.start_loading_reports()
-        for report in self.error_reporter.reports:
-            if report.kind == ErrorReportKind.UI and not report.seen:
-                self.show_error_report(report)
-                break
-        super().select_initial_screen(index)
-
     def select_screen(self, new):
         if new.interactive():
             self._cancel_show_progress()
@@ -412,74 +371,6 @@ class Subiquity(TuiApplication):
         await run_in_thread(
             self.snapd.connection.configure_proxy, self.base_model.proxy)
         self.signal.emit_signal('snapd-network-change')
-
-    def unhandled_input(self, key):
-        if key == 'f1':
-            if not self.ui.right_icon.current_help:
-                self.ui.right_icon.open_pop_up()
-        elif key in ['ctrl z', 'f2']:
-            self.debug_shell()
-        elif self.opts.dry_run:
-            self.unhandled_input_dry_run(key)
-        else:
-            super().unhandled_input(key)
-
-    def unhandled_input_dry_run(self, key):
-        if key == 'ctrl g':
-            import asyncio
-            from systemd import journal
-
-            async def mock_install():
-                async with self.install_lock_file.exclusive():
-                    self.install_lock_file.write_content("nowhere")
-                    journal.send(
-                        "starting install", SYSLOG_IDENTIFIER="subiquity")
-                    await asyncio.sleep(5)
-            schedule_task(mock_install())
-        elif key in ['ctrl e', 'ctrl r']:
-            interrupt = key == 'ctrl e'
-            try:
-                1/0
-            except ZeroDivisionError:
-                self.make_apport_report(
-                    ErrorReportKind.UNKNOWN, "example", interrupt=interrupt)
-        elif key == 'ctrl u':
-            1/0
-        else:
-            super().unhandled_input(key)
-
-    def debug_shell(self, after_hook=None):
-
-        def _before():
-            os.system("clear")
-            print(DEBUG_SHELL_INTRO)
-
-        self.run_command_in_foreground(
-            ["bash"], before_hook=_before, after_hook=after_hook, cwd='/')
-
-    def note_file_for_apport(self, key, path):
-        self.error_reporter.note_file_for_apport(key, path)
-
-    def note_data_for_apport(self, key, value):
-        self.error_reporter.note_data_for_apport(key, value)
-
-    def make_apport_report(self, kind, thing, *, interrupt, wait=False, **kw):
-        report = self.error_reporter.make_apport_report(
-            kind, thing, wait=wait, **kw)
-
-        if report is not None and interrupt and self.interactive():
-            self.show_error_report(report)
-
-        return report
-
-    def show_error_report(self, report):
-        log.debug("show_error_report %r", report.base)
-        if isinstance(self.ui.body, BaseView):
-            w = getattr(self.ui.body._w, 'stretchy', None)
-            if isinstance(w, ErrorReportStretchy):
-                # Don't show an error if already looking at one.
-                return
-        self.add_global_overlay(ErrorReportStretchy(self, report))
 
     def make_autoinstall(self):
         config = {'version': 1}
