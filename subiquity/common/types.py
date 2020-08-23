@@ -51,11 +51,11 @@ class RefreshStatus:
     new_snap_version: str = ''
 
 
-@attr.s
+@attr.s(auto_attribs=True)
 class KeyboardSetting:
-    layout = attr.ib()
-    variant = attr.ib(default='')
-    toggle = attr.ib(default=None)
+    layout: str
+    variant: str = ''
+    toggle: Optional[str] = None
 
 
 class ProbeStatus(enum.Enum):

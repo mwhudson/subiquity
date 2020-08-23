@@ -60,6 +60,7 @@ class SubiquityClient(AsyncTuiApplication):
     controllers = [
         "Welcome",
         "Refresh",
+        "Keyboard",
         ]
 
     def make_model(self, **args):

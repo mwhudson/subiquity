@@ -13,12 +13,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from .keyboard import KeyboardController
-from .refresh import RefreshController
-from .welcome import WelcomeController
+import os
 
-__all__ = [
-    'KeyboardController',
-    'RefreshController',
-    'WelcomeController',
-    ]
+from subiquitycore.utils import arun_command
+
+
+async def set_keyboard(setting, dry_run):
+    cmds = [
+        ['setupcon', '--save', '--force', '--keyboard-only'],
+        ['/snap/bin/subiquity.subiquity-loadkeys'],
+        ]
+    if dry_run:
+        scale = os.environ.get('SUBIQUITY_REPLAY_TIMESCALE', "1")
+        cmds = [['sleep', str(1/float(scale))]]
+    for cmd in cmds:
+        await arun_command(cmd)
