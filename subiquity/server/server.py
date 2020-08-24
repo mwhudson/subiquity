@@ -70,6 +70,7 @@ class SubiquityServer(Application):
         "Proxy",
         "Mirror",
         "Identity",
+        "SSH",
         ]
 
     def make_model(self):

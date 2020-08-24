@@ -91,7 +91,7 @@ class IdentityData:
 
 @attr.s(auto_attribs=True)
 class SSHData:
-    install_server: str
+    install_server: bool
     allow_pw: bool
     authorized_keys: List[str] = attr.Factory(list)
 

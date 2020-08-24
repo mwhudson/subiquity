@@ -280,7 +280,8 @@ class SSHView(BaseView):
               self.form.import_username.value
             fsk = FetchingSSHKeys(self)
             self.show_overlay(fsk, width=fsk.width, min_width=None)
-            self.controller.fetch_ssh_keys(ssh_data, ssh_import_id)
+            self.controller.fetch_ssh_keys(
+                ssh_import_id=ssh_import_id, ssh_data=ssh_data)
         else:
             self.controller.done(ssh_data)
 

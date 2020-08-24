@@ -65,6 +65,7 @@ class SubiquityClient(AsyncTuiApplication):
         "Mirror",
         "Refresh",
         "Identity",
+        "SSH",
         ]
 
     def make_model(self, **args):

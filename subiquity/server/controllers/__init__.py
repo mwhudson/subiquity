@@ -18,6 +18,7 @@ from .identity import IdentityController
 from .mirror import MirrorController
 from .proxy import ProxyController
 from .refresh import RefreshController
+from .ssh import SSHController
 from .welcome import WelcomeController
 
 __all__ = [
@@ -26,5 +27,6 @@ __all__ = [
     'MirrorController',
     'ProxyController',
     'RefreshController',
+    'SSHController',
     'WelcomeController',
     ]
