@@ -14,15 +14,19 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from .keyboard import KeyboardController
+from .identity import IdentityController
 from .mirror import MirrorController
 from .proxy import ProxyController
 from .refresh import RefreshController
+from ..controller import RepeatedController
 from .welcome import WelcomeController
 
 __all__ = [
     'KeyboardController',
+    'IdentityController',
     'MirrorController',
     'ProxyController',
     'RefreshController',
+    'RepeatedController',
     'WelcomeController',
     ]

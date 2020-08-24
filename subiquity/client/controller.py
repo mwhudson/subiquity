@@ -37,6 +37,5 @@ class SubiquityTuiController(TuiController):
 
 class RepeatedController(RepeatedController):
 
-    @with_context()
-    async def start_ui(self, context):
-        return await self.orig.start_ui(context=context, index=self.index)
+    async def start_ui(self):
+        return await self.orig.start_ui(index=self.index)

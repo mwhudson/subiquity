@@ -69,6 +69,7 @@ class SubiquityServer(Application):
         "Keyboard",
         "Proxy",
         "Mirror",
+        "Identity",
         ]
 
     def make_model(self):

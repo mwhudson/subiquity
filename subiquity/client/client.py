@@ -63,6 +63,8 @@ class SubiquityClient(AsyncTuiApplication):
         "Keyboard",
         "Proxy",
         "Mirror",
+        "Refresh",
+        "Identity",
         ]
 
     def make_model(self, **args):
