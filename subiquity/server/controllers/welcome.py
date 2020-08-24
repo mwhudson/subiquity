@@ -57,3 +57,4 @@ class WelcomeController(SubiquityController):
 
     async def post(self, context, data):
         self.model.switch_language(data)
+        self.configured()

@@ -62,10 +62,9 @@ class AsyncTuiApplication(TuiApplication):
             self.ui.block_input = True
             self.show_progress_handle = self.aio_loop.call_later(
                 MAX_BLOCK_TIME, self._show_progress)
-        old, self.cur_screen = self.cur_screen, None
-        if old is not None:
-            old.context.exit("completed")
-            old.end_ui()
+        if self.cur_screen is not None:
+            self.cur_screen.context.exit("completed")
+            self.cur_screen.end_ui()
         self.aio_loop.create_task(self._move_screen(increment, coro))
 
     async def _move_screen(self, increment, coro):

@@ -65,3 +65,4 @@ class ProxyController(SubiquityController):
     async def post(self, context, data):
         self.model.proxy = data
         self.signal.emit_signal('network-proxy-set')
+        self.configured()

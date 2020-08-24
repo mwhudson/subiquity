@@ -21,6 +21,7 @@ import sys
 
 import aiohttp
 
+from subiquitycore.tuicontroller import Skip
 from subiquitycore.view import BaseView
 
 from subiquity.client.asyncapp import AsyncTuiApplication
@@ -35,9 +36,16 @@ from subiquity.journald import journald_listener
 from subiquity.ui.frame import SubiquityUI
 from subiquity.ui.views.error import ErrorReportStretchy
 from subiquity.ui.views.help import HelpMenu
+from subiquity.ui.views.installprogress import (
+    InstallConfirmation,
+    )
 
 
 log = logging.getLogger('subiquity.client.client')
+
+
+class Confirm(Exception):
+    pass
 
 
 DEBUG_SHELL_INTRO = _("""\
@@ -94,10 +102,19 @@ class SubiquityClient(AsyncTuiApplication):
                 connector=self.conn, connector_owner=False) as session:
             yield session
 
-    async def get(self, path):
+    async def _get(self, path):
         async with self.session() as session:
             async with session.get('http://a' + path) as resp:
                 return await resp.json()
+
+    async def get(self, path):
+        resp = await self._get(path)
+        log.debug("get %r", resp['status'])
+        if resp['status'] == 'skip':
+            raise Skip
+        elif resp['status'] == 'confirm':
+            raise Confirm
+        return resp
 
     async def post(self, path, *, json):
         async with self.session() as session:
@@ -108,7 +125,7 @@ class SubiquityClient(AsyncTuiApplication):
         print("connecting...", end='', flush=True)
         while True:
             try:
-                state = await self.client.status.get()
+                state = await self.client.meta.status.get()
             except aiohttp.ClientError:
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
@@ -120,7 +137,7 @@ class SubiquityClient(AsyncTuiApplication):
             while state.status == ApplicationStatus.STARTING:
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
-                state = await self.client.status.get()
+                state = await self.client.meta.status.get()
             print()
         if state.status == ApplicationStatus.INTERACTIVE:
             fd1, watcher1 = journald_listener(
@@ -161,6 +178,24 @@ class SubiquityClient(AsyncTuiApplication):
                 self.show_error_report(report)
                 break
         super().select_initial_screen(index)
+
+    async def select_screen(self, new):
+        try:
+            await super().select_screen(new)
+        except Confirm:
+            new.context.exit("(needs confirmation)")
+            self.show_confirm_install()
+            self.controllers.index = self.controllers.instances.index(
+                self.cur_screen)
+
+    def show_confirm_install(self):
+        self._cancel_show_progress()
+        log.debug("showing InstallConfirmation over %s", self.ui.body)
+        self.ui.block_input = False
+        self.add_global_overlay(InstallConfirmation(self))
+
+    async def confirm_install(self):
+        await self.client.meta.confirm.post(None)
 
     auto_start_urwid = False
 

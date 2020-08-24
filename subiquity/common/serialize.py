@@ -55,6 +55,8 @@ def serialize(annotation, value, metadata={}):
             return value.strftime(metadata['time_fmt'])
         else:
             return str(value)
+    elif annotation is None:
+        return None
     elif isinstance(annotation, type) and issubclass(annotation, enum.Enum):
         return value.name
     else:
@@ -84,6 +86,8 @@ def deserialize(annotation, value, metadata={}):
             raise Exception("don't understand {}".format(t))
     elif annotation in (str, int, bool):
         return annotation(value)
+    elif annotation is None:
+        return None
     elif annotation is datetime.datetime:
         if 'time_fmt' in metadata:
             return datetime.datetime.strptime(value, metadata['time_fmt'])

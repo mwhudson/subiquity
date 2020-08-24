@@ -176,6 +176,7 @@ class SnapListController(SubiquityController):
 
     async def post(self, data):
         self.model.set_installed_list(data)
+        self.configured()
 
     async def wait_get(self, context):
         if self.loader.failed or not self.app.base_model.network.has_network:

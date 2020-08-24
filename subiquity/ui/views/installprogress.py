@@ -33,6 +33,8 @@ from subiquitycore.ui.utils import button_pile, Padding, rewrap
 from subiquitycore.ui.stretchy import Stretchy
 from subiquitycore.ui.width import widget_width
 
+from subiquity.common.types import InstallState
+
 
 log = logging.getLogger("subiquity.views.installprogress")
 
@@ -139,13 +141,13 @@ class ProgressView(BaseView):
         self._set_button_width()
 
     def update_for_status(self, status):
-        if status == "NOT_STARTED":
+        if status == InstallState.NOT_STARTED:
             self.title = _("Install progress")
             btns = []
-        elif status == "RUNNING":
+        elif status == InstallState.RUNNING:
             self.title = _("Install progress")
             btns = [self.view_log_btn]
-        elif status == "UU_RUNNING":
+        elif status == InstallState.UU_RUNNING:
             self.title = _("Install complete!")
             self.reboot_btn.base_widget.set_label(
                 _("Cancel update and reboot"))
@@ -153,7 +155,7 @@ class ProgressView(BaseView):
                 self.view_log_btn,
                 self.reboot_btn,
                 ]
-        elif status == "UU_CANCELLING":
+        elif status == InstallState.UU_CANCELLING:
             self.title = _("Install complete!")
             self.reboot_btn.base_widget.set_label(_("Rebooting..."))
             self.reboot_btn.enabled = False
@@ -161,14 +163,14 @@ class ProgressView(BaseView):
                 self.view_log_btn,
                 self.reboot_btn,
                 ]
-        elif status == "DONE":
+        elif status == InstallState.DONE:
             self.title = _("Install complete!")
             self.reboot_btn.base_widget.set_label(_("Reboot"))
             btns = [
                 self.view_log_btn,
                 self.reboot_btn,
                 ]
-        elif status == "ERROR":
+        elif status == InstallState.ERROR:
             self.title = _('An error occurred during installation')
             self.reboot_btn.base_widget.set_label(_("Reboot"))
             self.reboot_btn.enabled = True
@@ -222,8 +224,7 @@ Are you sure you want to continue?""")
 
 
 class InstallConfirmation(Stretchy):
-    def __init__(self, parent, app):
-        self.parent = parent
+    def __init__(self, app):
         self.app = app
         widgets = [
             Text(rewrap(_(confirmation_text))),
@@ -239,11 +240,10 @@ class InstallConfirmation(Stretchy):
             focus_index=2)
 
     def ok(self, sender):
-        self.app.confirm_install()
         self.app.remove_global_overlay(self)
         if isinstance(self.app.ui.body, ProgressView):
             self.app.ui.body.hide_continue()
-        self.app.next_screen()
+        self.app.next_screen(self.app.confirm_install())
 
     def cancel(self, sender):
         self.app.remove_global_overlay(self)

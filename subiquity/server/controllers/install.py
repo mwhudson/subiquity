@@ -243,6 +243,8 @@ class InstallController(SubiquityController):
             await asyncio.wait(
                 {e.wait() for e in self.model.install_events})
 
+            await self.model.confirmation.wait()
+
             self.update_status(InstallState.RUNNING)
 
             if os.path.exists(self.model.target):

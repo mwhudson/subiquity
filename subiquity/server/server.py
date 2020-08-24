@@ -39,24 +39,27 @@ from subiquity.common.types import (
 from subiquity.models.subiquity import SubiquityModel
 
 
-class StateController:
+class MetaController:
 
     def __init__(self, app):
         self.app = app
         self.context = app.context.child("State")
 
     def generic_result(self):
-        return {}
+        return {'status': 'ok'}
 
-    async def get(self):
+    async def status_get(self):
         log_id = self.app.controllers.Install._log_syslog_identifier
         return ApplicationState(
             status=self.app.status,
             event_syslog_identifier=self.app.syslog_id,
             log_syslog_identifier=log_id)
 
-    async def wait_early_get(self):
+    async def status_wait_early_get(self):
         pass
+
+    async def confirm_post(self, data):
+        self.app.base_model.confirm()
 
 
 class SubiquityServer(Application):
@@ -124,7 +127,7 @@ class SubiquityServer(Application):
     async def startup(self):
         app = web.Application()
         app['app'] = self
-        bind(app.router, API.status, StateController(self))
+        bind(app.router, API.meta, MetaController(self))
         for controller in self.controllers.instances:
             controller.add_routes(app)
         runner = web.AppRunner(app)

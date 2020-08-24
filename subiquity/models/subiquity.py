@@ -66,11 +66,11 @@ ff02::2 ip6-allrouters
 
 # Models that contribute to the curtin config
 INSTALL_MODEL_NAMES = [
-    "debconf_selections",
-    "filesystem",
+    #    "debconf_selections",
+    #    "filesystem",
     "keyboard",
     "mirror",
-    "network",
+    #    "network",
     "proxy",
     ]
 
@@ -78,10 +78,10 @@ INSTALL_MODEL_NAMES = [
 POSTINSTALL_MODEL_NAMES = [
     "identity",
     "locale",
-    "packages",
+    #    "packages",
     "snaplist",
     "ssh",
-    "userdata",
+    #    "userdata",
     ]
 
 ALL_MODEL_NAMES = INSTALL_MODEL_NAMES + POSTINSTALL_MODEL_NAMES
@@ -119,6 +119,9 @@ class SubiquityModel:
         self.ssh = SSHModel()
         self.userdata = {}
 
+        self.needs_confirmation = False
+        self.confirmation = asyncio.Event()
+
         self._events = {
             name: asyncio.Event() for name in ALL_MODEL_NAMES
             }
@@ -132,6 +135,18 @@ class SubiquityModel:
     def configured(self, model_name):
         log.debug("model %s is configured", model_name)
         self._events[model_name].set()
+        if all(e.is_set() for e in self.install_events):
+            if not self.confirmation.is_set():
+                log.debug("needs confirmation now")
+                self.needs_confirmation = True
+
+    def confirm(self):
+        self.needs_confirmation = False
+        self.confirmation.set()
+
+    def is_configured(self, model_name):
+        log.debug("model %s is configured", model_name)
+        return self._events[model_name].is_set()
 
     def get_target_groups(self):
         command = ['chroot', self.target, 'getent', 'group']

@@ -42,11 +42,16 @@ class API:
 
     # More complex cases:
 
-    class status:
-        def get() -> ApplicationState: pass
+    class meta:
 
-        class wait_early:
-            def get(): pass
+        class status:
+            def get() -> ApplicationState: pass
+
+            class wait_early:
+                def get() -> ApplicationState: pass
+
+        class confirm:
+            def post(data: None): pass
 
     class refresh:
         def get() -> RefreshStatus: pass

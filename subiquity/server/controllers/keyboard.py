@@ -68,3 +68,4 @@ class KeyboardController(SubiquityController):
 
     async def post(self, data):
         self.model.setting = data
+        self.configured()

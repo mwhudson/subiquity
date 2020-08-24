@@ -97,6 +97,11 @@ class SubiquityController(BaseController):
     def generic_result(self):
         if self.interactive():
             status = 'ok'
+            bm = self.app.base_model
+            if self.model_name is not None:
+                if bm.needs_confirmation:
+                    if not bm.is_configured(self.model_name):
+                        status = 'confirm'
         else:
             status = 'skip'
         return {'status': status}
