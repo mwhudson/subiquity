@@ -67,6 +67,7 @@ class SubiquityServer(Application):
         "Welcome",
         "Refresh",
         "Keyboard",
+        "Proxy",
         "Mirror",
         ]
 

@@ -15,12 +15,14 @@
 
 from .keyboard import KeyboardController
 from .mirror import MirrorController
+from .proxy import ProxyController
 from .refresh import RefreshController
 from .welcome import WelcomeController
 
 __all__ = [
     'KeyboardController',
     'MirrorController',
+    'ProxyController',
     'RefreshController',
     'WelcomeController',
     ]
