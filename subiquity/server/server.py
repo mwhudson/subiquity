@@ -49,7 +49,11 @@ class StateController:
         return {}
 
     async def get(self):
-        return ApplicationState(self.app.status)
+        log_id = self.app.controllers.Install._log_syslog_identifier
+        return ApplicationState(
+            status=self.app.status,
+            event_syslog_identifier=self.app.syslog_id,
+            log_syslog_identifier=log_id)
 
     async def wait_early_get(self):
         pass
@@ -72,6 +76,7 @@ class SubiquityServer(Application):
         "Identity",
         "SSH",
         "SnapList",
+        "Install",
         ]
 
     def make_model(self):
@@ -99,6 +104,7 @@ class SubiquityServer(Application):
         else:
             connection = SnapdConnection(self.root, self.snapd_socket_path)
         self.snapd = AsyncSnapd(connection)
+        self.syslog_id = 'subiquity.{}'.format(os.getpid())
 
     def note_file_for_apport(self, key, path):
         self.error_reporter.note_file_for_apport(key, path)

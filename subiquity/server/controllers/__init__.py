@@ -15,6 +15,7 @@
 
 from .keyboard import KeyboardController
 from .identity import IdentityController
+from .install import InstallController
 from .mirror import MirrorController
 from .proxy import ProxyController
 from .refresh import RefreshController
@@ -25,6 +26,7 @@ from .welcome import WelcomeController
 __all__ = [
     'KeyboardController',
     'IdentityController',
+    'InstallController',
     'MirrorController',
     'ProxyController',
     'RefreshController',

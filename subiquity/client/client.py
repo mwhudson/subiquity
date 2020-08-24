@@ -31,6 +31,7 @@ from subiquity.common.errorreport import (
     ErrorReportKind,
     )
 from subiquity.common.types import ApplicationStatus
+from subiquity.journald import journald_listener
 from subiquity.ui.frame import SubiquityUI
 from subiquity.ui.views.error import ErrorReportStretchy
 from subiquity.ui.views.help import HelpMenu
@@ -67,6 +68,7 @@ class SubiquityClient(AsyncTuiApplication):
         "Identity",
         "SSH",
         "SnapList",
+        "Progress",
         ]
 
     def make_model(self, **args):
@@ -121,6 +123,14 @@ class SubiquityClient(AsyncTuiApplication):
                 state = await self.client.status.get()
             print()
         if state.status == ApplicationStatus.INTERACTIVE:
+            fd1, watcher1 = journald_listener(
+                [state.event_syslog_identifier],
+                self.controllers.Progress.event)
+            self.aio_loop.add_reader(fd1, watcher1)
+            fd2, watcher2 = journald_listener(
+                [state.log_syslog_identifier],
+                self.controllers.Progress.log_line)
+            self.aio_loop.add_reader(fd2, watcher2)
             self.start_urwid()
             self.select_initial_screen(self.initial_controller_index())
         else:
