@@ -71,6 +71,7 @@ class SubiquityServer(Application):
         "Mirror",
         "Identity",
         "SSH",
+        "SnapList",
         ]
 
     def make_model(self):

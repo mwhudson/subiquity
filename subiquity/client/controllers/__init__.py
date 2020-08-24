@@ -19,6 +19,7 @@ from .mirror import MirrorController
 from .proxy import ProxyController
 from .refresh import RefreshController
 from ..controller import RepeatedController
+from .snaplist import SnapListController
 from .ssh import SSHController
 from .welcome import WelcomeController
 
@@ -29,6 +30,7 @@ __all__ = [
     'ProxyController',
     'RefreshController',
     'RepeatedController',
+    'SnapListController',
     'SSHController',
     'WelcomeController',
     ]

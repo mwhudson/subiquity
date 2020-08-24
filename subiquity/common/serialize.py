@@ -86,7 +86,7 @@ def deserialize(annotation, value, metadata={}):
         return annotation(value)
     elif annotation is datetime.datetime:
         if 'time_fmt' in metadata:
-            return value.strptime(metadata['time_fmt'])
+            return datetime.datetime.strptime(value, metadata['time_fmt'])
         else:
             1/0
     elif isinstance(annotation, type) and issubclass(annotation, enum.Enum):

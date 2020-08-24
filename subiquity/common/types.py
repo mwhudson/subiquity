@@ -108,8 +108,9 @@ class ChannelSnapInfo:
     revision: str
     confinement: str
     version: str
-    size: str
-    released_at: datetime.datetime
+    size: int
+    released_at: datetime.datetime = attr.ib(
+        metadata={'time_fmt': '%Y-%m-%dT%H:%M:%S.%fZ'})
 
 
 @attr.s(auto_attribs=True, cmp=False)
@@ -132,17 +133,10 @@ class SnapSelection:
 
 
 @attr.s(auto_attribs=True)
-class SnapListData:
+class SnapListResponse:
     status: SnapCheckState
     snaps: List[SnapInfo] = attr.Factory(list)
     selections: List[SnapSelection] = attr.Factory(list)
-
-
-@attr.s(auto_attribs=True)
-class SnapListResponse:
-    status: SnapCheckState
-    snaps: List[SnapInfo]
-    selection: List[SnapSelection]
 
 
 class InstallState(enum.Enum):

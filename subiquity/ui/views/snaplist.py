@@ -380,9 +380,8 @@ class SnapListView(BaseView):
 
     title = _("Featured Server Snaps")
 
-    def __init__(self, controller):
+    def __init__(self, controller, data):
         self.controller = controller
-        data = controller.snap_list_data
         if data.status == SnapCheckState.LOADING:
             self.wait_load()
         else:

@@ -18,7 +18,8 @@ import logging
 
 from subiquity.common.types import (
     ChannelSnapInfo,
-    SnapInfo)
+    SnapInfo,
+    )
 
 
 log = logging.getLogger("subiquity.models.snaplist")
