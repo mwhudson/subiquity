@@ -15,6 +15,8 @@
 
 import logging
 
+import attr
+
 import requests.exceptions
 
 from subiquitycore.async_helpers import (
@@ -161,7 +163,7 @@ class SnapListController(SubiquityController):
         self.loader.start()
 
     def make_autoinstall(self):
-        return self.model.to_install
+        return [attr.asdict(sel) for sel in self.model.selections]
 
     async def get(self, context):
         if self.loader.failed:  # or not self.app.base_model.network.has_network:

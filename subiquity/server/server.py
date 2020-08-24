@@ -19,6 +19,8 @@ import sys
 
 from aiohttp import web
 
+from systemd import journal
+
 from subiquitycore.core import Application
 from subiquitycore.prober import Prober
 from subiquitycore.snapd import (
@@ -108,6 +110,7 @@ class SubiquityServer(Application):
             connection = SnapdConnection(self.root, self.snapd_socket_path)
         self.snapd = AsyncSnapd(connection)
         self.syslog_id = 'subiquity.{}'.format(os.getpid())
+        self.event_listeners = []
 
     def note_file_for_apport(self, key, path):
         self.error_reporter.note_file_for_apport(key, path)
@@ -118,6 +121,44 @@ class SubiquityServer(Application):
     def make_apport_report(self, kind, thing, *, wait=False, **kw):
         return self.error_reporter.make_apport_report(
             kind, thing, wait=wait, **kw)
+
+    def _maybe_push_to_journal(self, event_type, context, description):
+        if context.get('hidden', False):
+            return
+        if not context.get('is-install-context') and self.interactive():
+            controller = context.get('controller')
+            if controller is None or controller.interactive():
+                return
+        indent = context.full_name().count('/') - 2
+        if context.get('is-install-context'):
+            indent -= 1
+            msg = context.description
+        else:
+            msg = context.full_name()
+            if description:
+                msg += ': ' + description
+        msg = '  ' * indent + msg
+        if context.parent:
+            parent_id = str(context.parent.id)
+        else:
+            parent_id = ''
+        journal.send(
+            msg,
+            PRIORITY=context.level,
+            SYSLOG_IDENTIFIER=self.syslog_id,
+            SUBIQUITY_EVENT_TYPE=event_type,
+            SUBIQUITY_CONTEXT_ID=str(context.id),
+            SUBIQUITY_CONTEXT_PARENT_ID=parent_id)
+
+    def report_start_event(self, context, description):
+        for listener in self.event_listeners:
+            listener.report_start_event(context, description)
+        self._maybe_push_to_journal('start', context, description)
+
+    def report_finish_event(self, context, description, status):
+        for listener in self.event_listeners:
+            listener.report_finish_event(context, description, status)
+        self._maybe_push_to_journal('finish', context, description)
 
     def interactive(self):
         if not self.autoinstall_config:
@@ -149,3 +190,11 @@ class SubiquityServer(Application):
                 sys.executable, '-m', 'subiquity.cmd.server',
                 ] + sys.argv[1:]
         os.execvp(cmdline[0], cmdline)
+
+    def make_autoinstall(self):
+        config = {'version': 1}
+        for controller in self.controllers.instances:
+            controller_conf = controller.make_autoinstall()
+            if controller_conf:
+                config[controller.autoinstall_key] = controller_conf
+        return config

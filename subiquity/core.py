@@ -372,10 +372,3 @@ class Subiquity(TuiApplication):
             self.snapd.connection.configure_proxy, self.base_model.proxy)
         self.signal.emit_signal('snapd-network-change')
 
-    def make_autoinstall(self):
-        config = {'version': 1}
-        for controller in self.controllers.instances:
-            controller_conf = controller.make_autoinstall()
-            if controller_conf:
-                config[controller.autoinstall_key] = controller_conf
-        return config
