@@ -15,62 +15,45 @@
 
 import inspect
 import json
+import typing
 
 from subiquity.common.serialize import serialize, deserialize
+from .defs import Payload
 
 
-def _wrap_get(getter, path, definition):
-    sig = inspect.signature(definition)
-    params = sig.parameters
-    r_ann = sig.return_annotation
-
-    async def impl_get(**args):
-        args = {
-            a: json.dumps(serialize(params[a].annotation, args[a]))
-            for a in args
-            }
-        r = await getter(path, params=args)
-        return deserialize(r_ann, r['result'])
-
-    return impl_get
-
-
-def _wrap_post(poster, path, meth):
+def _wrap(make_request, path, meth):
     sig = inspect.signature(meth)
-    params = sig.parameters
+    meth_params = sig.parameters
+    payload_arg = None
+    for name, param in meth_params.items():
+        if typing.get_origin(param.annotation) is Payload:
+            payload_arg = name
+            payload_ann = typing.get_args(param.annotation)[0]
     r_ann = sig.return_annotation
 
-    async def impl_post(data=None, **args):
-        args = {
-            a: json.dumps(serialize(params[a].annotation, args[a]))
-            for a in args
+    async def impl(*args, **kw):
+        args = sig.bind(*args, **kw)
+        params = {
+            k: json.dumps(serialize(meth_params[k].annotation, v))
+            for (k, v) in args.arguments.items() if k != payload_arg
             }
-        if 'data' in params:
-            data = {'data': serialize(params['data'].annotation, data)}
+        if payload_arg in args.arguments:
+            v = args.arguments[payload_arg]
+            data = {'data': serialize(payload_ann, v)}
         else:
-            data = {}
-        r = await poster(path.format(**args), json=data, params=args)
+            data = None
+        r = await make_request(meth.__name__, path, json=data, params=params)
         return deserialize(r_ann, r['result'])
-    return impl_post
+    return impl
 
 
-def make_client(endpoint_cls, getter, poster):
+def make_client(endpoint_cls, make_request):
     class C:
         pass
 
-    if hasattr(endpoint_cls, 'get'):
-        C.get = staticmethod(_wrap_get(
-            getter,
-            endpoint_cls.fullpath,
-            endpoint_cls.get))
-
-    if hasattr(endpoint_cls, 'post'):
-        C.post = staticmethod(_wrap_post(
-            poster,
-            endpoint_cls.fullpath,
-            endpoint_cls.post))
-
     for k, v in endpoint_cls.__dict__.items():
         if isinstance(v, type):
-            setattr(C, k, make_client(v, getter, poster))
+            setattr(C, k, make_client(v, make_request))
+        elif callable(v):
+            setattr(C, k, _wrap(make_request, endpoint_cls.fullpath, v))
     return C

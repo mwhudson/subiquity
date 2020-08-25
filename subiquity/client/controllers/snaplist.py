@@ -38,7 +38,7 @@ class SnapListController(SubiquityTuiController):
     endpoint_name = 'snaplist'
 
     async def start_ui(self):
-        data = await self.endpoint.get()
+        data = await self.endpoint.GET()
         if data.status == SnapCheckState.FAILED:
             raise Skip()
         if 'snaps' in self.answers:
@@ -53,13 +53,13 @@ class SnapListController(SubiquityTuiController):
         log.debug(
             "SnapListController.done next_screen snaps_to_install=%s",
             selections)
-        self.app.next_screen(self.endpoint.post(selections))
+        self.app.next_screen(self.endpoint.POST(selections))
 
     def cancel(self, sender=None):
         self.app.prev_screen()
 
     async def get_list_wait(self):
-        await self.endpoint.wait.get()
+        await self.endpoint.wait.GET()
 
     async def get_snap_info(self, snap):
         if not snap.channels:

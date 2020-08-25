@@ -16,7 +16,7 @@
 import unittest
 
 from subiquity.common.api.client import make_client
-from subiquity.common.api.defs import api, simple_endpoint
+from subiquity.common.api.defs import api, Payload
 
 
 def extract(c):
@@ -34,44 +34,43 @@ class TestClient(unittest.TestCase):
 
         @api
         class API:
-            endpoint = simple_endpoint(str)
+            class endpoint:
+                def GET() -> str: ...
+                def POST(data: Payload[str]): ...
 
-        gets = []
-        posts = []
+        async def make_request(method, path, *, params, json):
+            requests.append((method, path, params, json))
+            if method == "GET":
+                return {'result': 'value'}
+            else:
+                return {'result': None}
 
-        async def getter(path, *, params):
-            gets.append((path, params))
-            return {'result': 'value'}
+        client = make_client(API, make_request)
 
-        async def poster(path, *, params, json):
-            posts.append((path, params, json))
-            return {'result': None}
-
-        client = make_client(API, getter, poster)
-
-        r = extract(client.endpoint.get())
+        requests = []
+        r = extract(client.endpoint.GET())
         self.assertEqual(r, 'value')
-        self.assertEqual(gets, [('/endpoint', {})])
+        self.assertEqual(requests, [("GET", '/endpoint', {}, None)])
 
-        r = extract(client.endpoint.post('value'))
+        requests = []
+        r = extract(client.endpoint.POST('value'))
         self.assertEqual(r, None)
-        self.assertEqual(posts, [('/endpoint', {}, {'data': 'value'})])
+        self.assertEqual(
+            requests, [("POST", '/endpoint', {}, {'data': 'value'})])
 
     def test_args(self):
 
         @api
         class API:
-            def get(arg: str):
-                pass
+            def GET(arg: str): ...
 
-        gets = []
-
-        async def getter(path, *, params):
-            gets.append((path, params))
+        async def make_request(method, path, *, params, json):
+            requests.append((method, path, params, json))
             return {'result': params['arg']}
 
-        client = make_client(API, getter, None)
+        client = make_client(API, make_request)
 
-        r = extract(client.get(arg='v'))
+        requests = []
+        r = extract(client.GET(arg='v'))
         self.assertEqual(r, '"v"')
-        self.assertEqual(gets, [('/', {'arg': '"v"'})])
+        self.assertEqual(requests, [("GET", '/', {'arg': '"v"'}, None)])

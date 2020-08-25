@@ -94,7 +94,7 @@ class InstallController(SubiquityController):
     def interactive(self):
         return self.app.interactive()
 
-    async def status_get(self, cur):
+    async def status_GET(self, cur):
         if cur != self.install_state:
             return self.install_state
         await self.install_status_event.wait()

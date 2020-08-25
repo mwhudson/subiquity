@@ -26,7 +26,7 @@ class WelcomeController(SubiquityTuiController):
     endpoint_name = 'locale'
 
     async def start_ui(self):
-        language = await self.endpoint.get()
+        language = await self.endpoint.GET()
         view = WelcomeView(self, language)
         await self.app.set_body(view)
         if 'lang' in self.answers:
@@ -35,7 +35,7 @@ class WelcomeController(SubiquityTuiController):
     def done(self, code):
         log.debug("WelcomeController.done %s next_screen", code)
         self.signal.emit_signal('l10n:language-selected', code)
-        self.app.next_screen(self.endpoint.post(code))
+        self.app.next_screen(self.endpoint.POST(code))
 
     def cancel(self):
         # Can't go back from here!

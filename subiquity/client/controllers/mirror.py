@@ -31,7 +31,7 @@ class MirrorController(SubiquityTuiController):
             self.model.set_country(self.answers['country-code'])
 
     async def start_ui(self):
-        mirror = await self.endpoint.get()
+        mirror = await self.endpoint.GET()
         await self.app.set_body(MirrorView(mirror, self))
         if 'mirror' in self.answers:
             self.done(self.answers['mirror'])
@@ -44,4 +44,4 @@ class MirrorController(SubiquityTuiController):
 
     def done(self, mirror):
         log.debug("MirrorController.done next_screen mirror=%s", mirror)
-        self.app.next_screen(self.endpoint.post(mirror))
+        self.app.next_screen(self.endpoint.POST(mirror))

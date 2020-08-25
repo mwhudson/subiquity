@@ -42,7 +42,7 @@ class SSHController(SubiquityTuiController):
         self._fetch_task = None
 
     async def start_ui(self):
-        ssh_data = await self.endpoint.get()
+        ssh_data = await self.endpoint.GET()
         await self.app.set_body(SSHView(self, ssh_data))
         if self.answers:
             ssh = SSHData(
@@ -115,4 +115,4 @@ class SSHController(SubiquityTuiController):
 
     def done(self, result):
         log.debug("SSHController.done next_screen result=%s", result)
-        self.app.next_screen(self.endpoint.post(result))
+        self.app.next_screen(self.endpoint.POST(result))

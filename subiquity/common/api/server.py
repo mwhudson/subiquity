@@ -15,10 +15,13 @@
 
 import inspect
 import json
+import typing
 
 from aiohttp import web
 
 from subiquity.common.serialize import deserialize, serialize
+
+from .defs import Payload
 
 
 def trim(text):
@@ -37,6 +40,7 @@ def make_handler(controller, definition, implementation):
     impl_params = impl_sig.parameters
 
     data_annotation = None
+    data_arg = None
     query_args_anns = []
 
     for param_name, param in def_params.items():
@@ -47,8 +51,9 @@ def make_handler(controller, definition, implementation):
         if param_name not in impl_params:
             raise Exception("{}, implementing {} missing param {}".format(
                 implementation, definition, param_name))
-        if param_name == 'data':
-            data_annotation = param.annotation
+        if typing.get_origin(param.annotation) is Payload:
+            data_arg = param_name
+            data_annotation = typing.get_args(param.annotation)[0]
         else:
             query_args_anns.append(
                 (param_name, param.annotation, param.default))
@@ -62,9 +67,8 @@ def make_handler(controller, definition, implementation):
             context.set('request', request)
             args = {}
             if data_annotation is not None:
-                payload = await request.text()
-                payload = json.loads(payload)
-                args['data'] = deserialize(data_annotation, payload['data'])
+                payload = json.loads(await request.text())
+                args[data_arg] = deserialize(data_annotation, payload['data'])
             for arg, ann, default in query_args_anns:
                 if arg in request.query:
                     v = deserialize(ann, json.loads(request.query[arg]))
@@ -93,22 +97,14 @@ def bind(router, endpoint, controller, depth=None):
     if depth is None:
         depth = len(endpoint.fullname)
 
-    if hasattr(endpoint, 'get'):
-        meth_name = "_".join(endpoint.fullname[depth:] + ('get',))
-        meth = getattr(controller, meth_name)
-        router.add_route(
-            method="GET",
-            path=endpoint.fullpath,
-            handler=make_handler(controller, endpoint.get, meth))
-
-    if hasattr(endpoint, 'post'):
-        meth_name = "_".join(endpoint.fullname[depth:] + ('post',))
-        meth = getattr(controller, meth_name)
-        router.add_route(
-            method="POST",
-            path=endpoint.fullpath,
-            handler=make_handler(controller, endpoint.post, meth))
-
     for v in endpoint.__dict__.values():
         if isinstance(v, type):
             bind(router, v, controller, depth)
+        elif callable(v):
+            method = v.__name__
+            impl_name = "_".join(endpoint.fullname[depth:] + (method,))
+            impl = getattr(controller, impl_name)
+            router.add_route(
+                method=method,
+                path=endpoint.fullpath,
+                handler=make_handler(controller, v, impl))

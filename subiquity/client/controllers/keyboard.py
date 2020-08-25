@@ -51,7 +51,7 @@ class KeyboardController(SubiquityTuiController):
     async def start_ui(self):
         if self.keyboard_list.current_lang is None:
             self.keyboard_list.load_language('C')
-        initial_setting = await self.endpoint.get()
+        initial_setting = await self.endpoint.GET()
         view = KeyboardView(self, initial_setting)
         await self.app.set_body(view)
         if 'layout' in self.answers:
@@ -68,7 +68,7 @@ class KeyboardController(SubiquityTuiController):
         if apply:
             self.app.aio_loop.create_task(self.set_keyboard(setting))
         else:
-            self.app.next_screen(self.endpoint.post(setting))
+            self.app.next_screen(self.endpoint.POST(setting))
 
     def cancel(self):
         self.app.prev_screen()

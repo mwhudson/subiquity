@@ -27,7 +27,7 @@ class IdentityController(SubiquityTuiController):
     endpoint_name = 'identity'
 
     async def start_ui(self):
-        identity_data = await self.endpoint.get()
+        identity_data = await self.endpoint.GET()
         await self.app.set_body(IdentityView(self, identity_data))
         if all(elem in self.answers for elem in
                ['realname', 'username', 'password', 'hostname']):
@@ -45,4 +45,4 @@ class IdentityController(SubiquityTuiController):
         log.debug(
             "IdentityController.done next_screen user_spec=%s",
             identity_data)
-        self.app.next_screen(self.endpoint.post(identity_data))
+        self.app.next_screen(self.endpoint.POST(identity_data))

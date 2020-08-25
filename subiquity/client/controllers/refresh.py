@@ -39,10 +39,10 @@ class RefreshController(SubiquityTuiController):
         self.offered_first_time = False
 
     async def get_progress(self, change):
-        return await self.endpoint.progress.get(change_id=change)
+        return await self.endpoint.progress.GET(change_id=change)
 
     async def start_ui(self, index=1):
-        status = await self.endpoint.get()
+        status = await self.endpoint.GET()
         if self.app.updated:
             raise Skip()
         show = False
@@ -65,13 +65,13 @@ class RefreshController(SubiquityTuiController):
 
     async def wait_for_check(self):
         while 1:
-            self.status = await self.endpoint.wait.get()
+            self.status = await self.endpoint.wait.GET()
             if self.status.availability != RefreshCheckState.UNKNOWN:
                 return self.status
             await asyncio.sleep(1)
 
     async def start_update(self):
-        return await self.endpoint.post({})
+        return await self.endpoint.POST()
 
     def done(self, sender=None):
         log.debug("RefreshController.done next_screen")

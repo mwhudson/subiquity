@@ -90,7 +90,7 @@ class SubiquityClient(AsyncTuiApplication):
         super().__init__(opts)
         self.global_overlays = []
         self.conn = aiohttp.UnixConnector(path=opts.socket)
-        self.client = make_client(API, self.get, self.post)
+        self.client = make_client(API, self.make_request)
         self.error_reporter = ErrorReporter(
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
 
@@ -102,30 +102,23 @@ class SubiquityClient(AsyncTuiApplication):
                 connector=self.conn, connector_owner=False) as session:
             yield session
 
-    async def _get(self, path, *, params):
+    async def make_request(self, method, path, *, params, json):
         async with self.session() as session:
-            async with session.get('http://a' + path, params=params) as resp:
-                return await resp.json()
-
-    async def get(self, path, *, params):
-        resp = await self._get(path, params=params)
+            async with session.request(
+                    method, 'http://a' + path, json=json,
+                    params=params) as response:
+                resp = await response.json()
         if resp['status'] == 'skip':
             raise Skip
         elif resp['status'] == 'confirm':
             raise Confirm
         return resp
 
-    async def post(self, path, *, json, params):
-        async with self.session() as session:
-            async with session.post(
-                    'http://a' + path, json=json, params=params) as resp:
-                return await resp.json()
-
     async def connect(self):
         print("connecting...", end='', flush=True)
         while True:
             try:
-                state = await self.client.meta.status.get()
+                state = await self.client.meta.status.GET()
             except aiohttp.ClientError:
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
@@ -137,7 +130,7 @@ class SubiquityClient(AsyncTuiApplication):
             while state.status == ApplicationStatus.STARTING:
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
-                state = await self.client.meta.status.get()
+                state = await self.client.meta.status.GET()
             print()
         if state.status == ApplicationStatus.INTERACTIVE:
             fd1, watcher1 = journald_listener(
@@ -195,7 +188,7 @@ class SubiquityClient(AsyncTuiApplication):
         self.add_global_overlay(InstallConfirmation(self))
 
     async def confirm_install(self):
-        await self.client.meta.confirm.post(None)
+        await self.client.meta.confirm.POST()
 
     auto_start_urwid = False
 

@@ -15,7 +15,7 @@
 
 from typing import List, Optional
 
-from .defs import api, simple_endpoint
+from .defs import api, simple_endpoint, Payload
 from subiquity.common.types import (
     ApplicationState,
     IdentityData,
@@ -45,55 +45,55 @@ class API:
     class meta:
 
         class status:
-            def get() -> ApplicationState: pass
+            def GET() -> ApplicationState: pass
 
             class wait_early:
-                def get() -> ApplicationState: pass
+                def GET() -> ApplicationState: pass
 
         class confirm:
-            def post(): pass
+            def POST(): pass
 
     class refresh:
-        def get() -> RefreshStatus: pass
-        def post() -> str: pass
+        def GET() -> RefreshStatus: pass
+        def POST() -> str: pass
 
         class progress:
-            def get(change_id: str): pass
+            def GET(change_id: str): pass
 
         class wait:
-            def get() -> RefreshStatus: pass
+            def GET() -> RefreshStatus: pass
 
     class network:
-        def get() -> dict: pass
-        def post(data: dict): pass
+        def GET() -> dict: pass
+        def POST(data: dict): pass
 
         class nic:
             class ifindex:
-                def get(ifindex: int) -> dict: pass
+                def GET(ifindex: int) -> dict: pass
 
         class new:
-            def get() -> dict: pass
+            def GET() -> dict: pass
 
     class storage:
-        def get(): pass
-        def post(): pass
+        def GET(): pass
+        def POST(config: Payload[dict]): pass
 
         class wait:
-            def get(): pass
+            def GET(): pass
 
     class snaplist:
-        def get() -> SnapListResponse: pass
-        def post(data: List[SnapSelection]): pass
+        def GET() -> SnapListResponse: pass
+        def POST(data: Payload[List[SnapSelection]]): pass
 
         class snap_info:
-            def get(snap_name: str) -> SnapInfo: pass
+            def GET(snap_name: str) -> SnapInfo: pass
 
         class wait:
-            def get() -> SnapListResponse: pass
+            def GET() -> SnapListResponse: pass
 
     class install:
         class status:
-            def get(cur: Optional[InstallState] = None) -> InstallState: pass
+            def GET(cur: Optional[InstallState] = None) -> InstallState: pass
 
     class reboot:
-        def post(data): pass
+        def POST(data): pass

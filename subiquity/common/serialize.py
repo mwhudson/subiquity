@@ -20,6 +20,8 @@ import typing
 
 import attr
 
+from .api.defs import Payload
+
 # This is basically a half-assed version of
 # https://pypi.org/project/cattrs/ but that's not packaged and it's
 # enough for our needs.
@@ -53,9 +55,11 @@ def serialize(annotation, value, metadata={}):
                 if a is not NoneType
                 ][0]
             return serialize(ann, value)
+        elif t is Payload:
+            return serialize(typing.get_args(annotation)[0], value)
         else:
             raise Exception("don't understand {}".format(t))
-    elif annotation in (str, int, bool):
+    elif annotation in (str, int, bool, dict):
         return annotation(value)
     elif annotation is datetime.datetime:
         if 'time_fmt' in metadata:
@@ -96,9 +100,11 @@ def deserialize(annotation, value, metadata={}):
                 if a is not NoneType
                 ][0]
             return deserialize(ann, value)
+        elif t is Payload:
+            return deserialize(typing.get_args(annotation)[0], value)
         else:
             raise Exception("don't understand {}".format(t))
-    elif annotation in (str, int, bool):
+    elif annotation in (str, int, bool, dict):
         return annotation(value)
     elif annotation is None:
         return None

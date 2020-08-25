@@ -15,6 +15,7 @@
 
 import asyncio
 import contextlib
+import typing
 import unittest
 
 from aiohttp.test_utils import TestClient, TestServer
@@ -22,7 +23,7 @@ from aiohttp import web
 
 from subiquitycore.context import Context
 
-from subiquity.common.api.defs import api
+from subiquity.common.api.defs import api, Payload
 from subiquity.common.api.server import bind
 
 
@@ -69,10 +70,10 @@ class TestBind(unittest.TestCase):
     def test_simple(self):
         @api
         class API:
-            def get() -> str: pass
+            def GET() -> str: pass
 
         class Impl(TestControllerBase):
-            async def get(self):
+            async def GET(self):
                 return 'value'
 
         async def make_request():
@@ -103,10 +104,10 @@ class TestBind(unittest.TestCase):
     def test_args(self):
         @api
         class API:
-            def get(arg: str): pass
+            def GET(arg: str): pass
 
         class Impl(TestControllerBase):
-            async def get(self, arg: str):
+            async def GET(self, arg: str):
                 return arg
 
         async def make_request():
@@ -119,17 +120,16 @@ class TestBind(unittest.TestCase):
     def test_post(self):
         @api
         class API:
-            def post(data): pass
+            def POST(data: Payload[str]): pass
 
         class Impl(TestControllerBase):
-            async def post(self, data):
-                return data['key']
+            async def POST(self, data):
+                return data
 
         async def make_request():
             async with makeTestClient(API, Impl()) as client:
                 await self.assertResponse(
-                    client.post(
-                        "/", json={'data': {'key': 'value'}}),
+                    client.post("/", json={'data': 'value'}),
                     {'result': 'value'})
 
         run_coro(make_request())

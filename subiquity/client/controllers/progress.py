@@ -59,7 +59,7 @@ class ProgressController(SubiquityTuiController):
         self.app.aio_loop.create_task(self.send_reboot_and_wait())
 
     async def send_reboot_and_wait(self):
-        await self.app.client.reboot.post({})
+        await self.app.client.reboot.POST({})
         self.app.exit()
 
     @with_context()
@@ -67,7 +67,7 @@ class ProgressController(SubiquityTuiController):
         install_state = None
         while True:
             try:
-                install_state = await self.endpoint.status.get(
+                install_state = await self.endpoint.status.GET(
                     cur=install_state)
             except aiohttp.ClientError:
                 await asyncio.sleep(1)

@@ -13,6 +13,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import typing
+
 
 def api(cls, prefix=(), foo=None):
     cls.fullpath = '/' + '/'.join(prefix)
@@ -24,8 +26,12 @@ def api(cls, prefix=(), foo=None):
     return cls
 
 
+class Payload(typing.Generic[typing.TypeVar("T")]):
+    pass
+
+
 def simple_endpoint(typ):
     class endpoint:
-        def get() -> typ: pass
-        def post(data: typ): pass
+        def GET() -> typ: ...
+        def POST(data: Payload[typ]): ...
     return endpoint

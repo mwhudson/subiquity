@@ -26,7 +26,7 @@ class ProxyController(SubiquityTuiController):
     endpoint_name = 'proxy'
 
     async def start_ui(self):
-        proxy = await self.endpoint.get()
+        proxy = await self.endpoint.GET()
         await self.app.set_body(ProxyView(proxy, self))
         if 'proxy' in self.answers:
             self.done(self.answers['proxy'])
@@ -36,4 +36,4 @@ class ProxyController(SubiquityTuiController):
 
     def done(self, proxy):
         log.debug("ProxyController.done next_screen proxy=%s", proxy)
-        self.app.next_screen(self.endpoint.post(proxy))
+        self.app.next_screen(self.endpoint.POST(proxy))

@@ -52,9 +52,9 @@ class WelcomeController(SubiquityController):
     def make_autoinstall(self):
         return self.model.selected_language
 
-    async def get(self, context):
+    async def GET(self, context):
         return self.model.selected_language
 
-    async def post(self, context, data):
+    async def POST(self, context, data):
         self.model.switch_language(data)
         self.configured()
