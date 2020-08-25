@@ -145,7 +145,6 @@ class SubiquityModel:
         self.confirmation.set()
 
     def is_configured(self, model_name):
-        log.debug("model %s is configured", model_name)
         return self._events[model_name].is_set()
 
     def get_target_groups(self):

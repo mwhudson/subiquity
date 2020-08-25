@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import List
+from typing import List, Optional
 
 from .defs import api, simple_endpoint
 from subiquity.common.types import (
@@ -93,7 +93,7 @@ class API:
 
     class install:
         class status:
-            def get() -> InstallState: pass
+            def get(cur: Optional[InstallState] = None) -> InstallState: pass
 
     class reboot:
         def post(data): pass

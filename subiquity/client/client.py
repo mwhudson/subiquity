@@ -109,7 +109,6 @@ class SubiquityClient(AsyncTuiApplication):
 
     async def get(self, path, *, params):
         resp = await self._get(path, params=params)
-        log.debug("get %r", resp['status'])
         if resp['status'] == 'skip':
             raise Skip
         elif resp['status'] == 'confirm':

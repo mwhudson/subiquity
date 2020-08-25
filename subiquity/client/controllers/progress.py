@@ -64,9 +64,11 @@ class ProgressController(SubiquityTuiController):
 
     @with_context()
     async def _wait_status(self, context):
+        install_state = None
         while True:
             try:
-                install_state = await self.endpoint.status.get()
+                install_state = await self.endpoint.status.get(
+                    cur=install_state)
             except aiohttp.ClientError:
                 await asyncio.sleep(1)
                 continue

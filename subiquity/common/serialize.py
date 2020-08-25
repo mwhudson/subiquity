@@ -45,7 +45,14 @@ def serialize(annotation, value, metadata={}):
             else:
                 return value
         elif t is typing.Union:
-            pass
+            if value is None:
+                return None
+            NoneType = type(None)
+            ann = [
+                a for a in typing.get_args(annotation)
+                if a is not NoneType
+                ][0]
+            return serialize(ann, value)
         else:
             raise Exception("don't understand {}".format(t))
     elif annotation in (str, int, bool):
@@ -81,7 +88,14 @@ def deserialize(annotation, value, metadata={}):
             list_ann = typing.get_args(annotation)[0]
             return [deserialize(list_ann, v) for v in value]
         elif t is typing.Union:
-            return value
+            if value is None:
+                return None
+            NoneType = type(None)
+            ann = [
+                a for a in typing.get_args(annotation)
+                if a is not NoneType
+                ][0]
+            return deserialize(ann, value)
         else:
             raise Exception("don't understand {}".format(t))
     elif annotation in (str, int, bool):
