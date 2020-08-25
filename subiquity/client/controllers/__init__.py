@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from .filesystem import FilesystemController
 from .keyboard import KeyboardController
 from .identity import IdentityController
 from .mirror import MirrorController
@@ -25,6 +26,7 @@ from .ssh import SSHController
 from .welcome import WelcomeController
 
 __all__ = [
+    'FilesystemController',
     'KeyboardController',
     'IdentityController',
     'MirrorController',

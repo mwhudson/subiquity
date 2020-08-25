@@ -59,7 +59,7 @@ def serialize(annotation, value, metadata={}):
             return serialize(typing.get_args(annotation)[0], value)
         else:
             raise Exception("don't understand {}".format(t))
-    elif annotation in (str, int, bool, dict):
+    elif annotation in (str, int, bool, dict, list):
         return annotation(value)
     elif annotation is datetime.datetime:
         if 'time_fmt' in metadata:
@@ -104,7 +104,7 @@ def deserialize(annotation, value, metadata={}):
             return deserialize(typing.get_args(annotation)[0], value)
         else:
             raise Exception("don't understand {}".format(t))
-    elif annotation in (str, int, bool, dict):
+    elif annotation in (str, int, bool, dict, list):
         return annotation(value)
     elif annotation is None:
         return None

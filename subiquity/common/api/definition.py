@@ -26,6 +26,7 @@ from subiquity.common.types import (
     SnapInfo,
     SnapListResponse,
     SnapSelection,
+    StorageResponse,
     )
 
 
@@ -75,11 +76,14 @@ class API:
             def GET() -> dict: pass
 
     class storage:
-        def GET(): pass
-        def POST(config: Payload[dict]): pass
+        def GET() -> StorageResponse: pass
+        def POST(config: Payload[list]): pass
 
         class wait:
-            def GET(): pass
+            def GET() -> StorageResponse: pass
+
+        class reset:
+            def POST() -> StorageResponse: pass
 
     class snaplist:
         def GET() -> SnapListResponse: pass

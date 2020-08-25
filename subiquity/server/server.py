@@ -78,6 +78,7 @@ class SubiquityServer(Application):
         "Keyboard",
         "Proxy",
         "Mirror",
+        "Filesystem",
         "Identity",
         "SSH",
         "SnapList",
@@ -92,6 +93,7 @@ class SubiquityServer(Application):
 
     def __init__(self, opts, block_log_dir):
         super().__init__(opts)
+        self.block_log_dir = block_log_dir
         self.error_reporter = ErrorReporter(
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
         self.prober = Prober(opts.machine_config, self.debug_flags)

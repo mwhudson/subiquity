@@ -73,6 +73,7 @@ class SubiquityClient(AsyncTuiApplication):
         "Proxy",
         "Mirror",
         "Refresh",
+        "Filesystem",
         "Identity",
         "SSH",
         "SnapList",

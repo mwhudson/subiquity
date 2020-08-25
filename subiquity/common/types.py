@@ -74,7 +74,7 @@ class Bootloader(enum.Enum):
 @attr.s(auto_attribs=True)
 class StorageResponse:
     status: ProbeStatus
-    bootloader: Bootloader
+    bootloader: Optional[Bootloader] = None
     error_report_path: Optional[str] = None
     orig_config: Optional[list] = None
     config: Optional[list] = None
