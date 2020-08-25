@@ -59,7 +59,7 @@ class ProgressController(SubiquityTuiController):
         self.app.aio_loop.create_task(self.send_reboot_and_wait())
 
     async def send_reboot_and_wait(self):
-        await self.app.client.reboot.POST({})
+        await self.app.client.reboot.POST()
         self.app.exit()
 
     @with_context()
@@ -75,8 +75,6 @@ class ProgressController(SubiquityTuiController):
             self.progress_view.update_for_status(install_state)
             if self.ui.body is self.progress_view:
                 self.ui.set_header(self.progress_view.title)
-            if install_state.is_terminal():
-                return
 
     async def start_ui(self):
         await self.app.set_body(self.progress_view)

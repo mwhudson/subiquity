@@ -146,6 +146,3 @@ class InstallState(enum.Enum):
     UU_CANCELLING = enum.auto()
     DONE = enum.auto()
     ERROR = enum.auto()
-
-    def is_terminal(self):
-        return self in [InstallState.DONE, InstallState.ERROR]
