@@ -186,8 +186,7 @@ class SnapListController(SubiquityController):
         await self.loader.get_snap_list_task()
         return await self.get(context)
 
-    async def info_snap_name_get(self, request):
-        snap_name = request.match_info['snap']
+    async def snap_info_get(self, snap_name):
         snap = self.model._snap_for_name(snap_name)
         await self.loader.get_snap_info_task(snap)
         return snap

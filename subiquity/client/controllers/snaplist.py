@@ -63,5 +63,5 @@ class SnapListController(SubiquityTuiController):
 
     async def get_snap_info(self, snap):
         if not snap.channels:
-            data = await self.endpoint.info.snap_name.get(snap=snap.name)
+            data = await self.endpoint.snap_info.get(snap_name=snap.name)
             snap.channels = data.channels

@@ -102,13 +102,13 @@ class SubiquityClient(AsyncTuiApplication):
                 connector=self.conn, connector_owner=False) as session:
             yield session
 
-    async def _get(self, path):
+    async def _get(self, path, *, params):
         async with self.session() as session:
-            async with session.get('http://a' + path) as resp:
+            async with session.get('http://a' + path, params=params) as resp:
                 return await resp.json()
 
-    async def get(self, path):
-        resp = await self._get(path)
+    async def get(self, path, *, params):
+        resp = await self._get(path, params=params)
         log.debug("get %r", resp['status'])
         if resp['status'] == 'skip':
             raise Skip
@@ -116,9 +116,10 @@ class SubiquityClient(AsyncTuiApplication):
             raise Confirm
         return resp
 
-    async def post(self, path, *, json):
+    async def post(self, path, *, json, params):
         async with self.session() as session:
-            async with session.post('http://a' + path, json=json) as resp:
+            async with session.post(
+                    'http://a' + path, json=json, params=params) as resp:
                 return await resp.json()
 
     async def connect(self):

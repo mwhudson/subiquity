@@ -103,18 +103,16 @@ class TestBind(unittest.TestCase):
     def test_args(self):
         @api
         class API:
-            class endpoint:
-                path = '{arg}'
-                def get(): pass
+            def get(arg: str): pass
 
         class Impl(TestControllerBase):
-            async def get(self, request):
-                return request.match_info['arg']
+            async def get(self, arg: str):
+                return arg
 
         async def make_request():
-            async with makeTestClient(API.endpoint, Impl()) as client:
+            async with makeTestClient(API, Impl()) as client:
                 await self.assertResponse(
-                    client.get("/whut"), {'result': 'whut'})
+                    client.get('/?arg="whut"'), {'result': 'whut'})
 
         run_coro(make_request())
 

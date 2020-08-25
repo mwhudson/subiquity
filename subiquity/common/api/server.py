@@ -28,8 +28,30 @@ def trim(text):
         return text
 
 
-def make_get_handler(controller, definition, implementation):
-    r_ann = inspect.signature(definition).return_annotation
+def make_handler(controller, definition, implementation):
+    def_sig = inspect.signature(definition)
+    def_ret_ann = def_sig.return_annotation
+    def_params = def_sig.parameters
+
+    impl_sig = inspect.signature(implementation)
+    impl_params = impl_sig.parameters
+
+    data_annotation = None
+    query_args_anns = []
+
+    for param_name, param in def_params.items():
+        if param_name in ('request', 'context'):
+            raise Exception(
+                "api method {} cannot have parameter called request or "
+                "context".format(definition))
+        if param_name not in impl_params:
+            raise Exception("{}, implementing {} missing param {}".format(
+                implementation, definition, param_name))
+        if param_name == 'data':
+            data_annotation = param.annotation
+        else:
+            query_args_anns.append(
+                (param_name, param.annotation, param.default))
 
     impl_params = inspect.signature(implementation).parameters
 
@@ -39,46 +61,25 @@ def make_get_handler(controller, definition, implementation):
         with context:
             context.set('request', request)
             args = {}
+            if data_annotation is not None:
+                payload = await request.text()
+                payload = json.loads(payload)
+                args['data'] = deserialize(data_annotation, payload['data'])
+            for arg, ann, default in query_args_anns:
+                if arg in request.query:
+                    v = deserialize(ann, json.loads(request.query[arg]))
+                elif default != inspect._empty:
+                    v = default
+                else:
+                    1/0
+                args[arg] = v
             if 'context' in impl_params:
                 args['context'] = context
             if 'request' in impl_params:
                 args['request'] = request
             result = await implementation(**args)
             resp = {
-                'result': serialize(r_ann, result),
-                }
-            resp.update(controller.generic_result())
-            resp = web.json_response(resp)
-            context.description = trim(resp.text)
-            return resp
-
-    return handler
-
-
-def make_post_handler(controller, definition, implementation):
-    sig = inspect.signature(definition)
-    r_ann = sig.return_annotation
-    arg_name = list(sig.parameters.keys())[0]
-    arg_ann = sig.parameters[arg_name].annotation
-
-    impl_params = inspect.signature(implementation).parameters
-
-    async def handler(request):
-        context = controller.context.child(
-            implementation.__name__, trim(await request.text()))
-        with context:
-            context.set('request', request)
-            args = {}
-            payload = await request.text()
-            payload = json.loads(payload)
-            args[arg_name] = deserialize(arg_ann, payload['data'])
-            if 'context' in impl_params:
-                args['context'] = context
-            if 'request' in impl_params:
-                args['request'] = request
-            result = await implementation(**args)
-            resp = {
-                'result': serialize(r_ann, result),
+                'result': serialize(def_ret_ann, result),
                 }
             resp.update(controller.generic_result())
             resp = web.json_response(resp)
@@ -98,7 +99,7 @@ def bind(router, endpoint, controller, depth=None):
         router.add_route(
             method="GET",
             path=endpoint.fullpath,
-            handler=make_get_handler(controller, endpoint.get, meth))
+            handler=make_handler(controller, endpoint.get, meth))
 
     if hasattr(endpoint, 'post'):
         meth_name = "_".join(endpoint.fullname[depth:] + ('post',))
@@ -106,7 +107,7 @@ def bind(router, endpoint, controller, depth=None):
         router.add_route(
             method="POST",
             path=endpoint.fullpath,
-            handler=make_post_handler(controller, endpoint.post, meth))
+            handler=make_handler(controller, endpoint.post, meth))
 
     for v in endpoint.__dict__.values():
         if isinstance(v, type):

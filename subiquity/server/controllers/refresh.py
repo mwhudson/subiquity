@@ -219,18 +219,17 @@ class RefreshController(SubiquityController):
             self.app.aio_loop.call_later(0.1, self.app.restart)
         return change
 
-    async def get(self, context):
+    async def get(self):
         return RefreshStatus(
             availability=self.check_state,
             current_snap_version=self.current_snap_version,
             new_snap_version=self.new_snap_version)
 
-    async def post(self, context, data):
+    async def post(self, context):
         return await self.start_update(context=context)
 
-    async def progress_id_get(self, context):
-        change_id = context.get('request').match_info['id']
+    async def progress_get(self, change_id):
         return await self.get_progress(change_id)
 
-    async def wait_get(self, context):
-        return await self.get(context)
+    async def wait_get(self):
+        return await self.get()

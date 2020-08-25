@@ -39,42 +39,39 @@ class TestClient(unittest.TestCase):
         gets = []
         posts = []
 
-        async def getter(path):
-            gets.append(path)
+        async def getter(path, *, params):
+            gets.append((path, params))
             return {'result': 'value'}
 
-        async def poster(path, *, json):
-            posts.append((path, json))
+        async def poster(path, *, params, json):
+            posts.append((path, params, json))
             return {'result': None}
 
         client = make_client(API, getter, poster)
 
         r = extract(client.endpoint.get())
         self.assertEqual(r, 'value')
-        self.assertEqual(gets, ['/endpoint'])
+        self.assertEqual(gets, [('/endpoint', {})])
 
         r = extract(client.endpoint.post('value'))
         self.assertEqual(r, None)
-        self.assertEqual(posts, [('/endpoint', {'data': 'value'})])
+        self.assertEqual(posts, [('/endpoint', {}, {'data': 'value'})])
 
     def test_args(self):
 
         @api
         class API:
-            class endpoint:
-                path = 'arg{arg}'
-
-                def get(self):
-                    pass
+            def get(arg: str):
+                pass
 
         gets = []
 
-        async def getter(path):
-            gets.append(path)
-            return {'result': 'value'}
+        async def getter(path, *, params):
+            gets.append((path, params))
+            return {'result': params['arg']}
 
         client = make_client(API, getter, None)
 
-        r = extract(client.endpoint.get(arg='v'))
-        self.assertEqual(r, 'value')
-        self.assertEqual(gets, ['/argv'])
+        r = extract(client.get(arg='v'))
+        self.assertEqual(r, '"v"')
+        self.assertEqual(gets, [('/', {'arg': '"v"'})])

@@ -14,16 +14,22 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import inspect
+import json
 
 from subiquity.common.serialize import serialize, deserialize
 
 
-def _wrap_get(getter, path, meth):
-    sig = inspect.signature(meth)
+def _wrap_get(getter, path, definition):
+    sig = inspect.signature(definition)
+    params = sig.parameters
     r_ann = sig.return_annotation
 
     async def impl_get(**args):
-        r = await getter(path.format(**args))
+        args = {
+            a: json.dumps(serialize(params[a].annotation, args[a]))
+            for a in args
+            }
+        r = await getter(path, params=args)
         return deserialize(r_ann, r['result'])
 
     return impl_get
@@ -31,13 +37,19 @@ def _wrap_get(getter, path, meth):
 
 def _wrap_post(poster, path, meth):
     sig = inspect.signature(meth)
+    params = sig.parameters
     r_ann = sig.return_annotation
-    arg_name = list(sig.parameters.keys())[0]
-    arg_ann = sig.parameters[arg_name].annotation
 
-    async def impl_post(data, **args):
-        data = {'data': serialize(arg_ann, data)}
-        r = await poster(path.format(**args), json=data)
+    async def impl_post(data=None, **args):
+        args = {
+            a: json.dumps(serialize(params[a].annotation, args[a]))
+            for a in args
+            }
+        if 'data' in params:
+            data = {'data': serialize(params['data'].annotation, data)}
+        else:
+            data = {}
+        r = await poster(path.format(**args), json=data, params=args)
         return deserialize(r_ann, r['result'])
     return impl_post
 

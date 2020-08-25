@@ -60,7 +60,7 @@ class MetaController:
     async def status_wait_early_get(self):
         pass
 
-    async def confirm_post(self, data):
+    async def confirm_post(self):
         self.app.base_model.confirm()
 
 

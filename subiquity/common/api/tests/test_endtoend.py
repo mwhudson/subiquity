@@ -31,12 +31,12 @@ from .test_server import (
 async def makeE2EClient(api, impl):
     async with makeTestClient(api, impl) as client:
 
-        async def getter(path):
-            async with client.get(path) as resp:
+        async def getter(path, params):
+            async with client.get(path, params=params) as resp:
                 return await resp.json()
 
-        async def poster(path, *, json):
-            async with client.post(path, json=json) as resp:
+        async def poster(path, *, json, params):
+            async with client.post(path, json=json, params=params) as resp:
                 return await resp.json()
 
         yield make_client(api, getter, poster)
@@ -79,22 +79,34 @@ class TestEndToEnd(unittest.TestCase):
     def test_args(self):
         @api
         class API:
-            class e1:
-                path = '{arg1}'
-
-                class e2:
-                    path = '{arg2}'
-                    def get(): pass
+            def get(arg1: str, arg2: str): pass
 
         class Impl(TestControllerBase):
-            async def e1_e2_get(self, request):
-                return '{}+{}'.format(
-                    request.match_info['arg1'], request.match_info['arg2'])
+            async def get(self, arg1, arg2):
+                return '{}+{}'.format(arg1, arg2)
 
         async def make_request():
             async with makeE2EClient(API, Impl()) as client:
                 self.assertEqual(
-                    await client.e1.e2.get(arg1="A", arg2="B"), 'A+B')
+                    await client.get(arg1="A", arg2="B"), 'A+B')
+
+        run_coro(make_request())
+
+    def test_defaults(self):
+        @api
+        class API:
+            def get(arg1: str, arg2: str = "arg2"): pass
+
+        class Impl(TestControllerBase):
+            async def get(self, arg1, arg2):
+                return '{}+{}'.format(arg1, arg2)
+
+        async def make_request():
+            async with makeE2EClient(API, Impl()) as client:
+                self.assertEqual(
+                    await client.get(arg1="A", arg2="B"), 'A+B')
+                self.assertEqual(
+                    await client.get(arg1="A"), 'A+arg2')
 
         run_coro(make_request())
 
@@ -127,11 +139,11 @@ class TestEndToEnd(unittest.TestCase):
         @api
         class API:
             class doubler:
-                def post(arg: In) -> Out: pass
+                def post(data: In) -> Out: pass
 
         class Impl(TestControllerBase):
-            async def doubler_post(self, arg: In) -> Out:
-                return Out(doubled=arg.val*2)
+            async def doubler_post(self, data: In) -> Out:
+                return Out(doubled=data.val*2)
 
         async def make_request():
             async with makeE2EClient(API, Impl()) as client:

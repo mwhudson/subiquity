@@ -51,47 +51,42 @@ class API:
                 def get() -> ApplicationState: pass
 
         class confirm:
-            def post(data: None): pass
+            def post(): pass
 
     class refresh:
         def get() -> RefreshStatus: pass
-        def post(data) -> str: pass
+        def post() -> str: pass
 
         class progress:
-            class id:
-                path = '{id}'
-                def get(self): pass
+            def get(change_id: str): pass
 
         class wait:
-            def get(self) -> RefreshStatus: pass
+            def get() -> RefreshStatus: pass
 
     class network:
-        def get(self) -> dict: pass
-        def post(self, data: dict): pass
+        def get() -> dict: pass
+        def post(data: dict): pass
 
         class nic:
             class ifindex:
-                path = '{ifindex}'
-                def get(self) -> dict: pass
+                def get(ifindex: int) -> dict: pass
 
         class new:
-            def get(self) -> dict: pass
+            def get() -> dict: pass
 
     class storage:
-        def get(self): pass
-        def post(self): pass
+        def get(): pass
+        def post(): pass
 
         class wait:
-            def get(self): pass
+            def get(): pass
 
     class snaplist:
         def get() -> SnapListResponse: pass
         def post(data: List[SnapSelection]): pass
 
-        class info:
-            class snap_name:
-                path = '{snap}'
-                def get() -> SnapInfo: pass
+        class snap_info:
+            def get(snap_name: str) -> SnapInfo: pass
 
         class wait:
             def get() -> SnapListResponse: pass
@@ -101,4 +96,4 @@ class API:
             def get() -> InstallState: pass
 
     class reboot:
-        def post(self, data): pass
+        def post(data): pass

@@ -39,7 +39,7 @@ class RefreshController(SubiquityTuiController):
         self.offered_first_time = False
 
     async def get_progress(self, change):
-        return await self.endpoint.progress.id.get(id=change)
+        return await self.endpoint.progress.get(change_id=change)
 
     async def start_ui(self, index=1):
         status = await self.endpoint.get()
