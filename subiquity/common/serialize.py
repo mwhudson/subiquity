@@ -29,7 +29,7 @@ class Serializer:
     def __init__(self):
         self.typing_walkers = {
             typing.Union: self._walk_Union,
-            typing.List: self._walk_List,
+            list: self._walk_List,
             }
         self.type_serializers = {}
         self.type_deserializers = {}

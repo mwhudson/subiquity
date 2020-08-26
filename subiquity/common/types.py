@@ -144,7 +144,7 @@ class SnapInfo:
     name: str
     summary: str = ''
     publisher: str = ''
-    verified: str = ''
+    verified: bool = False
     description: str = ''
     confinement: str = ''
     license: str = ''

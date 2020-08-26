@@ -59,9 +59,9 @@ class SnapListController(SubiquityTuiController):
         self.app.prev_screen()
 
     async def get_list_wait(self):
-        await self.endpoint.wait.GET()
+        return await self.endpoint.GET(wait=True)
 
     async def get_snap_info(self, snap):
         if not snap.channels:
-            data = await self.endpoint.snap_info.get(snap_name=snap.name)
+            data = await self.endpoint.snap_info.GET(snap_name=snap.name)
             snap.channels = data.channels

@@ -399,7 +399,7 @@ class SnapListView(BaseView):
         # If we show the loading screen at all, we want to show it for
         # at least a second to avoid flickering at the user.
         min_wait = self.controller.app.aio_loop.create_task(asyncio.sleep(1))
-        data = await self.controller.snap_list_data_wait()
+        data = await self.controller.get_list_wait()
         await min_wait
         spinner.stop()
         if data.status == SnapCheckState.FAILED:
