@@ -212,7 +212,15 @@ class SubiquityClient(AsyncTuiApplication):
             super().unhandled_input(key)
 
     def unhandled_input_dry_run(self, key):
-        if key in ['ctrl e', 'ctrl r']:
+        if key in ['ctrl e']:
+            interrupt = key == 'ctrl e'
+
+            async def foo():
+                ref = await self.client.dry_run.make_error.POST()
+                self.show_error_report(ref)
+
+            self.aio_loop.create_task(foo())
+        elif key in ['ctrl e', 'ctrl r']:
             interrupt = key == 'ctrl e'
             try:
                 1/0
@@ -248,14 +256,14 @@ class SubiquityClient(AsyncTuiApplication):
 
         return report
 
-    def show_error_report(self, report):
-        log.debug("show_error_report %r", report.base)
+    def show_error_report(self, error_ref):
+        log.debug("show_error_report %r", error_ref.base)
         if isinstance(self.ui.body, BaseView):
             w = getattr(self.ui.body._w, 'stretchy', None)
             if isinstance(w, ErrorReportStretchy):
                 # Don't show an error if already looking at one.
                 return
-        self.add_global_overlay(ErrorReportStretchy(self, report))
+        self.add_global_overlay(ErrorReportStretchy(self, error_ref))
 
     def restart(self, remove_last_screen=True):
         if remove_last_screen:

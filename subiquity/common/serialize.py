@@ -41,7 +41,8 @@ class Serializer:
         self.type_deserializers[datetime.datetime] = self._deserialize_datetime
 
     def _scalar(self, annotation, value, metadata):
-        assert type(value) is annotation
+        assert type(value) is annotation, "{} is not a {}".format(
+            value, annotation)
         return value
 
     def _walk_Union(self, meth, args, value, metadata):

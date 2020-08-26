@@ -18,6 +18,7 @@ from typing import List, Optional
 from .defs import api, simple_endpoint, Payload
 from subiquity.common.types import (
     ApplicationState,
+    ErrorReportRef,
     IdentityData,
     InstallState,
     KeyboardSetting,
@@ -44,60 +45,69 @@ class API:
     # More complex cases:
 
     class meta:
-
         class status:
-            def GET() -> ApplicationState: pass
+            def GET() -> ApplicationState: ...
 
             class wait_early:
-                def GET() -> ApplicationState: pass
+                def GET() -> ApplicationState: ...
 
         class confirm:
-            def POST(): pass
+            def POST(): ...
 
-    class refresh:
-        def GET() -> RefreshStatus: pass
-        def POST() -> str: pass
+    class dry_run:
+        class make_error:
+            def POST() -> ErrorReportRef: ...
 
-        class progress:
-            def GET(change_id: str): pass
+    class errors:
+        # def GET() -> List[ErrorReportRef]: ...
 
         class wait:
-            def GET() -> RefreshStatus: pass
+            def GET(error_ref: ErrorReportRef) -> ErrorReportRef: ...
+
+    class refresh:
+        def GET() -> RefreshStatus: ...
+        def POST() -> str: ...
+
+        class progress:
+            def GET(change_id: str): ...
+
+        class wait:
+            def GET() -> RefreshStatus: ...
 
     class network:
-        def GET() -> dict: pass
-        def POST(data: dict): pass
+        def GET() -> dict: ...
+        def POST(data: dict): ...
 
         class nic:
             class ifindex:
-                def GET(ifindex: int) -> dict: pass
+                def GET(ifindex: int) -> dict: ...
 
         class new:
-            def GET() -> dict: pass
+            def GET() -> dict: ...
 
     class storage:
-        def GET() -> StorageResponse: pass
-        def POST(config: Payload[list]): pass
+        def GET() -> StorageResponse: ...
+        def POST(config: Payload[list]): ...
 
         class wait:
-            def GET() -> StorageResponse: pass
+            def GET() -> StorageResponse: ...
 
         class reset:
-            def POST() -> StorageResponse: pass
+            def POST() -> StorageResponse: ...
 
     class snaplist:
-        def GET() -> SnapListResponse: pass
-        def POST(data: Payload[List[SnapSelection]]): pass
+        def GET() -> SnapListResponse: ...
+        def POST(data: Payload[List[SnapSelection]]): ...
 
         class snap_info:
-            def GET(snap_name: str) -> SnapInfo: pass
+            def GET(snap_name: str) -> SnapInfo: ...
 
         class wait:
-            def GET() -> SnapListResponse: pass
+            def GET() -> SnapListResponse: ...
 
     class install:
         class status:
-            def GET(cur: Optional[InstallState] = None) -> InstallState: pass
+            def GET(cur: Optional[InstallState] = None) -> InstallState: ...
 
     class reboot:
-        def POST(data): pass
+        def POST(data): ...

@@ -131,9 +131,12 @@ If you want to help improve the installer, you can send an error report.
 
 class ErrorReportStretchy(Stretchy):
 
-    def __init__(self, app, report, interrupting=True):
+    def __init__(self, app, ref, interrupting=True):
         self.app = app
-        self.report = report
+        self.error_ref = ref
+        self.report = app.error_reporter.get(ref)
+        if self.report is None:
+            self.app.aio_loop.create_task(self._wait())
         self.interrupting = interrupting
 
         self.btns = {
@@ -163,6 +166,14 @@ class ErrorReportStretchy(Stretchy):
         super().__init__("", [self.pile], 0, 0)
         connect_signal(self, 'closed', self.spinner.stop)
 
+    async def _wait(self):
+        self.report = await self.app.error_reporter.get_client(
+            self.error_ref, self.app.client)
+        self.error_ref = self.report.ref()
+        connect_signal(self.report, 'changed', self._report_changed)
+        self.report.mark_seen()
+        self._report_changed()
+
     def pb(self, upload):
         pb = ProgressBar(
             normal='progress_incomplete',
@@ -181,13 +192,14 @@ class ErrorReportStretchy(Stretchy):
         btns = self.btns.copy()
 
         widgets = [
-            Text(rewrap(_(error_report_intros[self.report.kind]))),
+            Text(rewrap(_(error_report_intros[self.error_ref.kind]))),
             Text(""),
             ]
 
         self.spinner.stop()
 
-        if self.report.state == ErrorReportState.DONE:
+        if self.error_ref.state == ErrorReportState.DONE:
+            assert self.report
             widgets.append(btns['view'])
             widgets.append(Text(""))
             widgets.append(Text(rewrap(_(submit_text))))
@@ -215,7 +227,7 @@ class ErrorReportStretchy(Stretchy):
                     Text(location_text),
                     ])
         else:
-            text, spin = error_report_state_descriptions[self.report.state]
+            text, spin = error_report_state_descriptions[self.error_ref.state]
             widgets.append(Text(rewrap(_(text))))
             if spin:
                 self.spinner.start()
@@ -223,10 +235,10 @@ class ErrorReportStretchy(Stretchy):
                     Text(""),
                     self.spinner])
 
-        if self.report.uploader:
+        if self.report and self.report.uploader:
             widgets.extend([Text(""), btns['cancel']])
         elif self.interrupting:
-            if self.report.state != ErrorReportState.INCOMPLETE:
+            if self.error_ref.state != ErrorReportState.INCOMPLETE:
                 text, btn_names = error_report_options[self.report.kind]
                 if text:
                     widgets.extend([Text(""), Text(rewrap(_(text)))])
@@ -241,6 +253,8 @@ class ErrorReportStretchy(Stretchy):
         return widgets
 
     def _report_changed(self):
+        if self.report:
+            self.error_ref = self.report.ref()
         self.pile.contents[:] = [
             (w, self.pile.options('pack')) for w in self._pile_elements()]
         if self.pile.selectable():
@@ -264,12 +278,9 @@ class ErrorReportStretchy(Stretchy):
         self.report.uploader = None
         self._report_changed()
 
-    def opened(self):
-        self.report.mark_seen()
-        connect_signal(self.report, 'changed', self._report_changed)
-
     def closed(self):
-        disconnect_signal(self.report, 'changed', self._report_changed)
+        if self.report:
+            disconnect_signal(self.report, 'changed', self._report_changed)
 
 
 class ErrorReportListStretchy(Stretchy):

@@ -39,13 +39,14 @@ from subiquity.common.types import (
     ApplicationStatus,
     )
 from subiquity.models.subiquity import SubiquityModel
+from subiquity.server.errors import ErrorController
 
 
 class MetaController:
 
     def __init__(self, app):
         self.app = app
-        self.context = app.context.child("State")
+        self.context = app.context.child("Meta")
 
     def generic_result(self):
         return {'status': 'ok'}
@@ -171,6 +172,10 @@ class SubiquityServer(Application):
         app = web.Application()
         app['app'] = self
         bind(app.router, API.meta, MetaController(self))
+        bind(app.router, API.errors, ErrorController(self, self.error_reporter))
+        if self.opts.dry_run:
+            from .dryrun import DryRunController
+            bind(app.router, API.dry_run, DryRunController(self))
         for controller in self.controllers.instances:
             controller.add_routes(app)
         runner = web.AppRunner(app)

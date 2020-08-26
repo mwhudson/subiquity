@@ -31,6 +31,32 @@ class ApplicationStatus(enum.Enum):
     NON_INTERACTIVE = enum.auto()
 
 
+class ErrorReportState(enum.Enum):
+    INCOMPLETE = enum.auto()
+    LOADING = enum.auto()
+    DONE = enum.auto()
+    ERROR_GENERATING = enum.auto()
+    ERROR_LOADING = enum.auto()
+
+
+class ErrorReportKind(enum.Enum):
+    BLOCK_PROBE_FAIL = _("Block device probe failure")
+    DISK_PROBE_FAIL = _("Disk probe failure")
+    INSTALL_FAIL = _("Install failure")
+    UI = _("Installer crash")
+    NETWORK_FAIL = _("Network error")
+    UNKNOWN = _("Unknown error")
+
+
+@attr.s(auto_attribs=True)
+class ErrorReportRef:
+    state: ErrorReportState
+    base: str
+    kind: ErrorReportKind
+    seen: bool
+    oops_id: Optional[str]
+
+
 @attr.s(auto_attribs=True)
 class ApplicationState:
     status: ApplicationStatus
@@ -75,7 +101,7 @@ class Bootloader(enum.Enum):
 class StorageResponse:
     status: ProbeStatus
     bootloader: Optional[Bootloader] = None
-    error_report_path: Optional[str] = None
+    error_report: Optional[ErrorReportRef] = None
     orig_config: Optional[list] = None
     config: Optional[list] = None
     blockdev: Optional[dict] = None
@@ -146,3 +172,9 @@ class InstallState(enum.Enum):
     UU_CANCELLING = enum.auto()
     DONE = enum.auto()
     ERROR = enum.auto()
+
+
+@attr.s(auto_attribs=True)
+class InstallStatus:
+    state: InstallState
+    error: Optional[ErrorReportRef] = None

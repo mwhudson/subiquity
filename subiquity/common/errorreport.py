@@ -14,7 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-import enum
 import fcntl
 import json
 import logging
@@ -40,24 +39,13 @@ from subiquitycore.async_helpers import (
     schedule_task,
     )
 
+from subiquity.common.types import (
+    ErrorReportRef,
+    ErrorReportState,
+    ErrorReportKind,
+    )
+
 log = logging.getLogger('subiquitycore.common.errorreport')
-
-
-class ErrorReportState(enum.Enum):
-    INCOMPLETE = enum.auto()
-    LOADING = enum.auto()
-    DONE = enum.auto()
-    ERROR_GENERATING = enum.auto()
-    ERROR_LOADING = enum.auto()
-
-
-class ErrorReportKind(enum.Enum):
-    BLOCK_PROBE_FAIL = _("Block device probe failure")
-    DISK_PROBE_FAIL = _("Disk probe failure")
-    INSTALL_FAIL = _("Install failure")
-    UI = _("Installer crash")
-    NETWORK_FAIL = _("Network error")
-    UNKNOWN = _("Unknown error")
 
 
 @attr.s(cmp=False)
@@ -99,9 +87,10 @@ class ErrorReport(metaclass=urwid.MetaSignals):
     reporter = attr.ib()
     base = attr.ib()
     pr = attr.ib()
-    state = attr.ib()
+    state: ErrorReportState = attr.ib()
     _file = attr.ib()
     _context = attr.ib()
+    _info_task = attr.ib(default=None)
 
     meta = attr.ib(default=attr.Factory(dict))
     uploader = attr.ib(default=None)
@@ -183,7 +172,7 @@ class ErrorReport(metaclass=urwid.MetaSignals):
                 _bg_add_info()
                 context.description = "written to " + self.path
         else:
-            schedule_task(add_info())
+            self._info_task = asyncio.get_event_loop().create_task(add_info())
 
     async def load(self):
         with self._context.child("load"):
@@ -327,6 +316,15 @@ class ErrorReport(metaclass=urwid.MetaSignals):
         label = devs[0].get('ID_FS_LABEL_ENC', '')
         return label, root[1:] + '/' + self.base + '.crash'
 
+    def ref(self):
+        return ErrorReportRef(
+            state=self.state,
+            base=self.base,
+            kind=self.kind,
+            seen=self.seen,
+            oops_id=self.oops_id,
+            )
+
 
 class ErrorReporter(object):
 
@@ -409,4 +407,27 @@ class ErrorReporter(object):
         report.add_info(_bg_attach_hook, wait)
 
         # In the fullness of time we should do the signature thing here.
+        return report
+
+    def get(self, error_ref):
+        for report in self.reports:
+            if report.base == error_ref.base:
+                return report
+
+    async def get_client(self, error_ref, client):
+        for report in self.reports:
+            if report.base == error_ref.base:
+                return report
+
+        loop = asyncio.get_event_loop()
+
+        await client.errors.wait.GET(error_ref)
+
+        path = os.path.join(
+            self.crash_directory, error_ref.base + '.crash')
+        report = ErrorReport.from_file(self, path)
+        self.reports.insert(0, report)
+
+        loop.call_soon(loop.create_task, report.load())
+
         return report
