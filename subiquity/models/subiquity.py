@@ -66,7 +66,7 @@ ff02::2 ip6-allrouters
 
 # Models that contribute to the curtin config
 INSTALL_MODEL_NAMES = [
-    #    "debconf_selections",
+    "debconf_selections",
     "filesystem",
     "keyboard",
     "mirror",
@@ -78,10 +78,10 @@ INSTALL_MODEL_NAMES = [
 POSTINSTALL_MODEL_NAMES = [
     "identity",
     "locale",
-    #    "packages",
+    "packages",
     "snaplist",
     "ssh",
-    #    "userdata",
+    "userdata",
     ]
 
 ALL_MODEL_NAMES = INSTALL_MODEL_NAMES + POSTINSTALL_MODEL_NAMES

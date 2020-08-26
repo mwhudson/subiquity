@@ -78,9 +78,17 @@ class SubiquityServer(Application):
     from subiquity.server import controllers as controllers_mod
 
     controllers = [
+        "Early",
+        "Reporting",
+        "Error",
+        "Userdata",
+        "Package",
+        "Debconf",
         "Welcome",
         "Refresh",
         "Keyboard",
+        # "Zdev",
+        # "Network",
         "Proxy",
         "Mirror",
         "Filesystem",
@@ -88,7 +96,9 @@ class SubiquityServer(Application):
         "SSH",
         "SnapList",
         "Install",
-        ]
+        "Late",
+        "Reboot",
+    ]
 
     def make_model(self):
         root = '/'
@@ -129,6 +139,9 @@ class SubiquityServer(Application):
     def make_apport_report(self, kind, thing, *, wait=False, **kw):
         return self.error_reporter.make_apport_report(
             kind, thing, wait=wait, **kw)
+
+    def add_event_listener(self, listener):
+        self.event_listeners.append(listener)
 
     def _maybe_push_to_journal(self, event_type, context, description):
         if context.get('hidden', False):
