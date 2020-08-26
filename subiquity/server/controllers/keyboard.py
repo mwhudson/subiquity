@@ -46,19 +46,19 @@ class KeyboardController(SubiquityController):
         }
 
     def __init__(self, app):
-        self.ai_setting = None
+        self.needs_set_keyboard = False
         super().__init__(app)
 
     def load_autoinstall_data(self, data):
-        if data is not None:
-            self.ai_setting = KeyboardSetting(**data)
+        setting = KeyboardSetting(**data)
+        if self.model.setting != setting:
+            self.needs_set_keyboard = True
+        self.model.setting = setting
 
     @with_context()
     async def apply_autoinstall_config(self, context):
-        if self.ai_setting is not None:
-            if self.ai_setting != self.model.setting:
-                self.model.setting = self.ai_setting
-                await set_keyboard(self.model.setting, self.opts.dry_run)
+        if self.needs_set_keyboard:
+            await set_keyboard(self.model.setting, self.opts.dry_run)
 
     def make_autoinstall(self):
         return attr.asdict(self.model.setting)

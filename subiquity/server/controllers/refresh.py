@@ -54,8 +54,8 @@ class RefreshController(SubiquityController):
     ]
 
     def __init__(self, app):
-        self.ai_data = {}
         super().__init__(app)
+        self.ai_data = {}
         self.snap_name = os.environ.get("SNAP_NAME", "subiquity")
         self.configure_task = None
         self.check_task = None
@@ -64,14 +64,17 @@ class RefreshController(SubiquityController):
         self.new_snap_version = ""
 
         self.offered_first_time = False
-        if 'update' in self.ai_data:
-            self.active = self.ai_data['update']
-        else:
-            self.active = self.interactive()
 
     def load_autoinstall_data(self, data):
         if data is not None:
             self.ai_data = data
+
+    @property
+    def active(self):
+        if 'update' in self.ai_data:
+            return True
+        else:
+            return self.interactive()
 
     def start(self):
         if not self.active:

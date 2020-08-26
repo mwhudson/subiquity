@@ -60,9 +60,8 @@ class MirrorController(SubiquityController):
     ]
 
     def __init__(self, app):
-        self.ai_data = {}
-        self.geoip_enabled = True
         super().__init__(app)
+        self.geoip_enabled = True
         self.check_state = CheckState.NOT_STARTED
         self.lookup_task = SingleInstanceTask(self.lookup)
 

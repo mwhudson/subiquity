@@ -64,8 +64,8 @@ class ReportingController(NonInteractiveController):
         }
 
     def __init__(self, app):
-        self.config = copy.deepcopy(INITIAL_CONFIG)
         super().__init__(app)
+        self.config = copy.deepcopy(INITIAL_CONFIG)
         app.add_event_listener(self)
 
     def load_autoinstall_data(self, data):

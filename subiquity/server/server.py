@@ -20,7 +20,11 @@ import sys
 
 from aiohttp import web
 
+import jsonschema
+
 from systemd import journal
+
+import yaml
 
 from subiquitycore.core import Application
 from subiquitycore.prober import Prober
@@ -74,6 +78,19 @@ class SubiquityServer(Application):
     snapd_socket_path = '/run/snapd.socket'
 
     project = "subiquity"
+
+    base_schema = {
+        'type': 'object',
+        'properties': {
+            'version': {
+                'type': 'integer',
+                'minimum': 1,
+                'maximum': 1,
+                },
+            },
+        'required': ['version'],
+        'additionalProperties': True,
+        }
 
     from subiquity.server import controllers as controllers_mod
 
@@ -192,9 +209,24 @@ class SubiquityServer(Application):
                 await controller.apply_autoinstall_config()
                 controller.configured()
 
-    async def startup(self):
+    def load_autoinstall_config(self, only_early):
+        if self.opts.autoinstall is None:
+            return
+        with open(self.opts.autoinstall) as fp:
+            self.autoinstall_config = yaml.safe_load(fp)
+        if only_early:
+            self.controllers.Reporting.setup_autoinstall()
+            self.controllers.Reporting.start()
+            self.controllers.Error.setup_autoinstall()
+            with self.context.child("core_validation", level="INFO"):
+                jsonschema.validate(self.autoinstall_config, self.base_schema)
+            self.controllers.Early.setup_autoinstall()
+        else:
+            for controller in self.controllers.instances:
+                controller.setup_autoinstall()
+
+    async def start_api_server(self):
         app = web.Application()
-        app['app'] = self
         bind(app.router, API.meta, MetaController(self))
         bind(app.router, API.errors, ErrorController(self))
         if self.opts.dry_run:
@@ -206,12 +238,34 @@ class SubiquityServer(Application):
         await runner.setup()
         site = web.UnixSite(runner, self.opts.socket)
         await site.start()
-        self.status = ApplicationStatus.INTERACTIVE
-        self.aio_loop.create_task(self.apply_autoinstall_config())
+
+    async def startup(self):
+        self.base_model = self.make_model()
+        self.controllers.load_all()
+        await self.start_api_server()
+        self.load_autoinstall_config(only_early=True)
+        if self.controllers.Early.cmds:
+            self.status = ApplicationStatus.EARLY_COMMANDS
+            await self.run_early_commands()
+        self.load_autoinstall_config(only_early=False)
+        self.load_serialized_state()
+        self._connect_base_signals()
+        self.start_controllers()
+        if self.interactive():
+            self.status = ApplicationStatus.INTERACTIVE
+        else:
+            self.status = ApplicationStatus.NON_INTERACTIVE
 
     def run(self):
         self.aio_loop.create_task(self.startup())
-        super().run()
+        try:
+            self.aio_loop.run_forever()
+        finally:
+            self.aio_loop.run_until_complete(
+                self.aio_loop.shutdown_asyncgens())
+        if self._exc:
+            exc, self._exc = self._exc, None
+            raise exc
 
     server_proc = None
 
