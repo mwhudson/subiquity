@@ -64,11 +64,8 @@ class RefreshController(SubiquityTuiController):
             raise Skip()
 
     async def wait_for_check(self):
-        while 1:
-            self.status = await self.endpoint.wait.GET()
-            if self.status.availability != RefreshCheckState.UNKNOWN:
-                return self.status
-            await asyncio.sleep(1)
+        self.status = await self.endpoint.GET(wait=True)
+        return self.status
 
     async def start_update(self):
         return await self.endpoint.POST()
