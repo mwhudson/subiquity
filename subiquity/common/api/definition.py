@@ -21,6 +21,7 @@ from subiquity.common.types import (
     ErrorReportRef,
     IdentityData,
     InstallState,
+    InstallStatus,
     KeyboardSetting,
     RefreshStatus,
     SSHData,
@@ -96,7 +97,7 @@ class API:
 
     class install:
         class status:
-            def GET(cur: Optional[InstallState] = None) -> InstallState: ...
+            def GET(cur: Optional[InstallState] = None) -> InstallStatus: ...
 
     class reboot:
         def POST(): ...

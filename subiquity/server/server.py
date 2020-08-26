@@ -246,7 +246,7 @@ class SubiquityServer(Application):
         self.load_autoinstall_config(only_early=True)
         if self.controllers.Early.cmds:
             self.status = ApplicationStatus.EARLY_COMMANDS
-            await self.run_early_commands()
+            await self.self.controllers.Early.run()
         self.load_autoinstall_config(only_early=False)
         self.load_serialized_state()
         self._connect_base_signals()
@@ -255,6 +255,7 @@ class SubiquityServer(Application):
             self.status = ApplicationStatus.INTERACTIVE
         else:
             self.status = ApplicationStatus.NON_INTERACTIVE
+        await self.apply_autoinstall_config()
 
     def run(self):
         self.aio_loop.create_task(self.startup())

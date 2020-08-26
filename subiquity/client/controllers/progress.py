@@ -67,11 +67,15 @@ class ProgressController(SubiquityTuiController):
         install_state = None
         while True:
             try:
-                install_state = await self.endpoint.status.GET(
+                install_status = await self.endpoint.status.GET(
                     cur=install_state)
             except aiohttp.ClientError:
                 await asyncio.sleep(1)
                 continue
+            install_state = install_status.state
+            self.crash_report = install_status.error
+            if self.crash_report:
+                await self.start_ui()
             self.progress_view.update_for_status(install_state)
             if self.ui.body is self.progress_view:
                 self.ui.set_header(self.progress_view.title)

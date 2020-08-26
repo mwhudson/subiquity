@@ -201,7 +201,7 @@ class ProgressView(BaseView):
         self._set_button_width()
 
     def view_error(self, btn):
-        self.controller.app.show_error_report(self.crash_report)
+        self.controller.app.show_error_report(self.controller.crash_report)
 
     def view_log(self, btn):
         self._w = self.log_pile

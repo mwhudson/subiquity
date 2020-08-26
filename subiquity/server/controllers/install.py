@@ -45,7 +45,10 @@ from subiquity.common.errorreport import ErrorReportKind
 from subiquity.server.controller import (
     SubiquityController,
     )
-from subiquity.common.types import InstallState
+from subiquity.common.types import (
+    InstallState,
+    InstallStatus,
+    )
 from subiquity.journald import journald_listener
 
 log = logging.getLogger("subiquity.server.controllers.install")
@@ -79,6 +82,7 @@ class InstallController(SubiquityController):
         self.model = app.base_model
         self.install_state = InstallState.NOT_STARTED
         self.install_status_event = asyncio.Event()
+        self.error_ref = None
 
         self.unattended_upgrades_proc = None
         self.unattended_upgrades_ctx = None
@@ -95,11 +99,11 @@ class InstallController(SubiquityController):
     def interactive(self):
         return self.app.interactive()
 
-    async def status_GET(self, cur: Optional[InstallState] = None) -> InstallState:
-        if cur != self.install_state:
-            return self.install_state
-        await self.install_status_event.wait()
-        return self.install_state
+    async def status_GET(
+            self, cur: Optional[InstallState] = None) -> InstallStatus:
+        if cur == self.install_state:
+            await self.install_status_event.wait()
+        return InstallStatus(self.install_state, self.error_ref)
 
     def stop_uu(self):
         if self.install_state == InstallState.UU_RUNNING:
@@ -120,9 +124,9 @@ class InstallController(SubiquityController):
             # send traceback.format_exc() to journal?
         if self.tb_extractor.traceback:
             kw["Traceback"] = "\n".join(self.tb_extractor.traceback)
-        self.app.make_apport_report(
+        self.error_ref = self.app.make_apport_report(
             ErrorReportKind.INSTALL_FAIL, "install failed", interrupt=False,
-            **kw)
+            **kw).ref()
 
     def logged_command(self, cmd):
         return ['systemd-cat', '--level-prefix=false',
