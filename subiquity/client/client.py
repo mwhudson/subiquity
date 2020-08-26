@@ -108,7 +108,7 @@ class SubiquityClient(AsyncTuiApplication):
         async with self.session() as session:
             async with session.request(
                     method, 'http://a' + path, json=json,
-                    params=params) as response:
+                    params=params, timeout=0) as response:
                 resp = await response.json()
         if resp['status'] == 'skip':
             raise Skip
