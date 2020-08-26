@@ -190,7 +190,7 @@ class SubiquityServer(Application):
         app = web.Application()
         app['app'] = self
         bind(app.router, API.meta, MetaController(self))
-        bind(app.router, API.errors, ErrorController(self, self.error_reporter))
+        bind(app.router, API.errors, ErrorController(self))
         if self.opts.dry_run:
             from .dryrun import DryRunController
             bind(app.router, API.dry_run, DryRunController(self))

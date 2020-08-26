@@ -18,9 +18,9 @@ from subiquity.common.types import ErrorReportState, ErrorReportRef
 
 class ErrorController:
 
-    def __init__(self, app, error_reporter):
+    def __init__(self, app):
         self.context = app.context.child("Error")
-        self.error_reporter = error_reporter
+        self.error_reporter = app.error_reporter
 
     def generic_result(self):
         return {'status': 'ok'}
