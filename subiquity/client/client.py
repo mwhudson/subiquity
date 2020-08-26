@@ -207,6 +207,7 @@ class SubiquityClient(AsyncTuiApplication):
             except Exception:
                 print("report generation failed")
                 traceback.print_exc()
+            raise
         finally:
             self.aio_loop.run_until_complete(self.shutdown())
 

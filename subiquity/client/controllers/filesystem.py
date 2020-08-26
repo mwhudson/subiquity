@@ -61,9 +61,6 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
         if status.status == ProbeStatus.PROBING:
             self.app.aio_loop.create_task(self._wait_for_probing())
             await self.app.set_body(SlowProbing(self))
-        elif status.status == ProbeStatus.FAILED:
-            await self.app.set_body(ProbingFailed(self))
-            self.app.show_error_report(status.error_report_path)
         else:
             await self.start_ui_real(status)
 
@@ -73,6 +70,10 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
             await self.start_ui_real(status)
 
     async def start_ui_real(self, status):
+        if status.status == ProbeStatus.FAILED:
+            await self.app.set_body(ProbingFailed(self, status.error_report))
+            self.app.show_error_report(status.error_report)
+            return
         self.model = FilesystemModel(status.bootloader)
         self.model.load_server_data(status)
         if self.model.bootloader == Bootloader.PREP:
@@ -81,8 +82,8 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
             release = lsb_release()['release']
             self.supports_resilient_boot = release >= '20.04'
         await self.app.set_body(GuidedDiskSelectionView(self))
-        if status.error_report_path:
-            self.app.show_error_report(status['error-report-path'])
+        if status.error_report:
+            self.app.show_error_report(status.error_report)
         if self.answers['guided']:
             disk = self.model.all_disks()[self.answers['guided-index']]
             method = self.answers.get('guided-method')

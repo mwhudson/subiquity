@@ -246,7 +246,7 @@ class ErrorReportStretchy(Stretchy):
             widgets.extend([Text(""), btns['cancel']])
         elif self.interrupting:
             if self.error_ref.state != ErrorReportState.INCOMPLETE:
-                text, btn_names = error_report_options[self.report.kind]
+                text, btn_names = error_report_options[self.error_ref.kind]
                 if text:
                     widgets.extend([Text(""), Text(rewrap(_(text)))])
                 for b in btn_names:

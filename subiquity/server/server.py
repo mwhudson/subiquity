@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import os
 import shlex
 import sys
@@ -40,6 +41,9 @@ from subiquity.common.types import (
     )
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.server.errors import ErrorController
+
+
+log = logging.getLogger('subiquity.server.server')
 
 
 class MetaController:
@@ -97,6 +101,7 @@ class SubiquityServer(Application):
         self.block_log_dir = block_log_dir
         self.error_reporter = ErrorReporter(
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
+        log.debug("debug_flags %s", self.debug_flags)
         self.prober = Prober(opts.machine_config, self.debug_flags)
         self.status = ApplicationStatus.STARTING
         self.autoinstall_config = {}

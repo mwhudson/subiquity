@@ -106,16 +106,16 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         elif True in self._crash_reports:
             return StorageResponse(
                 status=ProbeStatus.FAILED,
-                error_report_path=self._crash_reports[True].path)
+                error_report=self._crash_reports[True].ref())
         else:
             if False in self._crash_reports:
-                erp = self._crash_reports[False].path
+                err_ref = self._crash_reports[False].ref()
             else:
-                erp = None
+                err_ref = None
             return StorageResponse(
                 status=ProbeStatus.DONE,
                 bootloader=self.model.bootloader,
-                error_report_path=erp,
+                error_report=err_ref,
                 orig_config=self.model._orig_config,
                 config=self.model._render_actions(include_all=True),
                 blockdev=self.model._probe_data['blockdev'])
