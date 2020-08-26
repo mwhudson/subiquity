@@ -44,7 +44,7 @@ class TestEndToEnd(unittest.TestCase):
     def test_simple(self):
         @api
         class API:
-            def GET() -> str: pass
+            def GET() -> str: ...
 
         class Impl(TestControllerBase):
             async def GET(self) -> str:
@@ -61,7 +61,7 @@ class TestEndToEnd(unittest.TestCase):
         class API:
             class endpoint:
                 class nested:
-                    def GET() -> str: pass
+                    def GET() -> str: ...
 
         class Impl(TestControllerBase):
             async def endpoint_nested_GET(self) -> str:
@@ -110,7 +110,7 @@ class TestEndToEnd(unittest.TestCase):
     def test_post(self):
         @api
         class API:
-            def POST(data: Payload[dict]) -> str: pass
+            def POST(data: Payload[dict]) -> str: ...
 
         class Impl(TestControllerBase):
             async def POST(self, data: dict) -> str:
@@ -136,7 +136,7 @@ class TestEndToEnd(unittest.TestCase):
         @api
         class API:
             class doubler:
-                def post(data: In) -> Out: pass
+                def post(data: In) -> Out: ...
 
         class Impl(TestControllerBase):
             async def doubler_post(self, data: In) -> Out:

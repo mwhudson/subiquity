@@ -70,7 +70,7 @@ class TestBind(unittest.TestCase):
     def test_simple(self):
         @api
         class API:
-            def GET() -> str: pass
+            def GET() -> str: ...
 
         class Impl(TestControllerBase):
             async def GET(self) -> str:
@@ -88,7 +88,7 @@ class TestBind(unittest.TestCase):
         class API:
             class endpoint:
                 class nested:
-                    def get(): pass
+                    def get(): ...
 
         class Impl(TestControllerBase):
             async def nested_get(self, request, context):
@@ -104,7 +104,7 @@ class TestBind(unittest.TestCase):
     def test_args(self):
         @api
         class API:
-            def GET(arg: str): pass
+            def GET(arg: str): ...
 
         class Impl(TestControllerBase):
             async def GET(self, arg: str):
@@ -120,7 +120,7 @@ class TestBind(unittest.TestCase):
     def test_post(self):
         @api
         class API:
-            def POST(data: Payload[str]) -> str: pass
+            def POST(data: Payload[str]) -> str: ...
 
         class Impl(TestControllerBase):
             async def POST(self, data: str) -> str:
