@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 
 from urwid import (
@@ -138,6 +139,8 @@ class ErrorReportStretchy(Stretchy):
         if self.report is None:
             self.app.aio_loop.create_task(self._wait())
         self.interrupting = interrupting
+        self.pending = None
+        self.min_wait = self.app.aio_loop.create_task(asyncio.sleep(0.1))
 
         self.btns = {
             'cancel': other_btn(
@@ -162,7 +165,8 @@ class ErrorReportStretchy(Stretchy):
 
         self.spinner = Spinner(app.aio_loop, style='dots')
         self.pile = Pile([])
-        self._report_changed()
+        self.pile.contents[:] = [
+            (w, self.pile.options('pack')) for w in self._pile_elements()]
         super().__init__("", [self.pile], 0, 0)
         connect_signal(self, 'closed', self.spinner.stop)
 
@@ -172,7 +176,7 @@ class ErrorReportStretchy(Stretchy):
         self.error_ref = self.report.ref()
         connect_signal(self.report, 'changed', self._report_changed)
         self.report.mark_seen()
-        self._report_changed()
+        await self._report_changed_()
 
     def pb(self, upload):
         pb = ProgressBar(
@@ -253,6 +257,17 @@ class ErrorReportStretchy(Stretchy):
         return widgets
 
     def _report_changed(self):
+        if self.pending:
+            self.pending.cancel()
+        self.pending = self.app.aio_loop.create_task(asyncio.sleep(0.1))
+        self.change_task = self.app.aio_loop.create_task(
+            self._report_changed_())
+
+    async def _report_changed_(self):
+        await self.pending
+        self.pending = None
+        await self.min_wait
+        self.min_wait = self.app.aio_loop.create_task(asyncio.sleep(1))
         if self.report:
             self.error_ref = self.report.ref()
         self.pile.contents[:] = [

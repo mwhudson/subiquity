@@ -20,9 +20,8 @@ import typing
 
 import attr
 
-# This is basically a half-assed version of
-# https://pypi.org/project/cattrs/ but that's not packaged and it's
-# enough for our needs.
+# This is basically a half-assed version of # https://pypi.org/project/cattrs/
+# but that's not packaged and this is enough for our needs.
 
 
 class Serializer:
@@ -112,7 +111,6 @@ class Serializer:
             return self._deserialize_attr(annotation, value, metadata)
         origin = typing.get_origin(annotation)
         if origin is not None:
-            print(origin)
             args = typing.get_args(annotation)
             return self.typing_walkers[origin](
                 self.deserialize, args, value, metadata)

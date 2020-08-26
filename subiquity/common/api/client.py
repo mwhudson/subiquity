@@ -58,5 +58,6 @@ def make_client(endpoint_cls, make_request, serializer=None):
         if isinstance(v, type):
             setattr(C, k, make_client(v, make_request, serializer))
         elif callable(v):
-            setattr(C, k, _wrap(make_request, endpoint_cls.fullpath, v, serializer))
+            setattr(C, k, _wrap(
+                make_request, endpoint_cls.fullpath, v, serializer))
     return C
