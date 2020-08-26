@@ -194,6 +194,9 @@ class SubiquityClient(AsyncTuiApplication):
 
     auto_start_urwid = False
 
+    def progress_view(self):
+        return self.controllers.Progress.progress_view
+
     def run(self):
         self.aio_loop.create_task(self.connect())
         try:

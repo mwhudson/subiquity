@@ -65,7 +65,7 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
             await self.start_ui_real(status)
 
     async def _wait_for_probing(self):
-        status = await self.endpoint.wait.GET()
+        status = await self.endpoint.GET(wait=True)
         if self.showing:
             await self.start_ui_real(status)
 
