@@ -23,6 +23,8 @@ def api(cls, prefix=(), foo=None):
         if isinstance(v, type):
             v.__name__ = cls.__name__ + '.' + k
             api(v, prefix + (k,))
+        if callable(v):
+            v.__qualname__ = cls.__name__ + '.' + k
     return cls
 
 

@@ -43,22 +43,33 @@ def _make_handler(controller, definition, implementation, serializer):
     data_arg = None
     query_args_anns = []
 
+    check_def_params = []
+
     for param_name, param in def_params.items():
         if param_name in ('request', 'context'):
             raise Exception(
                 "api method {} cannot have parameter called request or "
                 "context".format(definition))
-        if param_name not in impl_params:
-            raise Exception("{}, implementing {} missing param {}".format(
-                implementation, definition, param_name))
         if typing.get_origin(param.annotation) is Payload:
             data_arg = param_name
             data_annotation = typing.get_args(param.annotation)[0]
+            check_def_params.append(param.replace(annotation=data_annotation))
         else:
             query_args_anns.append(
                 (param_name, param.annotation, param.default))
+            check_def_params.append(param)
 
-    impl_params = inspect.signature(implementation).parameters
+    check_impl_params = [
+        p for p in impl_params.values()
+        if p.name not in ('context', 'request')
+        ]
+    check_impl_sig = impl_sig.replace(parameters=check_impl_params)
+
+    check_def_sig = def_sig.replace(parameters=check_def_params)
+
+    assert check_impl_sig == check_def_sig, \
+        "implementation of {} has wrong signature, should be {}, is {}".format(
+          definition.__qualname__, check_def_sig, check_impl_sig)
 
     async def handler(request):
         context = controller.context.child(

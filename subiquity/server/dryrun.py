@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from subiquity.common.types import ErrorReportKind
+from subiquity.common.types import ErrorReportKind, ErrorReportRef
 
 
 class DryRunController:
@@ -25,7 +25,7 @@ class DryRunController:
     def generic_result(self):
         return {'status': 'ok'}
 
-    async def make_error_POST(self):
+    async def make_error_POST(self) -> ErrorReportRef:
         try:
             1/0
         except ZeroDivisionError:

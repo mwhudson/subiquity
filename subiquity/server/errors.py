@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from subiquity.common.types import ErrorReportState
+from subiquity.common.types import ErrorReportState, ErrorReportRef
 
 
 class ErrorController:
@@ -25,7 +25,7 @@ class ErrorController:
     def generic_result(self):
         return {'status': 'ok'}
 
-    async def wait_GET(self, error_ref):
+    async def wait_GET(self, error_ref: ErrorReportRef) -> ErrorReportRef:
         report = self.error_reporter.get(error_ref)
         if report.state == ErrorReportState.INCOMPLETE:
             await report._info_task

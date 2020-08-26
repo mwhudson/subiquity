@@ -63,9 +63,9 @@ class KeyboardController(SubiquityController):
     def make_autoinstall(self):
         return attr.asdict(self.model.setting)
 
-    async def GET(self):
+    async def GET(self) -> KeyboardSetting:
         return self.model.setting
 
-    async def POST(self, data):
+    async def POST(self, data: KeyboardSetting):
         self.model.setting = data
         self.configured()

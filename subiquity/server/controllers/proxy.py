@@ -59,10 +59,10 @@ class ProxyController(SubiquityController):
     def make_autoinstall(self):
         return self.model.proxy
 
-    async def GET(self, context):
+    async def GET(self) -> str:
         return self.model.proxy
 
-    async def POST(self, context, data):
+    async def POST(self, data: str):
         self.model.proxy = data
         self.signal.emit_signal('network-proxy-set')
         self.configured()

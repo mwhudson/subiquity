@@ -51,14 +51,14 @@ class MetaController:
     def generic_result(self):
         return {'status': 'ok'}
 
-    async def status_GET(self):
+    async def status_GET(self) -> ApplicationState:
         log_id = self.app.controllers.Install._log_syslog_identifier
         return ApplicationState(
             status=self.app.status,
             event_syslog_identifier=self.app.syslog_id,
             log_syslog_identifier=log_id)
 
-    async def status_wait_early_GET(self):
+    async def status_wait_early_GET(self) -> ApplicationState:
         pass
 
     async def confirm_POST(self):

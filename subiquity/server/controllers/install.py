@@ -21,6 +21,7 @@ import re
 import shutil
 import sys
 import tempfile
+from typing import Optional
 
 from curtin.commands.install import (
     ERROR_TARFILE,
@@ -94,7 +95,7 @@ class InstallController(SubiquityController):
     def interactive(self):
         return self.app.interactive()
 
-    async def status_GET(self, cur):
+    async def status_GET(self, cur: Optional[InstallState] = None) -> InstallState:
         if cur != self.install_state:
             return self.install_state
         await self.install_status_event.wait()

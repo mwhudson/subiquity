@@ -54,12 +54,12 @@ class SSHController(SubiquityController):
             'allow-pw': self.model.pwauth,
             }
 
-    async def GET(self):
+    async def GET(self) -> SSHData:
         return SSHData(
             install_server=self.model.install_server,
             allow_pw=self.model.pwauth)
 
-    async def POST(self, data):
+    async def POST(self, data: SSHData):
         self.model.install_server = data.install_server
         self.model.authorized_keys = data.authorized_keys
         self.model.pwauth = data.allow_pw

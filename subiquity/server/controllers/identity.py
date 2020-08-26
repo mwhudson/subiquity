@@ -60,7 +60,7 @@ class IdentityController(SubiquityController):
         r['hostname'] = self.model.hostname
         return r
 
-    async def GET(self):
+    async def GET(self) -> IdentityData:
         data = IdentityData()
         if self.model.user is not None:
             data.username = self.model.user.username
@@ -69,6 +69,6 @@ class IdentityController(SubiquityController):
             data.hostname = self.model.hostname
         return data
 
-    async def POST(self, data):
+    async def POST(self, data: IdentityData):
         self.model.add_user(data)
         self.configured()

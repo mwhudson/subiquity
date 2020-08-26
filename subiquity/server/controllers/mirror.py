@@ -132,9 +132,9 @@ class MirrorController(SubiquityController):
         r['geoip'] = self.geoip_enabled
         return r
 
-    async def GET(self):
+    async def GET(self) -> str:
         return self.model.get_mirror()
 
-    async def POST(self, data):
+    async def POST(self, data: str):
         self.model.set_mirror(data)
         self.configured()

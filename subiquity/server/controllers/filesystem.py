@@ -100,7 +100,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 "autoinstall config did not create needed bootloader "
                 "partition")
 
-    async def GET(self, context):
+    async def GET(self, context) -> StorageResponse:
         if self._probe_task.task is None or not self._probe_task.task.done():
             return StorageResponse(status=ProbeStatus.PROBING)
         elif True in self._crash_reports:
@@ -120,17 +120,17 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 config=self.model._render_actions(include_all=True),
                 blockdev=self.model._probe_data['blockdev'])
 
-    async def POST(self, config):
+    async def POST(self, config: list):
         self.model._actions = self.model._actions_from_config(
             config, self.model._probe_data['blockdev'], is_probe_data=False)
         self.configured()
 
-    async def wait_GET(self, context):
+    async def wait_GET(self, context) -> StorageResponse:
         await self._start_task
         await self._probe_task.wait()
         return await self.GET(context)
 
-    async def reset_POST(self, context, request):
+    async def reset_POST(self, context, request) -> StorageResponse:
         log.info("Resetting Filesystem model")
         self.model.reset()
         return await self.GET(context)

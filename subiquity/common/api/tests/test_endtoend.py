@@ -47,7 +47,7 @@ class TestEndToEnd(unittest.TestCase):
             def GET() -> str: pass
 
         class Impl(TestControllerBase):
-            async def GET(self):
+            async def GET(self) -> str:
                 return 'value'
 
         async def make_request():
@@ -64,7 +64,7 @@ class TestEndToEnd(unittest.TestCase):
                     def GET() -> str: pass
 
         class Impl(TestControllerBase):
-            async def endpoint_nested_GET(self):
+            async def endpoint_nested_GET(self) -> str:
                 return 'value'
 
         async def make_request():
@@ -76,10 +76,10 @@ class TestEndToEnd(unittest.TestCase):
     def test_args(self):
         @api
         class API:
-            def GET(arg1: str, arg2: str): pass
+            def GET(arg1: str, arg2: str) -> str: ...
 
         class Impl(TestControllerBase):
-            async def GET(self, arg1, arg2):
+            async def GET(self, arg1: str, arg2: str) -> str:
                 return '{}+{}'.format(arg1, arg2)
 
         async def make_request():
@@ -92,10 +92,10 @@ class TestEndToEnd(unittest.TestCase):
     def test_defaults(self):
         @api
         class API:
-            def GET(arg1: str, arg2: str = "arg2"): pass
+            def GET(arg1: str, arg2: str = "arg2") -> str: ...
 
         class Impl(TestControllerBase):
-            async def GET(self, arg1, arg2):
+            async def GET(self, arg1: str, arg2: str = "arg2") -> str:
                 return '{}+{}'.format(arg1, arg2)
 
         async def make_request():
@@ -110,10 +110,10 @@ class TestEndToEnd(unittest.TestCase):
     def test_post(self):
         @api
         class API:
-            def POST(data: Payload[dict]): pass
+            def POST(data: Payload[dict]) -> str: pass
 
         class Impl(TestControllerBase):
-            async def POST(self, data):
+            async def POST(self, data: dict) -> str:
                 return data['key']
 
         async def make_request():

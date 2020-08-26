@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from typing import List
 
 import attr
 
@@ -27,6 +28,7 @@ from subiquitycore.context import with_context
 from subiquity.common.api.definition import API
 from subiquity.common.types import (
     SnapCheckState,
+    SnapInfo,
     SnapListResponse,
     SnapSelection,
     )
@@ -165,7 +167,7 @@ class SnapListController(SubiquityController):
     def make_autoinstall(self):
         return [attr.asdict(sel) for sel in self.model.selections]
 
-    async def GET(self, context):
+    async def GET(self, context) -> SnapListResponse:
         if self.loader.failed:  # or not self.app.base_model.network.has_network:
             return SnapListResponse(status=SnapCheckState.FAILED)
         if not self.loader.snap_list_fetched:
@@ -176,17 +178,17 @@ class SnapListController(SubiquityController):
                 snaps=self.model.get_snap_list(),
                 selections=self.model.selections)
 
-    async def POST(self, data):
+    async def POST(self, data: List[SnapSelection]):
         self.model.set_installed_list(data)
         self.configured()
 
-    async def wait_GET(self, context):
+    async def wait_GET(self, context) -> SnapListResponse:
         if self.loader.failed or not self.app.base_model.network.has_network:
             return SnapListResponse(status=SnapCheckState.FAILED)
         await self.loader.get_snap_list_task()
-        return await self.get(context)
+        return await self.GET(context)
 
-    async def snap_info_GET(self, snap_name):
+    async def snap_info_GET(self, snap_name: str) -> SnapInfo:
         snap = self.model._snap_for_name(snap_name)
         await self.loader.get_snap_info_task(snap)
         return snap

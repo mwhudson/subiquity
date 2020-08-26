@@ -73,7 +73,7 @@ class TestBind(unittest.TestCase):
             def GET() -> str: pass
 
         class Impl(TestControllerBase):
-            async def GET(self):
+            async def GET(self) -> str:
                 return 'value'
 
         async def make_request():
@@ -120,10 +120,10 @@ class TestBind(unittest.TestCase):
     def test_post(self):
         @api
         class API:
-            def POST(data: Payload[str]): pass
+            def POST(data: Payload[str]) -> str: pass
 
         class Impl(TestControllerBase):
-            async def POST(self, data):
+            async def POST(self, data: str) -> str:
                 return data
 
         async def make_request():
