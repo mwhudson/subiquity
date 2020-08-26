@@ -17,11 +17,11 @@ import inspect
 import json
 import typing
 
-from subiquity.common.serialize import serialize, deserialize
+from subiquity.common.serialize import Serializer
 from .defs import Payload
 
 
-def _wrap(make_request, path, meth):
+def _wrap(make_request, path, meth, serializer):
     sig = inspect.signature(meth)
     meth_params = sig.parameters
     payload_arg = None
@@ -34,26 +34,29 @@ def _wrap(make_request, path, meth):
     async def impl(*args, **kw):
         args = sig.bind(*args, **kw)
         params = {
-            k: json.dumps(serialize(meth_params[k].annotation, v))
+            k: json.dumps(serializer.serialize(meth_params[k].annotation, v))
             for (k, v) in args.arguments.items() if k != payload_arg
             }
         if payload_arg in args.arguments:
             v = args.arguments[payload_arg]
-            data = {'data': serialize(payload_ann, v)}
+            data = {'data': serializer.serialize(payload_ann, v)}
         else:
             data = None
         r = await make_request(meth.__name__, path, json=data, params=params)
-        return deserialize(r_ann, r['result'])
+        return serializer.deserialize(r_ann, r['result'])
     return impl
 
 
-def make_client(endpoint_cls, make_request):
+def make_client(endpoint_cls, make_request, serializer=None):
+    if serializer is None:
+        serializer = Serializer()
+
     class C:
         pass
 
     for k, v in endpoint_cls.__dict__.items():
         if isinstance(v, type):
-            setattr(C, k, make_client(v, make_request))
+            setattr(C, k, make_client(v, make_request, serializer))
         elif callable(v):
-            setattr(C, k, _wrap(make_request, endpoint_cls.fullpath, v))
+            setattr(C, k, _wrap(make_request, endpoint_cls.fullpath, v, serializer))
     return C

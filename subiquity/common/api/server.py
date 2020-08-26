@@ -19,7 +19,7 @@ import typing
 
 from aiohttp import web
 
-from subiquity.common.serialize import deserialize, serialize
+from subiquity.common.serialize import Serializer
 
 from .defs import Payload
 
@@ -31,7 +31,7 @@ def trim(text):
         return text
 
 
-def make_handler(controller, definition, implementation):
+def _make_handler(controller, definition, implementation, serializer):
     def_sig = inspect.signature(definition)
     def_ret_ann = def_sig.return_annotation
     def_params = def_sig.parameters
@@ -68,10 +68,12 @@ def make_handler(controller, definition, implementation):
             args = {}
             if data_annotation is not None:
                 payload = json.loads(await request.text())
-                args[data_arg] = deserialize(data_annotation, payload['data'])
+                args[data_arg] = serializer.deserialize(
+                    data_annotation, payload['data'])
             for arg, ann, default in query_args_anns:
                 if arg in request.query:
-                    v = deserialize(ann, json.loads(request.query[arg]))
+                    v = serializer.deserialize(
+                        ann, json.loads(request.query[arg]))
                 elif default != inspect._empty:
                     v = default
                 else:
@@ -83,7 +85,7 @@ def make_handler(controller, definition, implementation):
                 args['request'] = request
             result = await implementation(**args)
             resp = {
-                'result': serialize(def_ret_ann, result),
+                'result': serializer.serialize(def_ret_ann, result),
                 }
             resp.update(controller.generic_result())
             resp = web.json_response(resp)
@@ -93,18 +95,20 @@ def make_handler(controller, definition, implementation):
     return handler
 
 
-def bind(router, endpoint, controller, depth=None):
-    if depth is None:
-        depth = len(endpoint.fullname)
+def bind(router, endpoint, controller, serializer=None, _depth=None):
+    if serializer is None:
+        serializer = Serializer()
+    if _depth is None:
+        _depth = len(endpoint.fullname)
 
     for v in endpoint.__dict__.values():
         if isinstance(v, type):
-            bind(router, v, controller, depth)
+            bind(router, v, controller, serializer, _depth)
         elif callable(v):
             method = v.__name__
-            impl_name = "_".join(endpoint.fullname[depth:] + (method,))
+            impl_name = "_".join(endpoint.fullname[_depth:] + (method,))
             impl = getattr(controller, impl_name)
             router.add_route(
                 method=method,
                 path=endpoint.fullpath,
-                handler=make_handler(controller, v, impl))
+                handler=_make_handler(controller, v, impl, serializer))

@@ -20,100 +20,101 @@ import typing
 
 import attr
 
-from .api.defs import Payload
-
 # This is basically a half-assed version of
 # https://pypi.org/project/cattrs/ but that's not packaged and it's
 # enough for our needs.
 
 
-def serialize(annotation, value, metadata={}):
-    if annotation is inspect.Signature.empty:
-        return value
-    elif attr.has(annotation):
-        return {
-            field.name: serialize(
-                field.type,
-                getattr(value, field.name),
-                field.metadata)
-            for field in attr.fields(annotation)
+class Serializer:
+
+    def __init__(self):
+        self.typing_walkers = {
+            typing.Union: self._walk_Union,
+            typing.List: self._walk_List,
             }
-    elif typing.get_origin(annotation):
-        t = typing.get_origin(annotation)
-        if t is list:
-            list_anns = typing.get_args(annotation)
-            if list_anns:
-                return [serialize(list_anns[0], v) for v in value]
-            else:
-                return value
-        elif t is typing.Union:
-            if value is None:
-                return None
-            NoneType = type(None)
-            ann = [
-                a for a in typing.get_args(annotation)
-                if a is not NoneType
-                ][0]
-            return serialize(ann, value)
-        elif t is Payload:
-            return serialize(typing.get_args(annotation)[0], value)
-        else:
-            raise Exception("don't understand {}".format(t))
-    elif annotation in (str, int, bool, dict, list):
-        return annotation(value)
-    elif annotation is datetime.datetime:
-        if 'time_fmt' in metadata:
+        self.type_serializers = {}
+        self.type_deserializers = {}
+        for typ in int, str, dict, bool, list, type(None):
+            self.type_serializers[typ] = self._scalar
+            self.type_deserializers[typ] = self._scalar
+        self.type_serializers[datetime.datetime] = self._serialize_datetime
+        self.type_deserializers[datetime.datetime] = self._deserialize_datetime
+
+    def _scalar(self, annotation, value, metadata):
+        assert type(value) is annotation
+        return value
+
+    def _walk_Union(self, meth, args, value, metadata):
+        NoneType = type(None)
+        assert NoneType in args, "can only serialize Optional"
+        args = [a for a in args if a is not NoneType]
+        assert len(args) == 1, "can only serialize Optional"
+        if value is None:
+            return value
+        return meth(args[0], value, metadata)
+
+    def _walk_List(self, meth, args, value, metadata):
+        return [meth(args[0], v, metadata) for v in value]
+
+    def _serialize_datetime(self, annotation, value, metadata):
+        assert type(value) is annotation
+        if metadata is not None and 'time_fmt' in metadata:
             return value.strftime(metadata['time_fmt'])
         else:
             return str(value)
-    elif annotation is None:
-        return None
-    elif isinstance(annotation, type) and issubclass(annotation, enum.Enum):
-        return value.name
-    else:
-        raise Exception(str(annotation))
 
+    def _serialize_field(self, field, value):
+        return {field.name: self.serialize(field.type, value, field.metadata)}
 
-def deserialize(annotation, value, metadata={}):
-    if annotation is inspect.Signature.empty:
-        return value
-    elif attr.has(annotation):
-        return annotation(**{
-            field.name: deserialize(
-                field.type,
-                value[field.name],
-                field.metadata)
-            for field in attr.fields(annotation)
-            if field.name in value
-            })
-    elif typing.get_origin(annotation):
-        t = typing.get_origin(annotation)
-        if t is list:
-            list_ann = typing.get_args(annotation)[0]
-            return [deserialize(list_ann, v) for v in value]
-        elif t is typing.Union:
-            if value is None:
-                return None
-            NoneType = type(None)
-            ann = [
-                a for a in typing.get_args(annotation)
-                if a is not NoneType
-                ][0]
-            return deserialize(ann, value)
-        elif t is Payload:
-            return deserialize(typing.get_args(annotation)[0], value)
-        else:
-            raise Exception("don't understand {}".format(t))
-    elif annotation in (str, int, bool, dict, list):
-        return annotation(value)
-    elif annotation is None:
-        return None
-    elif annotation is datetime.datetime:
-        if 'time_fmt' in metadata:
+    def _serialize_attr(self, annotation, value, metadata):
+        r = {}
+        for field in attr.fields(annotation):
+            r.update(self._serialize_field(field, getattr(value, field.name)))
+        return r
+
+    def serialize(self, annotation, value, metadata=None):
+        if annotation is inspect.Signature.empty:
+            return value
+        if attr.has(annotation):
+            return self._serialize_attr(annotation, value, metadata)
+        origin = typing.get_origin(annotation)
+        if origin is not None:
+            args = typing.get_args(annotation)
+            return self.typing_walkers[origin](
+                self.serialize, args, value, metadata)
+        if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
+            return value.name
+        return self.type_serializers[annotation](annotation, value, metadata)
+
+    def _deserialize_datetime(self, annotation, value, metadata):
+        assert type(value) is str
+        if metadata is not None and 'time_fmt' in metadata:
             return datetime.datetime.strptime(value, metadata['time_fmt'])
         else:
             1/0
-    elif isinstance(annotation, type) and issubclass(annotation, enum.Enum):
-        return getattr(annotation, value)
-    else:
-        raise Exception(str(annotation))
+
+    def _deserialize_field(self, field, value):
+        return {
+            field.name: self.deserialize(field.type, value, field.metadata)
+            }
+
+    def _deserialize_attr(self, annotation, value, metadata):
+        args = {}
+        for field in attr.fields(annotation):
+            args.update(self._deserialize_field(field, value[field.name]))
+        return annotation(**args)
+
+    def deserialize(self, annotation, value, metadata=None):
+        if annotation is inspect.Signature.empty:
+            return value
+        if attr.has(annotation):
+            return self._deserialize_attr(annotation, value, metadata)
+        origin = typing.get_origin(annotation)
+        if origin is not None:
+            print(origin)
+            args = typing.get_args(annotation)
+            return self.typing_walkers[origin](
+                self.deserialize, args, value, metadata)
+        if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
+            return getattr(annotation, value)
+        return self.type_deserializers[annotation](annotation, value, metadata)
