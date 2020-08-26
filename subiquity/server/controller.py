@@ -105,3 +105,9 @@ class SubiquityController(BaseController):
         else:
             status = 'skip'
         return {'status': status}
+
+
+class NonInteractiveController(SubiquityController):
+
+    def interactive(self):
+        return False

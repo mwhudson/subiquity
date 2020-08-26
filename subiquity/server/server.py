@@ -186,6 +186,12 @@ class SubiquityServer(Application):
             return True
         return bool(self.autoinstall_config.get('interactive-sections'))
 
+    async def apply_autoinstall_config(self):
+        for controller in self.controllers.instances:
+            if not controller.interactive():
+                await controller.apply_autoinstall_config()
+                controller.configured()
+
     async def startup(self):
         app = web.Application()
         app['app'] = self
@@ -201,6 +207,7 @@ class SubiquityServer(Application):
         site = web.UnixSite(runner, self.opts.socket)
         await site.start()
         self.status = ApplicationStatus.INTERACTIVE
+        self.aio_loop.create_task(self.apply_autoinstall_config())
 
     def run(self):
         self.aio_loop.create_task(self.startup())

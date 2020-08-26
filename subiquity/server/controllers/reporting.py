@@ -29,7 +29,7 @@ from curtin.reporter.handlers import (
     LogHandler,
     )
 
-from subiquity.server.controller import SubiquityController
+from subiquity.server.controller import NonInteractiveController
 
 
 class LogHandler(LogHandler):
@@ -48,7 +48,7 @@ INITIAL_CONFIG = {
 NON_INTERACTIVE_CONFIG = {'builtin': {'type': 'print'}}
 
 
-class ReportingController(SubiquityController):
+class ReportingController(NonInteractiveController):
 
     autoinstall_key = "reporting"
     autoinstall_schema = {

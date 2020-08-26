@@ -19,11 +19,11 @@ import os
 from subiquitycore.context import with_context
 from subiquitycore.utils import arun_command
 
-from subiquity.server.controller import SubiquityController
+from subiquity.server.controller import NonInteractiveController
 from subiquity.server.controllers.install import InstallState
 
 
-class CmdListController(SubiquityController):
+class CmdListController(NonInteractiveController):
 
     autoinstall_default = []
     autoinstall_schema = {
