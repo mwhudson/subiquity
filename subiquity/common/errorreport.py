@@ -332,6 +332,7 @@ class ErrorReporter(object):
         self.context = context
         self.dry_run = dry_run
         self.reports = []
+        self._reports_by_base = {}
         if dry_run:
             self.crash_directory = os.path.join(root, 'var/crash')
         self.crashdb_spec = {
@@ -343,7 +344,7 @@ class ErrorReporter(object):
         self._apport_data = []
         self._apport_files = []
 
-    def start_loading_reports(self):
+    def load_reports(self):
         os.makedirs(self.crash_directory, exist_ok=True)
         filenames = os.listdir(self.crash_directory)
         to_load = []
@@ -351,10 +352,12 @@ class ErrorReporter(object):
             base, ext = os.path.splitext(filename)
             if ext != ".crash":
                 continue
-            path = os.path.join(self.crash_directory, filename)
-            r = ErrorReport.from_file(self, path)
-            self.reports.append(r)
-            to_load.append(r)
+            if base not in self._reports_by_base:
+                path = os.path.join(self.crash_directory, filename)
+                r = ErrorReport.from_file(self, path)
+                self.reports.append(r)
+                self._reports_by_base[base] = r
+                to_load.append(r)
         schedule_task(self._load_reports(to_load))
 
     async def _load_reports(self, to_load):
@@ -376,6 +379,7 @@ class ErrorReporter(object):
         try:
             report = ErrorReport.new(self, kind)
             self.reports.insert(0, report)
+            self._reports_by_base[report.base] = report
         except Exception:
             log.exception("creating crash report failed")
             return
@@ -410,14 +414,12 @@ class ErrorReporter(object):
         return report
 
     def get(self, error_ref):
-        for report in self.reports:
-            if report.base == error_ref.base:
-                return report
+        return self._reports_by_base.get(error_ref.base)
 
     async def get_client(self, error_ref, client):
-        for report in self.reports:
-            if report.base == error_ref.base:
-                return report
+        report = self._reports_by_base.get(error_ref.base)
+        if report is not None:
+            return report
 
         loop = asyncio.get_event_loop()
 

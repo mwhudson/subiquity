@@ -18,6 +18,7 @@ import contextlib
 import logging
 import os
 import sys
+import traceback
 
 import aiohttp
 
@@ -166,7 +167,7 @@ class SubiquityClient(AsyncTuiApplication):
         pass
 
     def select_initial_screen(self, index):
-        self.error_reporter.start_loading_reports()
+        self.error_reporter.load_reports()
         for report in self.error_reporter.reports:
             if report.kind == ErrorReportKind.UI and not report.seen:
                 self.show_error_report(report)
@@ -197,6 +198,15 @@ class SubiquityClient(AsyncTuiApplication):
         self.aio_loop.create_task(self.connect())
         try:
             super().run()
+        except Exception:
+            print("generating crash report")
+            try:
+                report = self.error_reporter.make_apport_report(
+                    ErrorReportKind.UI, "Installer UI", wait=True)
+                print("report saved to {path}".format(path=report.path))
+            except Exception:
+                print("report generation failed")
+                traceback.print_exc()
         finally:
             self.aio_loop.run_until_complete(self.shutdown())
 
@@ -212,21 +222,15 @@ class SubiquityClient(AsyncTuiApplication):
             super().unhandled_input(key)
 
     def unhandled_input_dry_run(self, key):
-        if key in ['ctrl e']:
+        if key in ['ctrl e', 'ctrl r']:
             interrupt = key == 'ctrl e'
 
             async def foo():
                 ref = await self.client.dry_run.make_error.POST()
-                self.show_error_report(ref)
+                if interrupt:
+                    self.show_error_report(ref)
 
             self.aio_loop.create_task(foo())
-        elif key in ['ctrl e', 'ctrl r']:
-            interrupt = key == 'ctrl e'
-            try:
-                1/0
-            except ZeroDivisionError:
-                self.make_apport_report(
-                    ErrorReportKind.UNKNOWN, "example", interrupt=interrupt)
         elif key == 'ctrl u':
             1/0
         else:
@@ -246,15 +250,6 @@ class SubiquityClient(AsyncTuiApplication):
 
     def note_data_for_apport(self, key, value):
         self.error_reporter.note_data_for_apport(key, value)
-
-    def make_apport_report(self, kind, thing, *, interrupt, wait=False, **kw):
-        report = self.error_reporter.make_apport_report(
-            kind, thing, wait=wait, **kw)
-
-        if report is not None and interrupt and self.interactive():
-            self.show_error_report(report)
-
-        return report
 
     def show_error_report(self, error_ref):
         log.debug("show_error_report %r", error_ref.base)

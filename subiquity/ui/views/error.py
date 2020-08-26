@@ -136,10 +136,13 @@ class ErrorReportStretchy(Stretchy):
         self.app = app
         self.error_ref = ref
         self.report = app.error_reporter.get(ref)
+        self.pending = None
         if self.report is None:
             self.app.aio_loop.create_task(self._wait())
+        else:
+            connect_signal(self.report, 'changed', self._report_changed)
+            self.report.mark_seen()
         self.interrupting = interrupting
-        self.pending = None
         self.min_wait = self.app.aio_loop.create_task(asyncio.sleep(0.1))
 
         self.btns = {
