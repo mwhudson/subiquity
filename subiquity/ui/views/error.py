@@ -314,6 +314,7 @@ class ErrorReportListStretchy(Stretchy):
                 Text(""),
             ])]
         self.report_to_row = {}
+        self.app.error_reporter.load_reports()
         for report in self.app.error_reporter.reports:
             connect_signal(report, "changed", self._report_changed, report)
             r = self.report_to_row[report] = self.row_for_report(report)

@@ -429,6 +429,7 @@ class ErrorReporter(object):
             self.crash_directory, error_ref.base + '.crash')
         report = ErrorReport.from_file(self, path)
         self.reports.insert(0, report)
+        self._reports_by_base[error_ref.base] = report
 
         loop.call_soon(loop.create_task, report.load())
 
