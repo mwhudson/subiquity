@@ -10,7 +10,7 @@ late-commands:
 keyboard:
   layout: gb
 interactive-sections:
-  - network
+  - keyboard
 snaps:
   - name: etcd
     channel: 3.2/stable

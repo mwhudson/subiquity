@@ -21,6 +21,7 @@ import select
 
 import pyudev
 
+
 from subiquitycore.async_helpers import (
     run_in_thread,
     schedule_task,
@@ -30,7 +31,7 @@ from subiquitycore.context import with_context
 from subiquitycore.utils import (
     run_command,
     )
-
+from subiquitycore.lsb_release import lsb_release
 
 from subiquity.common.api.definition import API
 from subiquity.common.errorreport import ErrorReportKind
@@ -89,8 +90,8 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
 
     @with_context()
     async def apply_autoinstall_config(self, context=None):
-        self.stop_listening_udev()
         await self._start_task
+        self.stop_listening_udev()
         await self._probe_task.wait()
         self.convert_autoinstall_config(context=context)
         if not self.model.is_root_mounted():
@@ -195,6 +196,11 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             self.model.swap = self.ai_data.get('swap')
 
     def start(self):
+        if self.model.bootloader == Bootloader.PREP:
+            self.supports_resilient_boot = False
+        else:
+            release = lsb_release()['release']
+            self.supports_resilient_boot = release >= '20.04'
         self._start_task = schedule_task(self._start())
 
     async def _start(self):

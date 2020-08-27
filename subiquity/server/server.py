@@ -221,9 +221,10 @@ class SubiquityServer(Application):
                     if 'autoinstall' in self.kernel_cmdline:
                         self.base_model.confirm()
                     else:
-                        journal.send(
-                            "", SYSLOG_IDENTIFIER=self.event_syslog_id,
-                            SUBIQUITY_CONFIRMATION="yes")
+                        if not self.interactive():
+                            journal.send(
+                                "", SYSLOG_IDENTIFIER=self.event_syslog_id,
+                                SUBIQUITY_CONFIRMATION="yes")
                         await self.base_model.confirmation.wait()
                 await controller.apply_autoinstall_config()
                 controller.configured()
