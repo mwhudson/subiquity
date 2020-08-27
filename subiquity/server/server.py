@@ -13,10 +13,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 import os
 import shlex
 import sys
+from typing import Optional
 
 from aiohttp import web
 
@@ -59,15 +61,15 @@ class MetaController:
     def generic_result(self):
         return {'status': 'ok'}
 
-    async def status_GET(self) -> ApplicationState:
+    async def status_GET(self, cur: Optional[ApplicationStatus] = None) \
+            -> ApplicationState:
         log_id = self.app.controllers.Install._log_syslog_identifier
+        if cur == self.app.status:
+            await self.app.status_event.wait()
         return ApplicationState(
             status=self.app.status,
             event_syslog_identifier=self.app.syslog_id,
             log_syslog_identifier=log_id)
-
-    async def status_wait_early_GET(self) -> ApplicationState:
-        pass
 
     async def confirm_POST(self):
         self.app.base_model.confirm()
@@ -131,6 +133,7 @@ class SubiquityServer(Application):
         log.debug("debug_flags %s", self.debug_flags)
         self.prober = Prober(opts.machine_config, self.debug_flags)
         self.status = ApplicationStatus.STARTING
+        self.status_event = asyncio.Event()
         self.autoinstall_config = {}
         self.kernel_cmdline = shlex.split(opts.kernel_cmdline)
         if opts.snaps_from_examples:
@@ -146,6 +149,11 @@ class SubiquityServer(Application):
         self.snapd = AsyncSnapd(connection)
         self.syslog_id = 'subiquity.{}'.format(os.getpid())
         self.event_listeners = []
+
+    def update_status(self, status):
+        self.status_event.set()
+        self.status_event.clear()
+        self.status = status
 
     def note_file_for_apport(self, key, path):
         self.error_reporter.note_file_for_apport(key, path)
@@ -210,6 +218,7 @@ class SubiquityServer(Application):
                 controller.configured()
 
     def load_autoinstall_config(self, only_early):
+        log.debug("load_autoinstall_config only_early %s", only_early)
         if self.opts.autoinstall is None:
             return
         with open(self.opts.autoinstall) as fp:
@@ -245,16 +254,16 @@ class SubiquityServer(Application):
         await self.start_api_server()
         self.load_autoinstall_config(only_early=True)
         if self.controllers.Early.cmds:
-            self.status = ApplicationStatus.EARLY_COMMANDS
-            await self.self.controllers.Early.run()
+            self.update_status(ApplicationStatus.EARLY_COMMANDS)
+            await self.controllers.Early.run()
         self.load_autoinstall_config(only_early=False)
         self.load_serialized_state()
         self._connect_base_signals()
         self.start_controllers()
         if self.interactive():
-            self.status = ApplicationStatus.INTERACTIVE
+            self.update_status(ApplicationStatus.INTERACTIVE)
         else:
-            self.status = ApplicationStatus.NON_INTERACTIVE
+            self.update_status(ApplicationStatus.NON_INTERACTIVE)
         await self.apply_autoinstall_config()
 
     def run(self):

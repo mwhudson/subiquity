@@ -1,7 +1,7 @@
 version: 1
 early-commands:
   - echo a
-  - sleep 1
+  - sleep 10
   - echo a
 locale: en_GB.UTF-8
 refresh-installer:

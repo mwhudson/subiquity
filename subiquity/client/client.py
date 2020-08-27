@@ -134,6 +134,10 @@ class SubiquityClient(AsyncTuiApplication):
                 print(".", end='', flush=True)
                 state = await self.client.meta.status.GET()
             print()
+        if state.status == ApplicationStatus.EARLY_COMMANDS:
+            print("early commands...", end='', flush=True)
+            state = await self.client.meta.status.GET(state.status)
+            print()
         if state.status == ApplicationStatus.INTERACTIVE:
             fd1, watcher1 = journald_listener(
                 [state.event_syslog_identifier],

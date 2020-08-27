@@ -45,7 +45,13 @@ class IdentityController(SubiquityController):
 
     def load_autoinstall_data(self, data):
         if data is not None:
-            self.model.add_user(data)
+            identity_data = IdentityData(
+                realname=data.get('realname', ''),
+                username=data['username'],
+                hostname=data['hostname'],
+                crypted_password=data['password'],
+                )
+            self.model.add_user(identity_data)
 
     @with_context()
     async def apply_autoinstall_config(self, context=None):

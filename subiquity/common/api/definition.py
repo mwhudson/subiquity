@@ -18,6 +18,7 @@ from typing import List, Optional
 from .defs import api, simple_endpoint, Payload
 from subiquity.common.types import (
     ApplicationState,
+    ApplicationStatus,
     ErrorReportRef,
     IdentityData,
     InstallState,
@@ -47,10 +48,8 @@ class API:
 
     class meta:
         class status:
-            def GET() -> ApplicationState: ...
-
-            class wait_early:
-                def GET() -> ApplicationState: ...
+            def GET(cur: Optional[ApplicationStatus] = None) \
+                -> ApplicationState: ...
 
         class confirm:
             def POST(): ...

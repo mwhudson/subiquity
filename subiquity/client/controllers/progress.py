@@ -19,6 +19,7 @@ import logging
 import aiohttp
 
 from subiquitycore.context import with_context
+from subiquitycore.tuicontroller import Skip
 
 from subiquity.client.controller import SubiquityTuiController
 from subiquity.ui.views.installprogress import ProgressView
@@ -72,6 +73,8 @@ class ProgressController(SubiquityTuiController):
             except aiohttp.ClientError:
                 await asyncio.sleep(1)
                 continue
+            except Skip:
+                return
             install_state = install_status.state
             self.crash_report = install_status.error
             if self.crash_report:
