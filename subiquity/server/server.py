@@ -178,7 +178,7 @@ class SubiquityServer(Application):
             if controller is None or controller.interactive():
                 return
         indent = context.full_name().count('/') - 2
-        if context.get('is-install-context'):
+        if context.get('is-install-context') and self.interactive():
             indent -= 1
             msg = context.description
         else:

@@ -163,7 +163,7 @@ class SubiquityClient(AsyncTuiApplication):
                 if 'SUBIQUITY_CONFIRMATION' in e:
                     input("confirm?")
                     self.aio_loop.create_task(self.client.meta.confirm.POST())
-                else:
+                elif e['SUBIQUITY_EVENT_TYPE'] == 'start':
                     print(e["MESSAGE"])
             fd1, watcher1 = journald_listener(
                 [state.event_syslog_id], cb2, seek=True)
