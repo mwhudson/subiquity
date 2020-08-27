@@ -63,13 +63,13 @@ class MetaController:
 
     async def status_GET(self, cur: Optional[ApplicationStatus] = None) \
             -> ApplicationState:
-        log_id = self.app.controllers.Install._log_syslog_identifier
         if cur == self.app.status:
             await self.app.status_event.wait()
         return ApplicationState(
             status=self.app.status,
-            event_syslog_identifier=self.app.syslog_id,
-            log_syslog_identifier=log_id)
+            commands_syslog_id=self.app.commands_syslog_id,
+            event_syslog_id=self.app.event_syslog_id,
+            log_syslog_id=self.app.log_syslog_id)
 
     async def confirm_POST(self):
         self.app.base_model.confirm()
@@ -147,7 +147,9 @@ class SubiquityServer(Application):
         else:
             connection = SnapdConnection(self.root, self.snapd_socket_path)
         self.snapd = AsyncSnapd(connection)
-        self.syslog_id = 'subiquity.{}'.format(os.getpid())
+        self.event_syslog_id = 'subiquity_event.{}'.format(os.getpid())
+        self.log_syslog_id = 'subiquity_log.{}'.format(os.getpid())
+        self.commands_syslog_id = 'subiquity_commands.{}'.format(os.getpid())
         self.event_listeners = []
 
     def update_status(self, status):
@@ -191,7 +193,8 @@ class SubiquityServer(Application):
         journal.send(
             msg,
             PRIORITY=context.level,
-            SYSLOG_IDENTIFIER=self.syslog_id,
+            SYSLOG_IDENTIFIER=self.event_syslog_id,
+            SUBIQUITY_CONTEXT_NAME=context.full_name(),
             SUBIQUITY_EVENT_TYPE=event_type,
             SUBIQUITY_CONTEXT_ID=str(context.id),
             SUBIQUITY_CONTEXT_PARENT_ID=parent_id)
@@ -214,6 +217,14 @@ class SubiquityServer(Application):
     async def apply_autoinstall_config(self):
         for controller in self.controllers.instances:
             if not controller.interactive():
+                if self.base_model.needs_confirmation:
+                    if 'autoinstall' in self.kernel_cmdline:
+                        self.base_model.confirm()
+                    else:
+                        journal.send(
+                            "", SYSLOG_IDENTIFIER=self.event_syslog_id,
+                            SUBIQUITY_CONFIRMATION="yes")
+                        await self.base_model.confirmation.wait()
                 await controller.apply_autoinstall_config()
                 controller.configured()
 

@@ -135,23 +135,39 @@ class SubiquityClient(AsyncTuiApplication):
                 state = await self.client.meta.status.GET()
             print()
         if state.status == ApplicationStatus.EARLY_COMMANDS:
-            print("early commands...", end='', flush=True)
+            print("early commands...")
+
+            def cb(e):
+                print(e['MESSAGE'])
+
+            fd1, watcher1 = journald_listener(
+                [state.commands_syslog_id],
+                cb)
+            self.aio_loop.add_reader(fd1, watcher1)
             state = await self.client.meta.status.GET(state.status)
-            print()
+            await asyncio.sleep(0.5)
+            self.aio_loop.remove_reader(fd1)
         if state.status == ApplicationStatus.INTERACTIVE:
             fd1, watcher1 = journald_listener(
-                [state.event_syslog_identifier],
+                [state.event_syslog_id],
                 self.controllers.Progress.event)
             self.aio_loop.add_reader(fd1, watcher1)
             fd2, watcher2 = journald_listener(
-                [state.log_syslog_identifier],
+                [state.log_syslog_id],
                 self.controllers.Progress.log_line)
             self.aio_loop.add_reader(fd2, watcher2)
             self.start_urwid()
             self.select_initial_screen(self.initial_controller_index())
         else:
-            print(state.status)
-            self.aio_loop.stop()
+            def cb2(e):
+                if 'SUBIQUITY_CONFIRMATION' in e:
+                    input("confirm?")
+                    self.aio_loop.create_task(self.client.meta.confirm.POST())
+                else:
+                    print(e["MESSAGE"])
+            fd1, watcher1 = journald_listener(
+                [state.event_syslog_id], cb2, seek=True)
+            self.aio_loop.add_reader(fd1, watcher1)
 
     async def shutdown(self):
         await self.conn.close()

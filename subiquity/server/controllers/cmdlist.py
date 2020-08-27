@@ -16,6 +16,8 @@
 import asyncio
 import os
 
+from systemd import journal
+
 from subiquitycore.context import with_context
 from subiquitycore.utils import arun_command
 
@@ -63,6 +65,30 @@ class CmdListController(NonInteractiveController):
 class EarlyController(CmdListController):
 
     autoinstall_key = 'early-commands'
+
+    @with_context()
+    async def run(self, context):
+        env = self.env()
+        for i, cmd in enumerate(self.cmds):
+            if isinstance(cmd, str):
+                desc = cmd
+            else:
+                desc = ' '.join(cmd)
+            with context.child("command_{}".format(i), desc):
+                if isinstance(cmd, str):
+                    cmd = ['sh', '-c', cmd]
+                journal.send(
+                    "  running " + desc,
+                    SYSLOG_IDENTIFIER=self.app.commands_syslog_id)
+                cmd = [
+                    'systemd-cat', '--level-prefix=false',
+                    '--identifier=' + self.app.commands_syslog_id,
+                    ] + cmd
+                await arun_command(
+                    cmd, env=env,
+                    stdin=None, stdout=None, stderr=None,
+                    check=self.cmd_check)
+        self.run_event.set()
 
 
 class LateController(CmdListController):

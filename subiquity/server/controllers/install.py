@@ -86,8 +86,7 @@ class InstallController(SubiquityController):
 
         self.unattended_upgrades_proc = None
         self.unattended_upgrades_ctx = None
-        self._event_syslog_identifier = 'curtin_event.%s' % (os.getpid(),)
-        self._log_syslog_identifier = 'curtin_log.%s' % (os.getpid(),)
+        self._event_syslog_id = 'curtin_event.%s' % (os.getpid(),)
         self.tb_extractor = TracebackExtractor()
         self.curtin_event_contexts = {}
 
@@ -125,12 +124,11 @@ class InstallController(SubiquityController):
         if self.tb_extractor.traceback:
             kw["Traceback"] = "\n".join(self.tb_extractor.traceback)
         self.error_ref = self.app.make_apport_report(
-            ErrorReportKind.INSTALL_FAIL, "install failed", interrupt=False,
-            **kw).ref()
+            ErrorReportKind.INSTALL_FAIL, "install failed", **kw).ref()
 
     def logged_command(self, cmd):
         return ['systemd-cat', '--level-prefix=false',
-                '--identifier=' + self._log_syslog_identifier] + cmd
+                '--identifier=' + self.app.log_syslog_id] + cmd
 
     def log_event(self, event):
         self.tb_extractor.feed(event['MESSAGE'])
@@ -186,7 +184,7 @@ class InstallController(SubiquityController):
                 event_file = "examples/curtin-events-fail.json"
             curtin_cmd = [
                 "python3", "scripts/replay-curtin-log.py", event_file,
-                self._event_syslog_identifier, log_location,
+                self._event_syslog_id, log_location,
                 ]
         else:
             config_location = os.path.join('/var/log/installer',
@@ -195,7 +193,7 @@ class InstallController(SubiquityController):
                           config_location, 'install']
             log_location = INSTALL_LOG
 
-        ident = self._event_syslog_identifier
+        ident = self._event_syslog_id
         self._write_config(config_location,
                            self.model.render(syslog_identifier=ident))
 
@@ -224,11 +222,11 @@ class InstallController(SubiquityController):
         self.curtin_event_contexts[''] = context
 
         journal_fd, watcher = journald_listener(
-            [self._event_syslog_identifier],
+            [self._event_syslog_id],
             self.curtin_event)
         self.app.aio_loop.add_reader(journal_fd, watcher)
         journal_fd, watcher = journald_listener(
-            [self._log_syslog_identifier],
+            [self.app.log_syslog_id],
             self.log_event)
         self.app.aio_loop.add_reader(journal_fd, watcher)
 

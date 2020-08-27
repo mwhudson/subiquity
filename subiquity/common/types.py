@@ -60,8 +60,9 @@ class ErrorReportRef:
 @attr.s(auto_attribs=True)
 class ApplicationState:
     status: ApplicationStatus
-    event_syslog_identifier: str = ""
-    log_syslog_identifier: str = ""
+    commands_syslog_id: str = ""
+    event_syslog_id: str = ""
+    log_syslog_id: str = ""
 
 
 class RefreshCheckState(enum.Enum):

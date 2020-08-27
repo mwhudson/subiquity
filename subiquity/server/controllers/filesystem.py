@@ -173,8 +173,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             except Exception:
                 block_discover_log.exception(
                     "block probing failed restricted=%s", restricted)
-                report = self.app.make_apport_report(
-                    kind, "block probing", interrupt=False)
+                report = self.app.make_apport_report(kind, "block probing")
                 if report is not None:
                     self._crash_reports[restricted] = report
                 continue
