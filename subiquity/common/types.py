@@ -168,6 +168,7 @@ class SnapListResponse:
 
 class InstallState(enum.Enum):
     NOT_STARTED = enum.auto()
+    NEEDS_CONFIRMATION = enum.auto()
     RUNNING = enum.auto()
     UU_RUNNING = enum.auto()
     UU_CANCELLING = enum.auto()

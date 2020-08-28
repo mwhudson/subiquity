@@ -22,6 +22,7 @@ from subiquitycore.context import with_context
 from subiquitycore.tuicontroller import Skip
 
 from subiquity.client.controller import SubiquityTuiController
+from subiquity.common.types import InstallState
 from subiquity.ui.views.installprogress import ProgressView
 
 
@@ -35,6 +36,7 @@ class ProgressController(SubiquityTuiController):
     def __init__(self, app):
         super().__init__(app)
         self.progress_view = ProgressView(self)
+        self.install_state = None
 
     def event(self, event):
         if event["SUBIQUITY_EVENT_TYPE"] == "start":
@@ -65,23 +67,27 @@ class ProgressController(SubiquityTuiController):
 
     @with_context()
     async def _wait_status(self, context):
-        install_state = None
         while True:
             try:
                 install_status = await self.endpoint.status.GET(
-                    cur=install_state)
+                    cur=self.install_state)
             except aiohttp.ClientError:
                 await asyncio.sleep(1)
                 continue
             except Skip:
                 return
-            install_state = install_status.state
+            self.install_state = install_status.state
             self.crash_report = install_status.error
             if self.crash_report:
                 await self.start_ui()
-            self.progress_view.update_for_status(install_state)
+            self.progress_view.update_for_status(self.install_state)
+            if (self.install_state == InstallState.NEEDS_CONFIRMATION and
+                    self.showing):
+                self.app.show_confirm_install()
             if self.ui.body is self.progress_view:
                 self.ui.set_header(self.progress_view.title)
 
     async def start_ui(self):
         await self.app.set_body(self.progress_view)
+        if self.install_state == InstallState.NEEDS_CONFIRMATION:
+            self.app.show_confirm_install()

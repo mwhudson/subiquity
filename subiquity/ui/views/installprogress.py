@@ -141,6 +141,9 @@ class ProgressView(BaseView):
         if status == InstallState.NOT_STARTED:
             self.title = _("Install progress")
             btns = []
+        elif status == InstallState.NEEDS_CONFIRMATION:
+            self.title = _("Install progress")
+            btns = []
         elif status == InstallState.RUNNING:
             self.title = _("Install progress")
             btns = [self.view_log_btn]
@@ -185,7 +188,10 @@ class ProgressView(BaseView):
         self.event_pile.base_widget.focus_position = 2
 
     def continue_(self, sender=None):
-        self.controller.app.next_screen()
+        if self.controller.showing:
+            self.controller.app.show_confirm_install()
+        else:
+            self.controller.app.next_screen()
 
     def hide_continue(self):
         btns = [self.view_log_btn]
@@ -240,7 +246,10 @@ class InstallConfirmation(Stretchy):
         self.app.remove_global_overlay(self)
         if isinstance(self.app.ui.body, ProgressView):
             self.app.ui.body.hide_continue()
-        self.app.next_screen(self.app.confirm_install())
+        if self.app.controllers.Progress.showing:
+            self.app.aio_loop.create_task(self.app.confirm_install())
+        else:
+            self.app.next_screen(self.app.confirm_install())
 
     def cancel(self, sender):
         self.app.remove_global_overlay(self)
