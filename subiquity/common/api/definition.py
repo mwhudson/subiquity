@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import enum
 from typing import List, Optional
 
 from .defs import api, simple_endpoint, Payload
@@ -73,13 +74,6 @@ class API:
         def GET() -> dict: ...
         def POST(data: dict): ...
 
-        class nic:
-            class ifindex:
-                def GET(ifindex: int) -> dict: ...
-
-        class new:
-            def GET() -> dict: ...
-
     class storage:
         def GET(wait: bool = False) -> StorageResponse: ...
         def POST(config: Payload[list]): ...
@@ -100,3 +94,18 @@ class API:
 
     class reboot:
         def POST(): ...
+
+
+class LinkAction:
+    NEW = enum.auto()
+    CHANGE = enum.auto()
+    DEL = enum.auto()
+
+
+@api
+class NetEventAPI:
+    class update_link:
+        def POST(act: LinkAction, info: NetDevInfo) -> None: ...
+
+    class route_watch:
+        def POST(routes: List[int]) -> None: ...
