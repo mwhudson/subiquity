@@ -96,36 +96,23 @@ class NetworkController(SubiquityTuiController):
     def done(self):
         self.app.next_screen(self.endpoint.POST())
 
-    def set_static_config(self, dev_info: NetDevInfo, ip_version: int,
+    def set_static_config(self, dev_name: str, ip_version: int,
                           static_config: StaticConfig) -> None:
-        #setattr(dev_info, 'static' + str(ip_version), static_config)
-        #getattr(dev_info, 'dhcp' + str(ip_version)).enabled = False
-
         self.app.aio_loop.create_task(
             self.endpoint.set_static_config.POST(
-                dev_info, ip_version, static_config))
+                dev_name, ip_version, static_config))
 
-    def enable_dhcp(self, dev_info: NetDevInfo, ip_version: int) -> None:
-        setattr(dev_info, 'static' + str(ip_version), StaticConfig())
-        getattr(dev_info, 'dhcp' + str(ip_version)).enabled = True
-        getattr(dev_info, 'dhcp' + str(ip_version)).state = DHCPState.PENDING
-
+    def enable_dhcp(self, dev_name, ip_version: int) -> None:
         self.app.aio_loop.create_task(
-            self.endpoint.enable_dhcp.POST(dev_info, ip_version))
+            self.endpoint.enable_dhcp.POST(dev_name, ip_version))
 
-    def disable_network(self, dev_info: NetDevInfo, ip_version: int) -> None:
-        setattr(dev_info, 'static' + str(ip_version), StaticConfig())
-        getattr(dev_info, 'dhcp' + str(ip_version)).enabled = False
-
+    def disable_network(self, dev_name: str, ip_version: int) -> None:
         self.app.aio_loop.create_task(
-            self.endpoint.disable.POST(dev_info, ip_version))
+            self.endpoint.disable.POST(dev_name, ip_version))
 
-    def add_vlan(self, dev_info: NetDevInfo, vlan_config: VLANConfig):
-        new = self.model.new_vlan(dev_info.name, vlan_config)
-        dev = self.model.get_netdev_by_name(dev_info.name)
-        self.update_link(dev)
-        self.apply_config()
-        return new.netdev_info()
+    def add_vlan(self, dev_name: str, vlan_id: int):
+        self.app.aio_loop.create_task(
+            self.endpoint.add_vlan.POST(dev_name, vlan_id))
 
     def delete_link(self, dev_info: NetDevInfo):
         touched_devices = set()

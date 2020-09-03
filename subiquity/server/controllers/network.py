@@ -225,18 +225,15 @@ class NetworkController(BaseNetworkController, SubiquityController):
             self.network_event_receiver.default_routes)
         self.configured()
 
-    async def set_static_config_POST(self, dev_info: NetDevInfo,
-                                     ip_version: int,
+    async def set_static_config_POST(self, dev_name: str, ip_version: int,
                                      static_config: StaticConfig) -> None:
-        self.set_static_config(dev_info, ip_version, static_config)
+        self.set_static_config(dev_name, ip_version, static_config)
 
-    async def enable_dhcp_POST(self, dev_info: NetDevInfo,
-                               ip_version: int) -> None:
-        self.enable_dhcp(dev_info, ip_version)
+    async def enable_dhcp_POST(self, dev_name: str, ip_version: int) -> None:
+        self.enable_dhcp(dev_name, ip_version)
 
-    async def disable_POST(self, dev_info: NetDevInfo,
-                           ip_version: int) -> None:
-        self.disable_network(dev_info, ip_version)
+    async def disable_POST(self, dev_name: str, ip_version: int) -> None:
+        self.disable_network(dev_name, ip_version)
 
     async def subscription_PUT(self, socket_path: str) -> None:
         log.debug('added subscription %s', socket_path)
@@ -246,10 +243,13 @@ class NetworkController(BaseNetworkController, SubiquityController):
         log.debug('removed subscription %s', socket_path)
         del self.clients[socket_path]
 
-    def update_link(self, netdev):
-        super().update_link(netdev)
-        dev_info = netdev.netdev_info()
+    def _send_update(self, act, dev):
+        dev_info = dev.netdev_info()
         for k, v in self.clients.items():
             log.debug('sending update to %s', k)
             self.app.aio_loop.create_task(
-                v.update_link.POST(LinkAction.CHANGE, dev_info))
+                v.update_link.POST(act, dev_info))
+
+    def update_link(self, dev):
+        super().update_link(dev)
+        self._send_update(LinkAction.CHANGE, dev)
