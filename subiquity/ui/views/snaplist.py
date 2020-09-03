@@ -254,12 +254,12 @@ class SnapInfoView(WidgetWrap):
 
 class FetchingInfo(WidgetWrap):
 
-    def __init__(self, parent, snap, aio_loop):
+    def __init__(self, parent, thing, aio_loop):
         self.parent = parent
         self.spinner = Spinner(aio_loop, style='dots')
         self.spinner.start()
         self.closed = False
-        text = _("Fetching info for {snap}").format(snap=snap.name)
+        text = _("Fetching info for {thing}").format(thing=thing)
         # | text |
         # 12    34
         self.width = len(text) + 4
@@ -350,7 +350,7 @@ class SnapCheckBox(CheckBox):
                 focus_buttons=False))
 
     def _show_fi(self):
-        self.fi = FetchingInfo(self.parent, self.snap, self.loop)
+        self.fi = FetchingInfo(self.parent, self.snap.name, self.loop)
         self.parent.show_overlay(self.fi, width=self.fi.width)
         self.min_fi_task = self.loop.create_task(asyncio.sleep(1))
 

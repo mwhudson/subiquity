@@ -19,6 +19,7 @@ Provides network device listings and extended network information
 
 """
 
+import asyncio
 import logging
 
 from urwid import (
@@ -57,6 +58,7 @@ from .network_configure_manual_interface import (
     ViewInterfaceInfo,
     )
 from .network_configure_wlan_interface import NetworkConfigureWLANStretchy
+from subiquity.ui.views.snaplist import FetchingInfo
 
 from subiquitycore.view import BaseView
 
@@ -208,6 +210,25 @@ class NetworkDeviceTable(WidgetWrap):
         self.table.insert_rows(1, self._address_rows())
 
 
+async def wait_with_indication(loop, loading_coro, show_load, hide_load):
+    min_show_task = None
+
+    def show_loading():
+        nonlocal min_show_task
+        min_show_task = loop.create_task(asyncio.sleep(1))
+        show_load()
+
+    handle = loop.call_later(0.1, show_loading)
+    d = await loop.create_task(loading_coro)
+    if min_show_task:
+        await min_show_task
+        hide_load()
+    else:
+        handle.cancel()
+
+    return d
+
+
 class NetworkView(BaseView):
     title = _("Network connections")
     excerpt = _("Configure at least one interface this server can use to talk "
@@ -266,11 +287,35 @@ class NetworkView(BaseView):
             focus_buttons=True,
             excerpt=_(self.excerpt)))
 
-    _action_INFO = _stretchy_shower(ViewInterfaceInfo)
     _action_EDIT_WLAN = _stretchy_shower(NetworkConfigureWLANStretchy)
     _action_EDIT_IPV4 = _stretchy_shower(EditNetworkStretchy, 4)
     _action_EDIT_IPV6 = _stretchy_shower(EditNetworkStretchy, 6)
     _action_ADD_VLAN = _stretchy_shower(AddVlanStretchy)
+
+    async def _load(self, name, dev_info):
+        loop = self.controller.app.aio_loop
+        fi = None
+
+        def show_load():
+            nonlocal fi
+            fi = FetchingInfo(self, dev_info.name, loop)
+            self.show_overlay(fi, width=fi.width)
+
+        def hide_load():
+            fi.close()
+
+        with self.controller.context.child(
+                "{}/get_info".format(dev_info.name)):
+            info = await wait_with_indication(
+                loop,
+                self.controller.get_info_for_netdev(dev_info.name),
+                show_load, hide_load)
+        stretchy = ViewInterfaceInfo(self, dev_info.name, info)
+        stretchy.attach_context(self.controller.context.child(name))
+        self.show_stretchy_overlay(stretchy)
+
+    def _action_INFO(self, name, dev_info):
+        self.controller.app.aio_loop.create_task(self._load(name, dev_info))
 
     def _action_EDIT_BOND(self, name, dev_info):
         stretchy = BondStretchy(

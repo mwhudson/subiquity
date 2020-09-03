@@ -311,15 +311,15 @@ class AddVlanStretchy(Stretchy):
 
 
 class ViewInterfaceInfo(Stretchy):
-    def __init__(self, parent, dev_info):
+    def __init__(self, parent, dev_name, info_txt):
         self.parent = parent
         widgets = [
-            Text(self.parent.controller.get_info_for_netdev(dev_info.name)),
+            Text(info_txt),
             Text(""),
             button_pile([done_btn(_("Close"), on_press=self.close)]),
             ]
         # {device} is the name of a network device
-        title = _("Info for {device}").format(device=dev_info.name)
+        title = _("Info for {device}").format(device=dev_name)
         super().__init__(title, widgets, 0, 2)
 
     def close(self, button=None):
