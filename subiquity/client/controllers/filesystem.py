@@ -187,18 +187,22 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
                 action.get("submit", True),
                 clean_suffix='vg')
         elif action['action'] == 'done':
+            async def t():
+                await self.app.confirm_install()
+                self.finish()
             if not self.ui.body.done.enabled:
                 raise Exception("answers did not provide complete fs config")
-            self.app.confirm_install()
-            self.finish()
+            self.app.aio_loop.create_task(t())
         else:
             raise Exception("could not process action {}".format(action))
 
     def manual(self):
         self.ui.set_body(FilesystemView(self.model, self))
         if self.answers['guided']:
-            self.app.confirm_install()
-            self.finish()
+            async def t():
+                await self.app.confirm_install()
+                self.finish()
+            self.app.aio_loop.create_task(t())
         if self.answers['manual']:
             self._run_iterator(self._run_actions(self.answers['manual']))
             self.answers['manual'] = []

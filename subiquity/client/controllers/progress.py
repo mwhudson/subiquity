@@ -37,6 +37,7 @@ class ProgressController(SubiquityTuiController):
         super().__init__(app)
         self.progress_view = ProgressView(self)
         self.install_state = None
+        self.answers = app.answers.get("InstallProgress", {})
 
     def event(self, event):
         if event["SUBIQUITY_EVENT_TYPE"] == "start":
@@ -86,6 +87,9 @@ class ProgressController(SubiquityTuiController):
                 self.app.show_confirm_install()
             if self.ui.body is self.progress_view:
                 self.ui.set_header(self.progress_view.title)
+            if self.answers.get('reboot', False):
+                if self.install_state == InstallState.DONE:
+                    self.click_reboot()
 
     async def start_ui(self):
         await self.app.set_body(self.progress_view)
