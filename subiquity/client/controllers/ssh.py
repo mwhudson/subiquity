@@ -111,7 +111,8 @@ class SSHController(SubiquityTuiController):
 
     def fetch_ssh_keys(self, ssh_import_id, ssh_data):
         self._fetch_task = schedule_task(
-            self._fetch_ssh_keys(ssh_import_id=ssh_import_id, ssh_data=ssh_data))
+            self._fetch_ssh_keys(
+                ssh_import_id=ssh_import_id, ssh_data=ssh_data))
 
     def done(self, result):
         log.debug("SSHController.done next_screen result=%s", result)

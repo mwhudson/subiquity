@@ -231,7 +231,8 @@ class NetworkController(BaseNetworkController, SubiquityController):
         client = EventClient(socket_path).client
         self.clients[socket_path] = client
         self.app.aio_loop.create_task(
-            client.route_watch.POST(self.network_event_receiver.default_routes))
+            client.route_watch.POST(
+                self.network_event_receiver.default_routes))
 
     async def subscription_DELETE(self, socket_path: str) -> None:
         log.debug('removed subscription %s', socket_path)

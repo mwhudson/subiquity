@@ -15,7 +15,6 @@
 
 import logging
 
-from subiquitycore.context import with_context
 from subiquitycore.tuicontroller import (
     RepeatedController,
     TuiController,

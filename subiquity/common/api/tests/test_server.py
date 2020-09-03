@@ -15,7 +15,6 @@
 
 import asyncio
 import contextlib
-import typing
 import unittest
 
 from aiohttp.test_utils import TestClient, TestServer

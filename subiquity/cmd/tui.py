@@ -155,10 +155,10 @@ def main():
     subiquity_interface = SubiquityClient(opts)
     subiquity_interface.server_proc = server_proc
 
-    # subiquity_interface.note_file_for_apport(
-    #     "InstallerClientLog", logfiles['debug'])
-    # subiquity_interface.note_file_for_apport(
-    #     "InstallerClientLogInfo", logfiles['info'])
+    subiquity_interface.note_file_for_apport(
+        "InstallerClientLog", logfiles['debug'])
+    subiquity_interface.note_file_for_apport(
+        "InstallerClientLogInfo", logfiles['info'])
 
     try:
         subiquity_interface.run()

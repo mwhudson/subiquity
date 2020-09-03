@@ -135,10 +135,10 @@ def main():
 
     subiquity_interface = SubiquityServer(opts, block_log_dir)
 
-    # subiquity_interface.note_file_for_apport(
-    #     "InstallerServerLog", logfiles['debug'])
-    # subiquity_interface.note_file_for_apport(
-    #     "InstallerServerLogInfo", logfiles['info'])
+    subiquity_interface.note_file_for_apport(
+        "InstallerServerLog", logfiles['debug'])
+    subiquity_interface.note_file_for_apport(
+        "InstallerServerLogInfo", logfiles['info'])
 
     subiquity_interface.run()
 

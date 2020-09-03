@@ -169,7 +169,7 @@ class SnapListController(SubiquityController):
         return [attr.asdict(sel) for sel in self.model.selections]
 
     async def GET(self, wait: bool = False) -> SnapListResponse:
-        if self.loader.failed:  # or not self.app.base_model.network.has_network:
+        if self.loader.failed or not self.app.base_model.network.has_network:
             return SnapListResponse(status=SnapCheckState.FAILED)
         if not self.loader.snap_list_fetched and not wait:
             return SnapListResponse(status=SnapCheckState.LOADING)

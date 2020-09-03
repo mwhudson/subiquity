@@ -20,7 +20,6 @@ from subiquitycore.models.network import (
     BondConfig,
     NetDevInfo,
     StaticConfig,
-    VLANConfig,
     )
 
 from .defs import api, simple_endpoint, Payload

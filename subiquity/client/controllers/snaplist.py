@@ -15,8 +15,6 @@
 
 import logging
 
-import attr
-
 from subiquitycore.tuicontroller import (
     Skip,
     )
