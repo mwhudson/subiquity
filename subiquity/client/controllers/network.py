@@ -14,6 +14,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import os
+import shutil
+import tempfile
+from typing import List
+
+from aiohttp import web
 
 from subiquitycore.models.network import (
     DHCPState,
@@ -26,6 +32,8 @@ from subiquitycore.models.network import (
 from subiquitycore.ui.views.network import NetworkView
 
 from subiquity.client.controller import SubiquityTuiController
+from subiquity.common.api.definition import LinkAction, NetEventAPI
+from subiquity.common.api.server import bind
 
 log = logging.getLogger('subiquity.client.controllers.network')
 
@@ -34,15 +42,53 @@ class NetworkController(SubiquityTuiController):
 
     endpoint_name = 'network'
 
+    def __init__(self, app):
+        super().__init__(app)
+        self.view = None
+
+    def generic_result(self):
+        return {}
+
+    async def update_link_POST(self, act: LinkAction,
+                               info: NetDevInfo) -> None:
+        if self.view is None:
+            return
+        if act == LinkAction.CHANGE:
+            self.view.update_link(info)
+
+    async def route_watch_POST(self, routes: List[int]) -> None: ...
+
+    async def apply_starting_POST(self) -> None: ...
+
+    async def apply_stopping_POST(self) -> None: ...
+
+    async def apply_error_POST(self, stage: str) -> None: ...
+
+    async def subscribe(self):
+        self.tdir = tempfile.mkdtemp()
+        self.sock_path = os.path.join(self.tdir, 'socket')
+        app = web.Application()
+        bind(app.router, NetEventAPI, self)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        self.site = web.UnixSite(runner, self.sock_path)
+        await self.site.start()
+        await self.endpoint.subscription.PUT(self.sock_path)
+
+    async def unsubscribe(self):
+        await self.endpoint.subscription.DELETE(self.sock_path)
+        await self.site.stop()
+        shutil.rmtree(self.tdir)
+
     async def start_ui(self):
         netdev_infos = await self.endpoint.GET()
         self.view = NetworkView(self, netdev_infos)
-        # subscribe
+        await self.subscribe()
         await self.app.set_body(self.view)
 
-    def end_ui(Self):
-        # unsubscribe
-        pass
+    def end_ui(self):
+        self.view = None
+        self.app.aio_loop.create_task(self.unsubscribe())
 
     def cancel(self):
         self.app.prev_screen()
@@ -52,8 +98,8 @@ class NetworkController(SubiquityTuiController):
 
     def set_static_config(self, dev_info: NetDevInfo, ip_version: int,
                           static_config: StaticConfig) -> None:
-        setattr(dev_info, 'static' + str(ip_version), static_config)
-        getattr(dev_info, 'dhcp' + str(ip_version)).enabled = False
+        #setattr(dev_info, 'static' + str(ip_version), static_config)
+        #getattr(dev_info, 'dhcp' + str(ip_version)).enabled = False
 
         self.app.aio_loop.create_task(
             self.endpoint.set_static_config.POST(

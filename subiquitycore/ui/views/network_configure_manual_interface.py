@@ -251,7 +251,6 @@ class EditNetworkStretchy(Stretchy):
             self.parent.controller.disable_network(
                 self.dev_info, self.ip_version)
             log.debug("EditNetworkStretchy %s, disabled", self.ip_version)
-        self.parent.update_link(self.dev_info)
         self.parent.remove_overlay()
 
     def cancel(self, sender=None):

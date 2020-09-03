@@ -14,8 +14,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import contextlib
 import logging
 from typing import List
+
+import aiohttp
 
 from subiquitycore.async_helpers import schedule_task
 from subiquitycore.context import with_context
@@ -25,7 +28,12 @@ from subiquitycore.models.network import (
     StaticConfig,
     )
 
-from subiquity.common.api.definition import API
+from subiquity.common.api.client import make_client
+from subiquity.common.api.definition import (
+    API,
+    LinkAction,
+    NetEventAPI,
+    )
 from subiquity.common.errorreport import ErrorReportKind
 from subiquity.server.controller import SubiquityController
 
@@ -71,6 +79,26 @@ NETPLAN_SCHEMA = {
     }
 
 
+class EventClient:
+
+    def __init__(self, socket_path):
+        self.conn = aiohttp.UnixConnector(path=socket_path)
+        self.client = make_client(NetEventAPI, self.make_request)
+
+    @contextlib.asynccontextmanager
+    async def session(self):
+        async with aiohttp.ClientSession(
+                connector=self.conn, connector_owner=False) as session:
+            yield session
+
+    async def make_request(self, method, path, *, params, json):
+        async with self.session() as session:
+            async with session.request(
+                    method, 'http://a' + path, json=json,
+                    params=params, timeout=0) as response:
+                return await response.json()
+
+
 class NetworkController(BaseNetworkController, SubiquityController):
 
     endpoint = API.network
@@ -94,6 +122,7 @@ class NetworkController(BaseNetworkController, SubiquityController):
         super().__init__(app)
         app.note_file_for_apport("NetplanConfig", self.netplan_path)
         self.view_shown = False
+        self.clients = {}
 
     def load_autoinstall_data(self, data):
         if data is not None:
@@ -208,3 +237,19 @@ class NetworkController(BaseNetworkController, SubiquityController):
     async def disable_POST(self, dev_info: NetDevInfo,
                            ip_version: int) -> None:
         self.disable_network(dev_info, ip_version)
+
+    async def subscription_PUT(self, socket_path: str) -> None:
+        log.debug('added subscription %s', socket_path)
+        self.clients[socket_path] = EventClient(socket_path).client
+
+    async def subscription_DELETE(self, socket_path: str) -> None:
+        log.debug('removed subscription %s', socket_path)
+        del self.clients[socket_path]
+
+    def update_link(self, netdev):
+        super().update_link(netdev)
+        dev_info = netdev.netdev_info()
+        for k, v in self.clients.items():
+            log.debug('sending update to %s', k)
+            self.app.aio_loop.create_task(
+                v.update_link.POST(LinkAction.CHANGE, dev_info))

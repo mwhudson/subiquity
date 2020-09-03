@@ -469,6 +469,7 @@ class BaseNetworkController(BaseController):
         ns = dev.config.setdefault('nameservers', {})
         ns.setdefault('addresses', []).extend(static_config.nameservers)
         ns.setdefault('search', []).extend(static_config.searchdomains)
+        self.update_link(dev)
         self.apply_config()
 
     def enable_dhcp(self, dev_info: NetDevInfo, ip_version: int) -> None:
@@ -601,10 +602,6 @@ class NetworkController(BaseNetworkController, TuiController):
 
     def update_link(self, netdev):
         super().update_link(netdev)
-        for v, e in netdev.dhcp_events.items():
-            if netdev.dhcp_addresses()[v]:
-                netdev.set_dhcp_state(v, DHCPState.CONFIGURED)
-                e.set()
         if self.view is not None:
             self.view.update_link(netdev.netdev_info())
 
