@@ -16,6 +16,13 @@
 import enum
 from typing import List, Optional
 
+from subiquitycore.models.network import (
+    BondConfig,
+    NetDevInfo,
+    StaticConfig,
+    VLANConfig,
+    )
+
 from .defs import api, simple_endpoint, Payload
 from subiquity.common.types import (
     ApplicationState,
@@ -71,8 +78,36 @@ class API:
             def GET(change_id: str) -> dict: ...
 
     class network:
-        def GET() -> dict: ...
-        def POST(data: dict): ...
+        def GET() -> List[NetDevInfo]: ...
+        def POST() -> None: ...
+
+        # class subscription:
+        #     def PUT(socket_path: str) -> None: ...
+        #     def DELETE(socket_path: str) -> None: ...
+
+        class set_static_config:
+            def POST(dev_info: NetDevInfo, ip_version: int,
+                     static_config: Payload[StaticConfig]) -> None: ...
+
+        # class enable_dhcp:
+        #     def POST(dev_info: NetDevInfo, ip_version: int) -> None: ...
+        #
+        # class disable:
+        #     def POST(dev_info: NetDevInfo, ip_version: int) -> None: ...
+        #
+        # class add_vlan:
+        #     def POST(dev_info: NetDevInfo,
+        #              vlan_config: VLANConfig) -> None: ...
+        #
+        # class add_or_edit_bond:
+        #     def POST(dev_info: NetDevInfo,
+        #              bond_config: BondConfig) -> None: ...
+        #
+        # class delete:
+        #     def POST(dev_info: NetDevInfo) -> None: ...
+        #
+        # class info:
+        #     def GET(dev_info: NetDevInfo) -> str: ...
 
     class storage:
         def GET(wait: bool = False) -> StorageResponse: ...
@@ -109,3 +144,12 @@ class NetEventAPI:
 
     class route_watch:
         def POST(routes: List[int]) -> None: ...
+
+    class apply_starting:
+        def POST() -> None: ...
+
+    class apply_stopping:
+        def POST() -> None: ...
+
+    class apply_error:
+        def POST(stage: str) -> None: ...

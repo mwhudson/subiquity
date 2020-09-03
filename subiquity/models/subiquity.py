@@ -70,7 +70,7 @@ INSTALL_MODEL_NAMES = [
     "filesystem",
     "keyboard",
     "mirror",
-    #    "network",
+    "network",
     "proxy",
     ]
 

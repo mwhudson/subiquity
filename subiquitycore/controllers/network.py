@@ -35,6 +35,7 @@ from subiquitycore.models.network import (
     WLANConfig,
     )
 from subiquitycore import netplan
+from subiquitycore.controller import BaseController
 from subiquitycore.tuicontroller import TuiController
 from subiquitycore.ui.stretchy import StretchyOverlay
 from subiquitycore.ui.views.network import (
@@ -123,7 +124,7 @@ network:
 '''
 
 
-class NetworkController(TuiController):
+class BaseNetworkController(BaseController):
 
     model_name = "network"
     root = "/"
@@ -131,7 +132,6 @@ class NetworkController(TuiController):
     def __init__(self, app):
         super().__init__(app)
         self.view = None
-        self.view_shown = False
         self.apply_config_task = SingleInstanceTask(self._apply_config)
         if self.opts.dry_run:
             self.root = os.path.abspath(".subiquity")
@@ -154,24 +154,18 @@ class NetworkController(TuiController):
     def update_default_routes(self, routes):
         if routes:
             self.signal.emit_signal('network-change')
-        if self.view:
-            self.view.update_default_routes(routes)
 
     def new_link(self, netdev):
-        if self.view is not None:
-            self.view.new_link(netdev.netdev_info())
+        pass
 
     def update_link(self, netdev):
         for v, e in netdev.dhcp_events.items():
             if netdev.dhcp_addresses()[v]:
                 netdev.set_dhcp_state(v, DHCPState.CONFIGURED)
                 e.set()
-        if self.view is not None:
-            self.view.update_link(netdev.netdev_info())
 
     def del_link(self, netdev):
-        if self.view is not None:
-            self.view.del_link(netdev.netdev_info())
+        pass
 
     def start(self):
         self._observer_handles = []
@@ -340,6 +334,15 @@ class NetworkController(TuiController):
 
         self.parse_netplan_configs()
 
+    def apply_starting(self):
+        pass
+
+    def apply_stopping(self):
+        pass
+
+    def apply_error(self, stage):
+        pass
+
     @with_context(
         name="apply_config", description="silent={silent}", level="INFO")
     async def _apply_config(self, *, context, silent):
@@ -370,7 +373,7 @@ class NetworkController(TuiController):
         self._write_config()
 
         if not silent and self.view:
-            self.view.show_apply_spinner()
+            self.apply_starting()
 
         try:
             def error(stage):
@@ -424,15 +427,15 @@ class NetworkController(TuiController):
                         ['systemctl', 'start', 'systemd-networkd.socket'],
                         check=False)
         finally:
-            if not silent and self.view:
-                self.view.hide_apply_spinner()
+            if not silent:
+                self.apply_stopping()
 
-        if self.answers.get('accept-default', False):
-            self.done()
-        elif self.answers.get('actions', False):
-            actions = self.answers['actions']
-            self.answers.clear()
-            self._run_iterator(self._run_actions(actions))
+        # if self.answers.get('accept-default', False):
+        #     self.done()
+        # elif self.answers.get('actions', False):
+        #     actions = self.answers['actions']
+        #     self.answers.clear()
+        #     self._run_iterator(self._run_actions(actions))
 
         if not dhcp_events:
             return
@@ -449,32 +452,6 @@ class NetworkController(TuiController):
             if not dev.dhcp_addresses()[v]:
                 dev.set_dhcp_state(v, DHCPState.TIMED_OUT)
                 self.network_event_receiver.update_link(dev.ifindex)
-
-    def start_ui(self):
-        if not self.view_shown:
-            self.update_initial_configs()
-        netdev_infos = [
-            dev.netdev_info() for dev in self.model.get_all_netdevs()
-            ]
-        self.view = NetworkView(self, netdev_infos)
-        if not self.view_shown:
-            self.apply_config(silent=True)
-            self.view_shown = True
-        self.view.update_default_routes(
-            self.network_event_receiver.default_routes)
-        self.ui.set_body(self.view)
-
-    def end_ui(self):
-        self.view = None
-
-    def done(self):
-        log.debug("NetworkController.done next_screen")
-        self.model.has_network = bool(
-            self.network_event_receiver.default_routes)
-        self.app.next_screen()
-
-    def cancel(self):
-        self.app.prev_screen()
 
     def set_static_config(self, dev_info: NetDevInfo, ip_version: int,
                           static_config: StaticConfig) -> None:
@@ -588,3 +565,76 @@ class NetworkController(TuiController):
         device = self.model.get_netdev_by_name(dev_info.name)
         self.observer.trigger_scan(device.ifindex)
         self.update_link(device)
+
+
+class NetworkController(BaseNetworkController, TuiController):
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.view = None
+        self.view_shown = False
+
+    def apply_starting(self):
+        super().apply_starting()
+        if self.view is not None:
+            self.view.show_apply_spinner()
+
+    def apply_stopping(self):
+        super().apply_stopping()
+        if self.view is not None:
+            self.view.hide_apply_spinner()
+
+    def apply_error(self, stage):
+        super().apply_error()
+        if self.view is not None:
+            self.view.show_network_error(stage)
+
+    def update_default_routes(self, routes):
+        super().update_default_routes(routes)
+        if self.view is not None:
+            self.view.update_default_routes(routes)
+
+    def new_link(self, netdev):
+        super().new_link(netdev)
+        if self.view is not None:
+            self.view.new_link(netdev.netdev_info())
+
+    def update_link(self, netdev):
+        super().update_link(netdev)
+        for v, e in netdev.dhcp_events.items():
+            if netdev.dhcp_addresses()[v]:
+                netdev.set_dhcp_state(v, DHCPState.CONFIGURED)
+                e.set()
+        if self.view is not None:
+            self.view.update_link(netdev.netdev_info())
+
+    def del_link(self, netdev):
+        super().del_link(netdev)
+        if self.view is not None:
+            self.view.del_link(netdev.netdev_info())
+
+    def start_ui(self):
+        if not self.view_shown:
+            self.update_initial_configs()
+        netdev_infos = [
+            dev.netdev_info() for dev in self.model.get_all_netdevs()
+            ]
+        self.view = NetworkView(self, netdev_infos)
+        if not self.view_shown:
+            self.apply_config(silent=True)
+            self.view_shown = True
+        self.view.update_default_routes(
+            self.network_event_receiver.default_routes)
+        self.ui.set_body(self.view)
+
+    def end_ui(self):
+        self.view = None
+
+    def done(self):
+        log.debug("NetworkController.done next_screen")
+        self.model.has_network = bool(
+            self.network_event_receiver.default_routes)
+        self.app.next_screen()
+
+    def cancel(self):
+        self.app.prev_screen()

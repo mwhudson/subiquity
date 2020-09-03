@@ -107,7 +107,7 @@ class SubiquityServer(Application):
         "Refresh",
         "Keyboard",
         # "Zdev",
-        # "Network",
+        "Network",
         "Proxy",
         "Mirror",
         "Filesystem",

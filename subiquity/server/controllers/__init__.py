@@ -19,6 +19,7 @@ from .filesystem import FilesystemController
 from .identity import IdentityController
 from .install import InstallController
 from .keyboard import KeyboardController
+from .network import NetworkController
 from .package import PackageController
 from .proxy import ProxyController
 from .mirror import MirrorController
@@ -39,14 +40,15 @@ __all__ = [
     'InstallController',
     'KeyboardController',
     'LateController',
+    'MirrorController',
+    'NetworkController',
     'PackageController',
     'ProxyController',
-    'MirrorController',
-    'RefreshController',
     'RebootController',
+    'RefreshController',
     'ReportingController',
-    'SnapListController',
     'SSHController',
+    'SnapListController',
     'UserdataController',
     'WelcomeController',
 ]

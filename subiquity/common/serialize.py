@@ -73,6 +73,9 @@ class Serializer:
         return r
 
     def serialize(self, annotation, value, metadata=None):
+        if annotation is None:
+            assert value is None
+            return None
         if annotation is inspect.Signature.empty:
             return value
         if attr.has(annotation):
@@ -105,6 +108,9 @@ class Serializer:
         return annotation(**args)
 
     def deserialize(self, annotation, value, metadata=None):
+        if annotation is None:
+            assert value is None
+            return None
         if annotation is inspect.Signature.empty:
             return value
         if attr.has(annotation):

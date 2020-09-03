@@ -17,6 +17,7 @@ from .filesystem import FilesystemController
 from .keyboard import KeyboardController
 from .identity import IdentityController
 from .mirror import MirrorController
+from .network import NetworkController
 from .progress import ProgressController
 from .proxy import ProxyController
 from .refresh import RefreshController
@@ -27,14 +28,15 @@ from .welcome import WelcomeController
 
 __all__ = [
     'FilesystemController',
-    'KeyboardController',
     'IdentityController',
+    'KeyboardController',
     'MirrorController',
+    'NetworkController',
     'ProgressController',
     'ProxyController',
     'RefreshController',
     'RepeatedController',
-    'SnapListController',
     'SSHController',
+    'SnapListController',
     'WelcomeController',
     ]

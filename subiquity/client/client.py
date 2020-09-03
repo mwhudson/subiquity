@@ -71,6 +71,7 @@ class SubiquityClient(AsyncTuiApplication):
         "Welcome",
         "Refresh",
         "Keyboard",
+        "Network",
         "Proxy",
         "Mirror",
         "Refresh",
