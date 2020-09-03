@@ -17,16 +17,14 @@ import logging
 import os
 import shutil
 import tempfile
-from typing import List
+from typing import List, Optional
 
 from aiohttp import web
 
 from subiquitycore.models.network import (
-    DHCPState,
+    BondConfig,
     NetDevInfo,
     StaticConfig,
-    VLANConfig,
-    BondConfig,
     )
 
 from subiquitycore.ui.views.network import NetworkView
@@ -53,10 +51,16 @@ class NetworkController(SubiquityTuiController):
                                info: NetDevInfo) -> None:
         if self.view is None:
             return
+        if act == LinkAction.NEW:
+            self.view.new_link(info)
         if act == LinkAction.CHANGE:
             self.view.update_link(info)
+        if act == LinkAction.DEL:
+            self.view.del_link(info)
 
-    async def route_watch_POST(self, routes: List[int]) -> None: ...
+    async def route_watch_POST(self, routes: List[int]) -> None:
+        if self.view is not None:
+            self.view.update_default_routes(routes)
 
     async def apply_starting_POST(self) -> None: ...
 
@@ -112,54 +116,16 @@ class NetworkController(SubiquityTuiController):
 
     def add_vlan(self, dev_name: str, vlan_id: int):
         self.app.aio_loop.create_task(
-            self.endpoint.add_vlan.POST(dev_name, vlan_id))
+            self.endpoint.vlan.PUT(dev_name, vlan_id))
 
-    def delete_link(self, dev_info: NetDevInfo):
-        touched_devices = set()
-        if dev_info.type == "bond":
-            for device_name in dev_info.bond.interfaces:
-                interface = self.model.get_netdev_by_name(device_name)
-                touched_devices.add(interface)
-        elif dev_info.type == "vlan":
-            link = self.model.get_netdev_by_name(dev_info.vlan.link)
-            touched_devices.add(link)
-        dev_info.has_config = False
+    def delete_link(self, dev_name: str):
+        self.app.aio_loop.create_task(self.endpoint.delete.POST(dev_name))
 
-        device = self.model.get_netdev_by_name(dev_info.name)
-        self.del_link(device)
-        device.config = None
-        for dev in touched_devices:
-            self.update_link(dev)
-        self.apply_config()
+    def add_or_update_bond(self, existing_name: Optional[str],
+                           new_name: str, new_info: BondConfig) -> None:
+        self.app.aio_loop.create_task(
+            self.endpoint.add_or_edit_bond.POST(
+                existing_name, new_name, new_info))
 
-    def add_or_update_bond(self, existing_name: NetDevInfo, new_name: str,
-                           new_info: BondConfig) -> None:
-        get_netdev_by_name = self.model.get_netdev_by_name
-        touched_devices = set()
-        for device_name in new_info.interfaces:
-            device = get_netdev_by_name(device_name)
-            device.config = {}
-            touched_devices.add(device)
-        if existing_name is None:
-            new_dev = self.model.new_bond(new_name, new_info)
-            self.new_link(new_dev)
-        else:
-            existing = get_netdev_by_name(existing_name)
-            for interface in existing.config['interfaces']:
-                touched_devices.add(get_netdev_by_name(interface))
-            existing.config.update(new_info.to_config())
-            if existing.name != new_name:
-                config = existing.config
-                existing.config = None
-                self.del_link(existing)
-                existing.config = config
-                existing.name = new_name
-                self.new_link(existing)
-            else:
-                touched_devices.add(existing)
-        self.apply_config()
-        for dev in touched_devices:
-            self.update_link(dev)
-
-    async def get_info_for_netdev(self, dev_info: NetDevInfo) -> str:
-        return await self.endpoint.info.GET(dev_info.name)
+    async def get_info_for_netdev(self, dev_name: str) -> str:
+        return await self.endpoint.info.GET(dev_name)

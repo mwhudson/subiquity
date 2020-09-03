@@ -228,22 +228,52 @@ class NetworkController(BaseNetworkController, SubiquityController):
 
     async def subscription_PUT(self, socket_path: str) -> None:
         log.debug('added subscription %s', socket_path)
-        self.clients[socket_path] = EventClient(socket_path).client
+        client = EventClient(socket_path).client
+        self.clients[socket_path] = client
+        self.app.aio_loop.create_task(
+            client.route_watch.POST(self.network_event_receiver.default_routes))
 
     async def subscription_DELETE(self, socket_path: str) -> None:
         log.debug('removed subscription %s', socket_path)
         del self.clients[socket_path]
 
+    def apply_starting(self):
+        super().apply_starting()
+        for v in self.clients.values():
+            self.app.aio_loop.create_task(v.apply_starting.POST())
+
+    def apply_stopping(self):
+        super().apply_stopping()
+        for v in self.clients.values():
+            self.app.aio_loop.create_task(v.apply_stopping.POST())
+
+    def apply_error(self, stage):
+        super().apply_error()
+        for v in self.clients.values():
+            self.app.aio_loop.create_task(v.apply_error.POST(stage))
+
+    def update_default_routes(self, routes):
+        super().update_default_routes(routes)
+        for v in self.clients.values():
+            self.app.aio_loop.create_task(v.route_watch.POST(routes))
+
     def _send_update(self, act, dev):
         dev_info = dev.netdev_info()
         for k, v in self.clients.items():
             log.debug('sending update to %s', k)
-            self.app.aio_loop.create_task(
-                v.update_link.POST(act, dev_info))
+            self.app.aio_loop.create_task(v.update_link.POST(act, dev_info))
+
+    def new_link(self, dev):
+        super().new_link(dev)
+        self._send_update(LinkAction.NEW, dev)
 
     def update_link(self, dev):
         super().update_link(dev)
         self._send_update(LinkAction.CHANGE, dev)
+
+    def del_link(self, dev):
+        super().del_link(dev)
+        self._send_update(LinkAction.DEL, dev)
 
     async def set_static_config_POST(self, dev_name: str, ip_version: int,
                                      static_config: StaticConfig) -> None:
@@ -261,7 +291,7 @@ class NetworkController(BaseNetworkController, SubiquityController):
     async def add_or_edit_bond_POST(self, existing_name: Optional[str],
                                     new_name: str,
                                     bond_config: BondConfig) -> None:
-        self.add_or_edit_bond(existing_name, new_name, bond_config)
+        self.add_or_update_bond(existing_name, new_name, bond_config)
 
     async def delete_POST(self, dev_name: str) -> None:
         self.delete_link(dev_name)
