@@ -16,6 +16,7 @@
 import logging
 
 from subiquitycore.models.network import (
+    DHCPState,
     NetDevInfo,
     StaticConfig,
     VLANConfig,
@@ -63,20 +64,15 @@ class NetworkController(SubiquityTuiController):
         getattr(dev_info, 'dhcp' + str(ip_version)).enabled = True
         getattr(dev_info, 'dhcp' + str(ip_version)).state = DHCPState.PENDING
 
-        dev = self.model.get_netdev_by_name(dev_info.name)
-        dev.remove_ip_networks_for_version(ip_version)
-        dhcpkey = 'dhcp{v}'.format(v=ip_version)
-        dev.config[dhcpkey] = True
-        self.apply_config()
+        self.app.aio_loop.create_task(
+            self.endpoint.enable_dhcp.POST(dev_info, ip_version))
 
     def disable_network(self, dev_info: NetDevInfo, ip_version: int) -> None:
         setattr(dev_info, 'static' + str(ip_version), StaticConfig())
         getattr(dev_info, 'dhcp' + str(ip_version)).enabled = False
 
-        dev = self.model.get_netdev_by_name(dev_info.name)
-        dev.remove_ip_networks_for_version(ip_version)
-
-        self.apply_config()
+        self.app.aio_loop.create_task(
+            self.endpoint.disable.POST(dev_info, ip_version))
 
     def add_vlan(self, dev_info: NetDevInfo, vlan_config: VLANConfig):
         new = self.model.new_vlan(dev_info.name, vlan_config)

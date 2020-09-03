@@ -200,3 +200,11 @@ class NetworkController(BaseNetworkController, SubiquityController):
                                      ip_version: int,
                                      static_config: StaticConfig) -> None:
         self.set_static_config(dev_info, ip_version, static_config)
+
+    async def enable_dhcp_POST(self, dev_info: NetDevInfo,
+                               ip_version: int) -> None:
+        self.enable_dhcp(dev_info, ip_version)
+
+    async def disable_POST(self, dev_info: NetDevInfo,
+                           ip_version: int) -> None:
+        self.disable_network(dev_info, ip_version)
