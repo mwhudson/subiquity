@@ -4,7 +4,7 @@ import urwid
 
 from subiquitycore.testing import view_helpers
 
-from subiquity.controllers.welcome import WelcomeController
+from subiquity.client.controllers.welcome import WelcomeController
 from subiquity.models.locale import LocaleModel
 from subiquity.ui.views.welcome import WelcomeView
 
