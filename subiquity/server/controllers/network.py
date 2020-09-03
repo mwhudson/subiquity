@@ -16,7 +16,7 @@
 import asyncio
 import contextlib
 import logging
-from typing import List
+from typing import List, Optional
 
 import aiohttp
 
@@ -24,6 +24,7 @@ from subiquitycore.async_helpers import schedule_task
 from subiquitycore.context import with_context
 from subiquitycore.controllers.network import BaseNetworkController
 from subiquitycore.models.network import (
+    BondConfig,
     NetDevInfo,
     StaticConfig,
     )
@@ -225,16 +226,6 @@ class NetworkController(BaseNetworkController, SubiquityController):
             self.network_event_receiver.default_routes)
         self.configured()
 
-    async def set_static_config_POST(self, dev_name: str, ip_version: int,
-                                     static_config: StaticConfig) -> None:
-        self.set_static_config(dev_name, ip_version, static_config)
-
-    async def enable_dhcp_POST(self, dev_name: str, ip_version: int) -> None:
-        self.enable_dhcp(dev_name, ip_version)
-
-    async def disable_POST(self, dev_name: str, ip_version: int) -> None:
-        self.disable_network(dev_name, ip_version)
-
     async def subscription_PUT(self, socket_path: str) -> None:
         log.debug('added subscription %s', socket_path)
         self.clients[socket_path] = EventClient(socket_path).client
@@ -253,3 +244,27 @@ class NetworkController(BaseNetworkController, SubiquityController):
     def update_link(self, dev):
         super().update_link(dev)
         self._send_update(LinkAction.CHANGE, dev)
+
+    async def set_static_config_POST(self, dev_name: str, ip_version: int,
+                                     static_config: StaticConfig) -> None:
+        self.set_static_config(dev_name, ip_version, static_config)
+
+    async def enable_dhcp_POST(self, dev_name: str, ip_version: int) -> None:
+        self.enable_dhcp(dev_name, ip_version)
+
+    async def disable_POST(self, dev_name: str, ip_version: int) -> None:
+        self.disable_network(dev_name, ip_version)
+
+    async def vlan_PUT(self, dev_name: str, vlan_id: int) -> None:
+        self.add_vlan(dev_name, vlan_id)
+
+    async def add_or_edit_bond_POST(self, existing_name: Optional[str],
+                                    new_name: str,
+                                    bond_config: BondConfig) -> None:
+        self.add_or_edit_bond(existing_name, new_name, bond_config)
+
+    async def delete_POST(self, dev_name: str) -> None:
+        self.delete_link(dev_name)
+
+    async def info_GET(self, dev_name: str) -> str:
+        return self.get_info_for_netdev(dev_name)
