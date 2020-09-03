@@ -333,8 +333,7 @@ class ErrorReporter(object):
         self.dry_run = dry_run
         self.reports = []
         self._reports_by_base = {}
-        if dry_run:
-            self.crash_directory = os.path.join(root, 'var/crash')
+        self.crash_directory = os.path.join(root, 'var/crash')
         self.crashdb_spec = {
             'impl': 'launchpad',
             'project': 'subiquity',
