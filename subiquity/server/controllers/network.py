@@ -235,6 +235,8 @@ class NetworkController(BaseNetworkController, SubiquityController):
                 self.network_event_receiver.default_routes))
 
     async def subscription_DELETE(self, socket_path: str) -> None:
+        if socket_path not in self.clients:
+            return
         log.debug('removed subscription %s', socket_path)
         del self.clients[socket_path]
 

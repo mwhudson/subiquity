@@ -36,7 +36,6 @@ from subiquitycore.models.network import (
 from subiquitycore import netplan
 from subiquitycore.controller import BaseController
 from subiquitycore.tuicontroller import TuiController
-from subiquitycore.ui.stretchy import StretchyOverlay
 from subiquitycore.ui.views.network import (
     NetworkView,
     )
@@ -197,72 +196,6 @@ class BaseNetworkController(BaseController):
             loop.call_later(0.1, self.start_watching)
             return
         self.observer.data_ready(fd)
-
-    def _action_get(self, id):
-        dev_spec = id[0].split()
-        dev = None
-        if dev_spec[0] == "interface":
-            if dev_spec[1] == "index":
-                dev = self.model.get_all_netdevs()[int(dev_spec[2])]
-            elif dev_spec[1] == "name":
-                dev = self.model.get_netdev_by_name(dev_spec[2])
-        if dev is None:
-            raise Exception("could not resolve {}".format(id))
-        if len(id) > 1:
-            part, index = id[1].split()
-            if part == "part":
-                return dev.partitions()[int(index)]
-        else:
-            return dev
-        raise Exception("could not resolve {}".format(id))
-
-    def _action_clean_interfaces(self, devices):
-        r = [self._action_get(device).name for device in devices]
-        log.debug("%s", r)
-        return r
-
-    def _answers_action(self, action):
-        log.debug("_answers_action %r", action)
-        if 'obj' in action:
-            obj = self._action_get(action['obj']).netdev_info()
-            meth = getattr(
-                self.ui.body,
-                "_action_{}".format(action['action']))
-            action_obj = getattr(NetDevAction, action['action'])
-            table = self.ui.body.dev_name_to_table[obj.name]
-            self.ui.body._action(None, (action_obj, meth), table)
-            yield
-            body = self.ui.body._w
-            if not isinstance(body, StretchyOverlay):
-                return
-            for k, v in action.items():
-                if not k.endswith('data'):
-                    continue
-                form_name = "form"
-                submit_key = "submit"
-                if '-' in k:
-                    prefix = k.split('-')[0]
-                    form_name = prefix + "_form"
-                    submit_key = prefix + "-submit"
-                yield from self._enter_form_data(
-                    getattr(body.stretchy, form_name),
-                    v,
-                    action.get(submit_key, True))
-        elif action['action'] == 'create-bond':
-            self.ui.body._create_bond()
-            yield
-            body = self.ui.body._w
-            data = action['data'].copy()
-            if 'devices' in data:
-                data['interfaces'] = data.pop('devices')
-            yield from self._enter_form_data(
-                body.stretchy.form,
-                data,
-                action.get("submit", True))
-        elif action['action'] == 'done':
-            self.ui.body.done()
-        else:
-            raise Exception("could not process action {}".format(action))
 
     def update_initial_configs(self):
         # Any device that does not have a (global) address by the time

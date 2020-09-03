@@ -23,10 +23,11 @@ from aiohttp import web
 
 from subiquitycore.models.network import (
     BondConfig,
+    NetDevAction,
     NetDevInfo,
     StaticConfig,
     )
-
+from subiquitycore.ui.stretchy import StretchyOverlay
 from subiquitycore.ui.views.network import NetworkView
 
 from subiquity.client.controller import SubiquityTuiController
@@ -43,6 +44,64 @@ class NetworkController(SubiquityTuiController):
     def __init__(self, app):
         super().__init__(app)
         self.view = None
+
+    def _action_get(self, id):
+        dev_spec = id[0].split()
+        if dev_spec[0] == "interface":
+            if dev_spec[1] == "index":
+                name = self.view.cur_netdev_names[int(dev_spec[2])]
+            elif dev_spec[1] == "name":
+                name = dev_spec[2]
+            return self.view.dev_name_to_table[name]
+        raise Exception("could not resolve {}".format(id))
+
+    def _action_clean_interfaces(self, devices):
+        r = [self._action_get(device).dev_info.name for device in devices]
+        log.debug("%s", r)
+        return r
+
+    def _answers_action(self, action):
+        log.debug("_answers_action %r", action)
+        if 'obj' in action:
+            table = self._action_get(action['obj'])
+            meth = getattr(
+                self.ui.body,
+                "_action_{}".format(action['action']))
+            action_obj = getattr(NetDevAction, action['action'])
+            self.ui.body._action(None, (action_obj, meth), table)
+            yield
+            body = self.ui.body._w
+            if not isinstance(body, StretchyOverlay):
+                return
+            for k, v in action.items():
+                if not k.endswith('data'):
+                    continue
+                form_name = "form"
+                submit_key = "submit"
+                if '-' in k:
+                    prefix = k.split('-')[0]
+                    form_name = prefix + "_form"
+                    submit_key = prefix + "-submit"
+                yield from self._enter_form_data(
+                    getattr(body.stretchy, form_name),
+                    v,
+                    action.get(submit_key, True))
+        elif action['action'] == 'create-bond':
+            self.ui.body._create_bond()
+            yield
+            body = self.ui.body._w
+            data = action['data'].copy()
+            if 'devices' in data:
+                data['interfaces'] = data.pop('devices')
+            yield from self._enter_form_data(
+                body.stretchy.form,
+                data,
+                action.get("submit", True))
+            yield
+        elif action['action'] == 'done':
+            self.ui.body.done()
+        else:
+            raise Exception("could not process action {}".format(action))
 
     def generic_result(self):
         return {}
@@ -62,11 +121,17 @@ class NetworkController(SubiquityTuiController):
         if self.view is not None:
             self.view.update_default_routes(routes)
 
-    async def apply_starting_POST(self) -> None: ...
+    async def apply_starting_POST(self) -> None:
+        if self.view is not None:
+            self.view.show_apply_spinner()
 
-    async def apply_stopping_POST(self) -> None: ...
+    async def apply_stopping_POST(self) -> None:
+        if self.view is not None:
+            self.view.hide_apply_spinner()
 
-    async def apply_error_POST(self, stage: str) -> None: ...
+    async def apply_error_POST(self, stage: str) -> None:
+        if self.view is not None:
+            self.view.show_network_error(stage)
 
     async def subscribe(self):
         self.tdir = tempfile.mkdtemp()
@@ -89,10 +154,17 @@ class NetworkController(SubiquityTuiController):
         self.view = NetworkView(self, netdev_infos)
         await self.subscribe()
         await self.app.set_body(self.view)
+        if self.answers.get('accept-default', False):
+            self.done()
+        elif self.answers.get('actions', False):
+            actions = self.answers['actions']
+            self.answers.clear()
+            self._run_iterator(self._run_actions(actions))
 
     def end_ui(self):
-        self.view = None
-        self.app.aio_loop.create_task(self.unsubscribe())
+        if self.view is not None:
+            self.view = None
+            self.app.aio_loop.create_task(self.unsubscribe())
 
     def cancel(self):
         self.app.prev_screen()

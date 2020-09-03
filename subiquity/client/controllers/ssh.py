@@ -48,7 +48,7 @@ class SSHController(SubiquityTuiController):
             ssh = SSHData(
                 install_server=self.answers.get("install_server", False),
                 authorized_keys=self.answers.get("authorized_keys", []),
-                pwauth=self.answers.get("pwauth", True))
+                allow_pw=self.answers.get("pwauth", True))
             self.done(ssh)
         elif 'ssh-import-id' in self.app.answers.get('Identity', {}):
             import_id = self.app.answers['Identity']['ssh-import-id']
