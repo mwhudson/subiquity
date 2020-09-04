@@ -19,8 +19,6 @@ import shutil
 import tempfile
 from typing import List, Optional
 
-from aiohttp import web
-
 from subiquitycore.models.network import (
     BondConfig,
     NetDevAction,
@@ -32,7 +30,7 @@ from subiquitycore.ui.views.network import NetworkView
 
 from subiquity.client.controller import SubiquityTuiController
 from subiquity.common.api.definition import LinkAction, NetEventAPI
-from subiquity.common.api.server import bind
+from subiquity.common.api.server import make_server_at_path
 
 log = logging.getLogger('subiquity.client.controllers.network')
 
@@ -136,12 +134,7 @@ class NetworkController(SubiquityTuiController):
     async def subscribe(self):
         self.tdir = tempfile.mkdtemp()
         self.sock_path = os.path.join(self.tdir, 'socket')
-        app = web.Application()
-        bind(app.router, NetEventAPI, self)
-        runner = web.AppRunner(app)
-        await runner.setup()
-        self.site = web.UnixSite(runner, self.sock_path)
-        await self.site.start()
+        self.site = make_server_at_path(self.sock_path, NetEventAPI, self)
         await self.endpoint.subscription.PUT(self.sock_path)
 
     async def unsubscribe(self):

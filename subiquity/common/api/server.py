@@ -122,3 +122,13 @@ def bind(router, endpoint, controller, serializer=None, _depth=None):
                 method=method,
                 path=endpoint.fullpath,
                 handler=_make_handler(controller, v, impl, serializer))
+
+
+async def make_server_at_path(socket_path, endpoint, controller):
+    app = web.Application()
+    bind(app.router, endpoint, controller)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.UnixSite(runner, socket_path)
+    await site.start()
+    return site
