@@ -14,8 +14,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import attr
-import contextlib
 import unittest
+
+from subiquitycore import contextlib38
 
 from subiquity.common.api.client import make_client
 from subiquity.common.api.defs import api, Payload
@@ -27,7 +28,7 @@ from .test_server import (
     )
 
 
-@contextlib.asynccontextmanager
+@contextlib38.asynccontextmanager
 async def makeE2EClient(api, impl):
     async with makeTestClient(api, impl) as client:
 

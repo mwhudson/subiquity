@@ -14,7 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-import contextlib
 import logging
 import os
 import sys
@@ -22,6 +21,7 @@ import traceback
 
 import aiohttp
 
+from subiquitycore import contextlib38
 from subiquitycore.tuicontroller import Skip
 from subiquitycore.view import BaseView
 
@@ -99,7 +99,7 @@ class SubiquityClient(AsyncTuiApplication):
 
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
 
-    @contextlib.asynccontextmanager
+    @contextlib38.asynccontextmanager
     async def session(self):
         async with aiohttp.ClientSession(
                 connector=self.conn, connector_owner=False) as session:

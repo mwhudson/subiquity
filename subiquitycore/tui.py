@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 import os
 import yaml
@@ -276,3 +277,25 @@ class TuiApplication(Application):
         finally:
             if self.urwid_loop is not None:
                 self.urwid_loop.stop()
+
+    async def wait_with_indication(self, awaitable, show_load, hide_load):
+        min_show_task = None
+
+        def _show():
+            self.ui.block_input = False
+            nonlocal min_show_task
+            min_show_task = self.aio_loop.create_task(asyncio.sleep(1))
+            show_load()
+
+        self.ui.block_input = True
+        handle = self.aio_loop.call_later(0.1, _show)
+        result = await awaitable
+
+        if min_show_task:
+            await min_show_task
+            hide_load()
+        else:
+            self.ui.block_input = False
+            handle.cancel()
+
+        return result

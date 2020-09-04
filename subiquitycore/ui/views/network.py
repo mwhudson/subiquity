@@ -210,25 +210,6 @@ class NetworkDeviceTable(WidgetWrap):
         self.table.insert_rows(1, self._address_rows())
 
 
-async def wait_with_indication(loop, loading_coro, show_load, hide_load):
-    min_show_task = None
-
-    def show_loading():
-        nonlocal min_show_task
-        min_show_task = loop.create_task(asyncio.sleep(1))
-        show_load()
-
-    handle = loop.call_later(0.1, show_loading)
-    d = await loop.create_task(loading_coro)
-    if min_show_task:
-        await min_show_task
-        hide_load()
-    else:
-        handle.cancel()
-
-    return d
-
-
 class NetworkView(BaseView):
     title = _("Network connections")
     excerpt = _("Configure at least one interface this server can use to talk "
@@ -306,8 +287,7 @@ class NetworkView(BaseView):
 
         with self.controller.context.child(
                 "{}/get_info".format(dev_info.name)):
-            info = await wait_with_indication(
-                loop,
+            info = await self.app.wait_with_indication(
                 self.controller.get_info_for_netdev(dev_info.name),
                 show_load, hide_load)
         stretchy = ViewInterfaceInfo(self, dev_info.name, info)

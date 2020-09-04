@@ -14,13 +14,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-import contextlib
 import unittest
 
 from aiohttp.test_utils import TestClient, TestServer
 from aiohttp import web
 
 from subiquitycore.context import Context
+from subiquitycore import contextlib38
 
 from subiquity.common.api.defs import api, Payload
 from subiquity.common.api.server import bind
@@ -51,7 +51,7 @@ class TestControllerBase:
         return self.generic
 
 
-@contextlib.asynccontextmanager
+@contextlib38.asynccontextmanager
 async def makeTestClient(api, impl):
     app = web.Application()
     bind(app.router, api, impl)
