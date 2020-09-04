@@ -20,7 +20,7 @@ apps:
     command: usr/bin/console-conf
   probert:
     command: bin/probert
-  subiquity-service:
+  subiquity-server:
     command: usr/bin/subiquity-server
     daemon: simple
     restart-condition: always
@@ -93,6 +93,7 @@ parts:
       - attrs
       - pyyaml
       - systemd-python
+      - aiohttp
       #- urwid
     source: .
     source-type: git
