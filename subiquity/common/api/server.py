@@ -50,9 +50,9 @@ def _make_handler(controller, definition, implementation, serializer):
             raise Exception(
                 "api method {} cannot have parameter called request or "
                 "context".format(definition))
-        if typing.get_origin(param.annotation) is Payload:
+        if getattr(param.annotation, '__origin__', None) is Payload:
             data_arg = param_name
-            data_annotation = typing.get_args(param.annotation)[0]
+            data_annotation = param.annotation.__args__[0]
             check_def_params.append(param.replace(annotation=data_annotation))
         else:
             query_args_anns.append(

@@ -14,7 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-import contextlib
 import logging
 from typing import List, Optional
 
@@ -22,6 +21,7 @@ import aiohttp
 
 from subiquitycore.async_helpers import schedule_task
 from subiquitycore.context import with_context
+from subiquitycore import contextlib38
 from subiquitycore.controllers.network import BaseNetworkController
 from subiquitycore.models.network import (
     BondConfig,
@@ -86,7 +86,7 @@ class EventClient:
         self.conn = aiohttp.UnixConnector(path=socket_path)
         self.client = make_client(NetEventAPI, self.make_request)
 
-    @contextlib.asynccontextmanager
+    @contextlib38.asynccontextmanager
     async def session(self):
         async with aiohttp.ClientSession(
                 connector=self.conn, connector_owner=False) as session:

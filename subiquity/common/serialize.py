@@ -30,6 +30,7 @@ class Serializer:
         self.typing_walkers = {
             typing.Union: self._walk_Union,
             list: self._walk_List,
+            typing.List: self._walk_List,
             }
         self.type_serializers = {}
         self.type_deserializers = {}
@@ -80,9 +81,9 @@ class Serializer:
             return value
         if attr.has(annotation):
             return self._serialize_attr(annotation, value, metadata)
-        origin = typing.get_origin(annotation)
+        origin = getattr(annotation, '__origin__', None)
         if origin is not None:
-            args = typing.get_args(annotation)
+            args = annotation.__args__
             return self.typing_walkers[origin](
                 self.serialize, args, value, metadata)
         if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
@@ -115,9 +116,9 @@ class Serializer:
             return value
         if attr.has(annotation):
             return self._deserialize_attr(annotation, value, metadata)
-        origin = typing.get_origin(annotation)
+        origin = getattr(annotation, '__origin__', None)
         if origin is not None:
-            args = typing.get_args(annotation)
+            args = annotation.__args__
             return self.typing_walkers[origin](
                 self.deserialize, args, value, metadata)
         if isinstance(annotation, type) and issubclass(annotation, enum.Enum):

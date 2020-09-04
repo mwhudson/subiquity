@@ -15,7 +15,6 @@
 
 import inspect
 import json
-import typing
 
 from subiquity.common.serialize import Serializer
 from .defs import Payload
@@ -26,9 +25,9 @@ def _wrap(make_request, path, meth, serializer):
     meth_params = sig.parameters
     payload_arg = None
     for name, param in meth_params.items():
-        if typing.get_origin(param.annotation) is Payload:
+        if getattr(param.annotation, '__origin__', None) is Payload:
             payload_arg = name
-            payload_ann = typing.get_args(param.annotation)[0]
+            payload_ann = param.annotation.__args__[0]
     r_ann = sig.return_annotation
 
     async def impl(*args, **kw):
