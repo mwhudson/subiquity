@@ -15,7 +15,6 @@
 
 import inspect
 import json
-import typing
 
 from aiohttp import web
 

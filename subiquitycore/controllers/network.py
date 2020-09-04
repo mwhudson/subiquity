@@ -29,7 +29,6 @@ from subiquitycore.file_util import write_file
 from subiquitycore.models.network import (
     BondConfig,
     DHCPState,
-    NetDevAction,
     StaticConfig,
     WLANConfig,
     )

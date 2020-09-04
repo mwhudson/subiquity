@@ -21,7 +21,6 @@ import aiohttp
 
 from subiquitycore.async_helpers import schedule_task
 from subiquitycore.context import with_context
-from subiquitycore import contextlib38
 from subiquitycore.controllers.network import BaseNetworkController
 from subiquitycore.models.network import (
     BondConfig,
@@ -29,7 +28,7 @@ from subiquitycore.models.network import (
     StaticConfig,
     )
 
-from subiquity.common.api.client import make_client
+from subiquity.common.api.client import make_client_for_conn
 from subiquity.common.api.definition import (
     API,
     LinkAction,
@@ -78,26 +77,6 @@ NETPLAN_SCHEMA = {
         },
     'required': ['version'],
     }
-
-
-class EventClient:
-
-    def __init__(self, socket_path):
-        self.conn = aiohttp.UnixConnector(path=socket_path)
-        self.client = make_client(NetEventAPI, self.make_request)
-
-    @contextlib38.asynccontextmanager
-    async def session(self):
-        async with aiohttp.ClientSession(
-                connector=self.conn, connector_owner=False) as session:
-            yield session
-
-    async def make_request(self, method, path, *, params, json):
-        async with self.session() as session:
-            async with session.request(
-                    method, 'http://a' + path, json=json,
-                    params=params, timeout=0) as response:
-                return await response.json()
 
 
 class NetworkController(BaseNetworkController, SubiquityController):
@@ -228,7 +207,8 @@ class NetworkController(BaseNetworkController, SubiquityController):
 
     async def subscription_PUT(self, socket_path: str) -> None:
         log.debug('added subscription %s', socket_path)
-        client = EventClient(socket_path).client
+        conn = aiohttp.UnixConnector(socket_path)
+        client = make_client_for_conn(NetEventAPI, conn)
         self.clients[socket_path] = client
         self.app.aio_loop.create_task(
             client.route_watch.POST(

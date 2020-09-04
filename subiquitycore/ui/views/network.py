@@ -19,7 +19,6 @@ Provides network device listings and extended network information
 
 """
 
-import asyncio
 import logging
 
 from urwid import (

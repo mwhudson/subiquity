@@ -21,12 +21,11 @@ import traceback
 
 import aiohttp
 
-from subiquitycore import contextlib38
 from subiquitycore.tuicontroller import Skip
 from subiquitycore.view import BaseView
 
 from subiquity.client.asyncapp import AsyncTuiApplication
-from subiquity.common.api.client import make_client
+from subiquity.common.api.client import make_client_for_conn
 from subiquity.common.api.definition import API
 from subiquity.common.errorreport import (
     ErrorReporter,
@@ -92,25 +91,14 @@ class SubiquityClient(AsyncTuiApplication):
         self.help_menu = HelpMenu(self)
         super().__init__(opts)
         self.global_overlays = []
-        self.conn = aiohttp.UnixConnector(path=opts.socket)
-        self.client = make_client(API, self.make_request)
+        self.conn = aiohttp.UnixConnector(self.opts.socket)
+        self.client = make_client_for_conn(API, self.conn, self.resp_hook)
         self.error_reporter = ErrorReporter(
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
 
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
 
-    @contextlib38.asynccontextmanager
-    async def session(self):
-        async with aiohttp.ClientSession(
-                connector=self.conn, connector_owner=False) as session:
-            yield session
-
-    async def make_request(self, method, path, *, params, json):
-        async with self.session() as session:
-            async with session.request(
-                    method, 'http://a' + path, json=json,
-                    params=params, timeout=0) as response:
-                resp = await response.json()
+    def resp_hook(self, resp):
         if resp['status'] == 'skip':
             raise Skip
         elif resp['status'] == 'confirm':

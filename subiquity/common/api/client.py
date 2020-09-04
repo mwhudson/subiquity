@@ -16,6 +16,8 @@
 import inspect
 import json
 
+import aiohttp
+
 from subiquity.common.serialize import Serializer
 from .defs import Payload
 
@@ -60,3 +62,16 @@ def make_client(endpoint_cls, make_request, serializer=None):
             setattr(C, k, _wrap(
                 make_request, endpoint_cls.fullpath, v, serializer))
     return C
+
+
+def make_client_for_conn(endpoint_cls, conn, resp_hook=lambda r: r):
+    async def make_request(method, path, *, params, json):
+        async with aiohttp.ClientSession(
+                connector=conn, connector_owner=False) as session:
+            async with session.request(
+                    method, 'http://a' + path, json=json,
+                    params=params, timeout=0) as response:
+                resp = await response.json()
+        return resp_hook(resp)
+
+    return make_client(endpoint_cls, make_request)
