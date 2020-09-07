@@ -209,42 +209,57 @@ class NetworkController(BaseNetworkController, SubiquityController):
         log.debug('added subscription %s', socket_path)
         conn = aiohttp.UnixConnector(socket_path)
         client = make_client_for_conn(NetEventAPI, conn)
-        self.clients[socket_path] = client
+        lock = asyncio.Lock()
+        self.clients[socket_path] = (client, conn, lock)
         self.app.aio_loop.create_task(
-            client.route_watch.POST(
+            self._call_client(
+                client, conn, lock, "route_watch",
                 self.network_event_receiver.default_routes))
 
     async def subscription_DELETE(self, socket_path: str) -> None:
         if socket_path not in self.clients:
             return
         log.debug('removed subscription %s', socket_path)
-        del self.clients[socket_path]
+        client, conn, lock = self.clients.pop(socket_path)
+        async with lock:
+            await conn.close()
+
+    async def _call_client(self, client, conn, lock, meth_name, *args):
+        async with lock:
+            log.debug("_call_client %s %s", meth_name, conn.path)
+            if conn.closed:
+                log.debug('closed')
+                return
+            meth = getattr(client, meth_name).POST
+            await meth(*args)
+
+    def _call_clients(self, meth_name, *args):
+        for client, conn, lock in self.clients.values():
+            log.debug('creating _call_client task %s %s', conn.path, meth_name)
+            self.app.aio_loop.create_task(
+                self._call_client(client, conn, lock, meth_name, *args))
 
     def apply_starting(self):
         super().apply_starting()
-        for v in self.clients.values():
-            self.app.aio_loop.create_task(v.apply_starting.POST())
+        self._call_clients("apply_starting")
 
     def apply_stopping(self):
         super().apply_stopping()
-        for v in self.clients.values():
-            self.app.aio_loop.create_task(v.apply_stopping.POST())
+        self._call_clients("apply_stopping")
 
     def apply_error(self, stage):
         super().apply_error()
-        for v in self.clients.values():
-            self.app.aio_loop.create_task(v.apply_error.POST(stage))
+        self._call_clients("apply_error", stage)
 
     def update_default_routes(self, routes):
         super().update_default_routes(routes)
-        for v in self.clients.values():
-            self.app.aio_loop.create_task(v.route_watch.POST(routes))
+        self._call_clients("route_watch", routes)
 
     def _send_update(self, act, dev):
-        dev_info = dev.netdev_info()
-        for k, v in self.clients.items():
-            log.debug('sending update to %s', k)
-            self.app.aio_loop.create_task(v.update_link.POST(act, dev_info))
+        with self.context.child(
+                "_send_update", "{} {}".format(act.name, dev.name)):
+            dev_info = dev.netdev_info()
+            self._call_clients("update_link", act, dev_info)
 
     def new_link(self, dev):
         super().new_link(dev)

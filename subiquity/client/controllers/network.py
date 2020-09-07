@@ -134,7 +134,8 @@ class NetworkController(SubiquityTuiController):
     async def subscribe(self):
         self.tdir = tempfile.mkdtemp()
         self.sock_path = os.path.join(self.tdir, 'socket')
-        self.site = make_server_at_path(self.sock_path, NetEventAPI, self)
+        self.site = await make_server_at_path(
+            self.sock_path, NetEventAPI, self)
         await self.endpoint.subscription.PUT(self.sock_path)
 
     async def unsubscribe(self):
