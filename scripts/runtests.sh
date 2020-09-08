@@ -33,11 +33,10 @@ for answers in examples/answers*.yaml; do
     validate
 done
 
-TTY=$(tty || true)
 clean
 timeout --foreground 60 sh -c "LANG=C.UTF-8 python3 -m subiquity.cmd.tui --autoinstall examples/autoinstall.yaml \
                                --dry-run --machine-config examples/existing-partitions.json --bootloader bios \
-                               --kernel-cmdline 'autoinstall console=\"${TTY#/dev/}\"'"
+                               --kernel-cmdline 'autoinstall'"
 validate
 python3 scripts/check-yaml-fields.py .subiquity/subiquity-curtin-install.conf \
         debconf_selections.subiquity='"eek"'
@@ -51,6 +50,5 @@ grep -q 'switching subiquity to edge' .subiquity/subiquity-server-debug.log
 
 clean
 timeout --foreground 60 sh -c "LANG=C.UTF-8 python3 -m subiquity.cmd.tui --autoinstall examples/autoinstall-user-data.yaml \
-                               --dry-run --machine-config examples/simple.json \
-                               --kernel-cmdline 'autoinstall console=\"${TTY#/dev/}\"'"
+                               --dry-run --machine-config examples/simple.json --kernel-cmdline 'autoinstall'"
 validate

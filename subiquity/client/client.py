@@ -173,7 +173,8 @@ class SubiquityClient(AsyncTuiApplication):
                     print('start: ' + e["MESSAGE"])
                 elif e['SUBIQUITY_EVENT_TYPE'] == 'finish':
                     print('finish: ' + e["MESSAGE"])
-                    if e['SUBIQUITY_CONTEXT_NAME'] == 'subiquity/Reboot/reboot':
+                    context_name = e.get('SUBIQUITY_CONTEXT_NAME', '')
+                    if context_name == 'subiquity/Reboot/reboot':
                         self.exit()
             fd1, watcher1 = journald_listener(
                 [state.event_syslog_id], cb2, seek=True)

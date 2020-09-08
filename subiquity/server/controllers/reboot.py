@@ -35,7 +35,6 @@ class RebootController(SubiquityController):
 
     def __init__(self, app):
         super().__init__(app)
-        self.context.set('hidden', True)
         self.user_reboot_event = asyncio.Event()
         self.rebooting_event = asyncio.Event()
 
