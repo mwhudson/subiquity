@@ -29,13 +29,13 @@ from .test_server import (
 
 
 @contextlib38.asynccontextmanager
-async def makeE2EClient(api, impl):
+async def makeE2EClient(api, impl, resp_hook=lambda x: x):
     async with makeTestClient(api, impl) as client:
 
         async def make_request(method, path, *, params, json):
             async with client.request(
                     method, path, params=params, json=json) as resp:
-                return await resp.json()
+                return resp_hook(await resp.json())
 
         yield make_client(api, make_request)
 
@@ -137,15 +137,77 @@ class TestEndToEnd(unittest.TestCase):
         @api
         class API:
             class doubler:
-                def post(data: In) -> Out: ...
+                def POST(data: In) -> Out: ...
 
         class Impl(TestControllerBase):
-            async def doubler_post(self, data: In) -> Out:
+            async def doubler_POST(self, data: In) -> Out:
                 return Out(doubled=data.val*2)
 
         async def make_request():
             async with makeE2EClient(API, Impl()) as client:
-                out = await client.doubler.post(In(3))
+                out = await client.doubler.POST(In(3))
                 self.assertEqual(out.doubled, 6)
+
+        run_coro(make_request())
+
+    def test_hooks(self):
+
+        @api
+        class API:
+            def GET(x: int) -> int: ...
+
+        class Impl(TestControllerBase):
+            def generic_result(self):
+                return {'other': 2}
+
+            async def GET(self, x: int) -> int:
+                return x
+
+        def resp_hook(resp):
+            resp['result'] *= resp['other']
+            return resp
+
+        async def make_request():
+            async with makeE2EClient(API, Impl(), resp_hook) as client:
+                r = await client.GET(2)
+                self.assertEqual(r, 4)
+
+        run_coro(make_request())
+
+    def test_error(self):
+
+        @api
+        class API:
+            class good:
+                def GET(x: int) -> int: ...
+
+            class bad:
+                def GET(x: int) -> int: ...
+
+        class Impl(TestControllerBase):
+            def make_error_response(self, exc):
+                return {'error': str(exc)}
+
+            async def good_GET(self, x: int) -> int:
+                return x + 1
+
+            async def bad_GET(self, x: int) -> int:
+                raise Exception("baz")
+
+        excs = []
+
+        def resp_hook(resp):
+            if 'error' in resp:
+                excs.append(resp['error'])
+            return resp
+
+        async def make_request():
+            async with makeE2EClient(API, Impl(), resp_hook) as client:
+                r = await client.good.GET(2)
+                self.assertEqual(r, 3)
+                self.assertEqual(excs, [])
+                r = await client.bad.GET(2)
+                self.assertEqual(r, None)
+                self.assertEqual(excs, ["baz"])
 
         run_coro(make_request())

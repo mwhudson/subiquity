@@ -44,7 +44,10 @@ def _wrap(make_request, path, meth, serializer):
         else:
             data = None
         r = await make_request(meth.__name__, path, json=data, params=params)
-        return serializer.deserialize(r_ann, r['result'])
+        if 'result' in r:
+            return serializer.deserialize(r_ann, r['result'])
+        else:
+            return None
     return impl
 
 

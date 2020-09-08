@@ -117,11 +117,14 @@ def _make_handler(controller, definition, implementation, serializer):
                 args['context'] = context
             if 'request' in impl_params:
                 args['request'] = request
-            result = await implementation(**args)
-            resp = {
-                'result': serializer.serialize(def_ret_ann, result),
-                }
-            resp.update(controller.generic_result())
+            try:
+                result = await implementation(**args)
+                resp = {
+                    'result': serializer.serialize(def_ret_ann, result),
+                    }
+                resp.update(controller.generic_result())
+            except Exception as exc:
+                resp = controller.make_error_response(exc)
             resp = web.json_response(resp)
             context.description = trim(resp.text)
             return resp

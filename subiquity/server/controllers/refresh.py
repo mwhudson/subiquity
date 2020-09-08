@@ -209,7 +209,7 @@ class RefreshController(SubiquityController):
         open(self.app.state_path('updating'), 'w').close()
         change = await self.app.snapd.post(
             'v2/snaps/{}'.format(self.snap_name),
-            {'action': 'refresh'})['change']
+            {'action': 'refresh'})
         context.description = "change id: {}".format(change)
         return change
 
