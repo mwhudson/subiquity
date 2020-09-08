@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from subiquity.common.types import ErrorReportKind, ErrorReportRef
+from subiquity.common.serialize import Serializer
 
 
 class DryRunController:
@@ -25,6 +26,15 @@ class DryRunController:
     def generic_result(self):
         return {'status': 'ok'}
 
+    def make_error_response(self, exc):
+        report = self.app.make_apport_report(
+            ErrorReportKind.UNKNOWN, "example")
+        s = Serializer()
+        return {
+            'status': 'error',
+            'error_report': s.serialize(ErrorReportRef, report.ref()),
+            }
+
     async def make_error_POST(self) -> ErrorReportRef:
         try:
             1/0
@@ -32,3 +42,6 @@ class DryRunController:
             report = self.app.make_apport_report(
                 ErrorReportKind.UNKNOWN, "example")
             return report.ref()
+
+    async def crash_GET(self) -> None:
+        1/0

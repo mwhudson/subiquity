@@ -65,6 +65,9 @@ class API:
         class make_error:
             def POST() -> ErrorReportRef: ...
 
+        class crash:
+            def GET() -> None: ...
+
     class errors:
         class wait:
             def GET(error_ref: ErrorReportRef) -> ErrorReportRef: ...

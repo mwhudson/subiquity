@@ -27,9 +27,11 @@ from subiquitycore.view import BaseView
 from subiquity.client.asyncapp import AsyncTuiApplication
 from subiquity.common.api.client import make_client_for_conn
 from subiquity.common.api.definition import API
+from subiquity.common.serialize import Serializer
 from subiquity.common.errorreport import (
     ErrorReporter,
     ErrorReportKind,
+    ErrorReportRef,
     )
 from subiquity.common.types import ApplicationStatus
 from subiquity.journald import journald_listener
@@ -45,6 +47,10 @@ log = logging.getLogger('subiquity.client.client')
 
 
 class Confirm(Exception):
+    pass
+
+
+class Abort(Exception):
     pass
 
 
@@ -103,6 +109,11 @@ class SubiquityClient(AsyncTuiApplication):
             raise Skip
         elif resp['status'] == 'confirm':
             raise Confirm
+        elif resp['status'] == 'error':
+            s = Serializer()
+            ref = s.deserialize(ErrorReportRef, resp['error_report'])
+            self.show_error_report(ref)
+            raise Abort
         return resp
 
     async def connect(self):
@@ -191,6 +202,8 @@ class SubiquityClient(AsyncTuiApplication):
             self.show_confirm_install()
             self.controllers.index = self.controllers.instances.index(
                 self.cur_screen)
+        except Abort:
+            pass
 
     def show_confirm_install(self):
         self._cancel_show_progress()
@@ -246,6 +259,8 @@ class SubiquityClient(AsyncTuiApplication):
             self.aio_loop.create_task(foo())
         elif key == 'ctrl u':
             1/0
+        elif key == 'ctrl b':
+            self.aio_loop.create_task(self.client.dry_run.crash.GET())
         else:
             super().unhandled_input(key)
 

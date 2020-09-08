@@ -65,6 +65,7 @@ class KeyboardController(SubiquityController):
         return attr.asdict(self.model.setting)
 
     async def GET(self) -> KeyboardSetting:
+        1/0
         return self.model.setting
 
     async def POST(self, data: KeyboardSetting):
