@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 import os
 import shutil
@@ -58,7 +59,7 @@ class NetworkController(SubiquityTuiController):
         log.debug("%s", r)
         return r
 
-    def _answers_action(self, action):
+    async def _answers_action(self, action):
         log.debug("_answers_action %r", action)
         if 'obj' in action:
             table = self._action_get(action['obj'])
@@ -69,6 +70,15 @@ class NetworkController(SubiquityTuiController):
             self.ui.body._action(None, (action_obj, meth), table)
             yield
             body = self.ui.body._w
+            if action['action'] == "DELETE":
+                t = 0.0
+                while table.dev_info.name in self.view.cur_netdev_names:
+                    await asyncio.sleep(0.1)
+                    t += 0.1
+                    if t > 5.0:
+                        raise Exception(
+                            "interface did not disappear in 5 secs")
+                log.debug("waited %s for interface to disappear", t)
             if not isinstance(body, StretchyOverlay):
                 return
             for k, v in action.items():
@@ -80,10 +90,11 @@ class NetworkController(SubiquityTuiController):
                     prefix = k.split('-')[0]
                     form_name = prefix + "_form"
                     submit_key = prefix + "-submit"
-                yield from self._enter_form_data(
-                    getattr(body.stretchy, form_name),
-                    v,
-                    action.get(submit_key, True))
+                async for _ in self._enter_form_data(
+                        getattr(body.stretchy, form_name),
+                        v,
+                        action.get(submit_key, True)):
+                    pass
         elif action['action'] == 'create-bond':
             self.ui.body._create_bond()
             yield
@@ -91,10 +102,19 @@ class NetworkController(SubiquityTuiController):
             data = action['data'].copy()
             if 'devices' in data:
                 data['interfaces'] = data.pop('devices')
-            yield from self._enter_form_data(
-                body.stretchy.form,
-                data,
-                action.get("submit", True))
+            async for _ in self._enter_form_data(
+                    body.stretchy.form,
+                    data,
+                    action.get("submit", True)):
+                pass
+            t = 0.0
+            while data['name'] not in self.view.cur_netdev_names:
+                await asyncio.sleep(0.1)
+                t += 0.1
+                if t > 5.0:
+                    raise Exception("bond did not appear in 5 secs")
+            if t > 0:
+                log.debug("waited %s for bond to appear", t)
             yield
         elif action['action'] == 'done':
             self.ui.body.done()
@@ -153,7 +173,8 @@ class NetworkController(SubiquityTuiController):
         elif self.answers.get('actions', False):
             actions = self.answers['actions']
             self.answers.clear()
-            self._run_iterator(self._run_actions(actions))
+            self.app.aio_loop.create_task(
+                self._run_actions(actions))
 
     def end_ui(self):
         if self.view is not None:

@@ -209,7 +209,7 @@ class RefreshController(SubiquityController):
         open(self.app.state_path('updating'), 'w').close()
         change = await self.app.snapd.post(
             'v2/snaps/{}'.format(self.snap_name),
-            {'action': 'refresh'})
+            {'action': 'refresh'})['change']
         context.description = "change id: {}".format(change)
         return change
 
@@ -230,8 +230,8 @@ class RefreshController(SubiquityController):
             current_snap_version=self.current_snap_version,
             new_snap_version=self.new_snap_version)
 
-    async def POST(self, context) -> str:
+    async def POST(self, context) -> int:
         return await self.start_update(context=context)
 
-    async def progress_GET(self, change_id: str) -> dict:
+    async def progress_GET(self, change_id: int) -> dict:
         return await self.get_progress(change_id)

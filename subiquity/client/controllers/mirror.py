@@ -25,19 +25,13 @@ class MirrorController(SubiquityTuiController):
 
     endpoint_name = 'mirror'
 
-    def __init__(self, app):
-        super().__init__(app)
-        if 'country-code' in self.answers:
-            self.model.set_country(self.answers['country-code'])
-
     async def start_ui(self):
         mirror = await self.endpoint.GET()
         await self.app.set_body(MirrorView(mirror, self))
         if 'mirror' in self.answers:
             self.done(self.answers['mirror'])
-        elif 'country-code' in self.answers \
-             or 'accept-default' in self.answers:
-            self.done(self.model.get_mirror())
+        elif 'accept-default' in self.answers:
+            self.done(mirror)
 
     def cancel(self):
         self.app.prev_screen()

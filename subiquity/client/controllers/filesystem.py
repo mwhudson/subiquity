@@ -143,7 +143,7 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
     def _action_clean_level(self, level):
         return raidlevels_by_value[level]
 
-    def _answers_action(self, action):
+    async def _answers_action(self, action):
         from subiquitycore.ui.stretchy import StretchyOverlay
         from subiquity.ui.views.filesystem.delete import ConfirmDeleteStretchy
         log.debug("_answers_action %r", action)
@@ -164,35 +164,36 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
                 if action.get("submit", True):
                     body.stretchy.done()
             else:
-                yield from self._enter_form_data(
-                    body.stretchy.form,
-                    action['data'],
-                    action.get("submit", True))
+                async for _ in self._enter_form_data(
+                        body.stretchy.form,
+                        action['data'],
+                        action.get("submit", True)):
+                    pass
         elif action['action'] == 'create-raid':
             self.ui.body.create_raid()
             yield
             body = self.ui.body._w
-            yield from self._enter_form_data(
-                body.stretchy.form,
-                action['data'],
-                action.get("submit", True),
-                clean_suffix='raid')
+            async for _ in self._enter_form_data(
+                    body.stretchy.form,
+                    action['data'],
+                    action.get("submit", True),
+                    clean_suffix='raid'):
+                pass
         elif action['action'] == 'create-vg':
             self.ui.body.create_vg()
             yield
             body = self.ui.body._w
-            yield from self._enter_form_data(
-                body.stretchy.form,
-                action['data'],
-                action.get("submit", True),
-                clean_suffix='vg')
+            async for _ in self._enter_form_data(
+                    body.stretchy.form,
+                    action['data'],
+                    action.get("submit", True),
+                    clean_suffix='vg'):
+                pass
         elif action['action'] == 'done':
-            async def t():
-                await self.app.confirm_install()
-                self.finish()
             if not self.ui.body.done.enabled:
                 raise Exception("answers did not provide complete fs config")
-            self.app.aio_loop.create_task(t())
+            await self.app.confirm_install()
+            self.finish()
         else:
             raise Exception("could not process action {}".format(action))
 
@@ -204,8 +205,11 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
                 self.finish()
             self.app.aio_loop.create_task(t())
         if self.answers['manual']:
-            self._run_iterator(self._run_actions(self.answers['manual']))
-            self.answers['manual'] = []
+            self.app.aio_loop.create_task(self._manual_answers())
+
+    async def _manual_answers(self):
+        await self._run_actions(self.answers['manual'])
+        self.answers['manual'] = []
 
     def guided(self, method):
         v = GuidedDiskSelectionView(self.model, self, method)

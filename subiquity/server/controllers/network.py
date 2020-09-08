@@ -258,6 +258,7 @@ class NetworkController(BaseNetworkController, SubiquityController):
     def _send_update(self, act, dev):
         with self.context.child(
                 "_send_update", "{} {}".format(act.name, dev.name)):
+            log.debug("dev_info {} {}".format(dev.name, dev.config))
             dev_info = dev.netdev_info()
             self._call_clients("update_link", act, dev_info)
 

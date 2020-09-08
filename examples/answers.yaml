@@ -11,7 +11,7 @@ Network:
 Proxy:
   proxy: ""
 Mirror:
-  country-code: us
+  accept-default: yes
 Filesystem:
   guided: yes
   guided-index: 0

@@ -44,7 +44,7 @@ from subiquitycore.utils import (
     )
 
 
-log = logging.getLogger("subiquitycore.controller.network")
+log = logging.getLogger("subiquitycore.controllers.network")
 
 
 class SubiquityNetworkEventReceiver(NetworkEventReceiver):
@@ -422,6 +422,7 @@ class BaseNetworkController(BaseController):
         self.apply_config()
 
     def delete_link(self, dev_name: str):
+        log.debug('hi')
         dev = self.model.get_netdev_by_name(dev_name)
         touched_devices = set()
         if dev.type == "bond":
@@ -443,7 +444,8 @@ class BaseNetworkController(BaseController):
         touched_devices = set()
         for device_name in new_info.interfaces:
             device = get_netdev_by_name(device_name)
-            device.config = {}
+            if device.config is not None:
+                device.config = {}
             touched_devices.add(device)
         if existing_name is None:
             new_dev = self.model.new_bond(new_name, new_info)

@@ -1232,10 +1232,11 @@ LUKS_OVERHEAD = 16*(2**20)
 @fsobj("dm_crypt")
 class DM_Crypt:
     volume = attributes.ref(backlink="_constructed_device")  # _Formattable
-    key = attr.ib(metadata={'redact': True})
+    key = attr.ib(metadata={'redact': True}, default=None)
+    keyfile = attr.ib(default=None)
 
     def serialize_key(self):
-        if self.key:
+        if self.key and not self.keyfile:
             f = tempfile.NamedTemporaryFile(
                 prefix='luks-key-', mode='w', delete=False)
             f.write(self.key)
