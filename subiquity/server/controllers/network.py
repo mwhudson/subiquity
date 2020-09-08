@@ -200,9 +200,12 @@ class NetworkController(BaseNetworkController, SubiquityController):
             netdev.netdev_info() for netdev in self.model.get_all_netdevs()
             ]
 
-    async def POST(self) -> None:
+    def configured(self):
         self.model.has_network = bool(
             self.network_event_receiver.default_routes)
+        super().configured()
+
+    async def POST(self) -> None:
         self.configured()
 
     async def subscription_PUT(self, socket_path: str) -> None:

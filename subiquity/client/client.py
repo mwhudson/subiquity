@@ -157,7 +157,13 @@ class SubiquityClient(AsyncTuiApplication):
                 self.controllers.Progress.log_line)
             self.aio_loop.add_reader(fd2, watcher2)
             self.start_urwid()
-            self.select_initial_screen(self.initial_controller_index())
+            ici = self.initial_controller_index()
+            endpoint_names = []
+            for c in self.controllers.instances[:ici]:
+                if c.endpoint_name:
+                    endpoint_names.append(c.endpoint_name)
+            await self.client.meta.mark_configured.POST(endpoint_names)
+            self.select_initial_screen(ici)
         else:
             def cb2(e):
                 if 'SUBIQUITY_CONFIRMATION' in e:

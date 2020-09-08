@@ -58,6 +58,9 @@ class API:
             def GET(cur: Optional[ApplicationStatus] = None) \
                 -> ApplicationState: ...
 
+        class mark_configured:
+            def POST(endpoint_names: List[str]) -> None: ...
+
         class confirm:
             def POST() -> None: ...
 

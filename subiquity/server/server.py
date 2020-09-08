@@ -18,7 +18,7 @@ import logging
 import os
 import shlex
 import sys
-from typing import Optional
+from typing import List, Optional
 
 from aiohttp import web
 
@@ -76,6 +76,12 @@ class MetaController:
 
     async def restart_POST(self) -> None:
         self.app.restart()
+
+    async def mark_configured_POST(self, endpoint_names: List[str]) -> None:
+        endpoints = {getattr(API, en) for en in endpoint_names}
+        for controller in self.app.controllers.instances:
+            if controller.endpoint in endpoints:
+                controller.configured()
 
 
 class SubiquityServer(Application):
