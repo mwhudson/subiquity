@@ -72,6 +72,7 @@ def make_server_args_parser():
 
 
 def main():
+    print('starting server')
     setup_environment()
     # setup_environment sets $APPORT_DATA_DIR which must be set before
     # apport is imported, which is done by this import:

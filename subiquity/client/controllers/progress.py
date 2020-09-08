@@ -81,6 +81,7 @@ class ProgressController(SubiquityTuiController):
             self.crash_report = install_status.error
             if self.crash_report:
                 await self.start_ui()
+                self.app.show_error_report(self.crash_report)
             self.progress_view.update_for_status(self.install_state)
             if (self.install_state == InstallState.NEEDS_CONFIRMATION and
                     self.showing):

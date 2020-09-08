@@ -144,7 +144,6 @@ class Application:
             self.start_controllers()
             self.aio_loop.run_forever()
         finally:
-            pass
             self.aio_loop.run_until_complete(
                 self.aio_loop.shutdown_asyncgens())
         if self._exc:

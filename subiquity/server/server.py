@@ -71,8 +71,11 @@ class MetaController:
             event_syslog_id=self.app.event_syslog_id,
             log_syslog_id=self.app.log_syslog_id)
 
-    async def confirm_POST(self):
+    async def confirm_POST(self) -> None:
         self.app.base_model.confirm()
+
+    async def restart_POST(self) -> None:
+        self.app.restart()
 
 
 class SubiquityServer(Application):

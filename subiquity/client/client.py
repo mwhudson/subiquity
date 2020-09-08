@@ -51,7 +51,8 @@ class Confirm(Exception):
 
 
 class Abort(Exception):
-    pass
+    def __init__(self, error_report_ref):
+        self.error_report_ref = error_report_ref
 
 
 DEBUG_SHELL_INTRO = _("""\
@@ -101,7 +102,7 @@ class SubiquityClient(AsyncTuiApplication):
         self.client = make_client_for_conn(API, self.conn, self.resp_hook)
         self.error_reporter = ErrorReporter(
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
-
+        self.restarting_server = False
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
 
     def resp_hook(self, resp):
@@ -112,8 +113,7 @@ class SubiquityClient(AsyncTuiApplication):
         elif resp['status'] == 'error':
             s = Serializer()
             ref = s.deserialize(ErrorReportRef, resp['error_report'])
-            self.show_error_report(ref)
-            raise Abort
+            raise Abort(ref)
         return resp
 
     async def connect(self):
@@ -203,7 +203,10 @@ class SubiquityClient(AsyncTuiApplication):
             self.controllers.index = self.controllers.instances.index(
                 self.cur_screen)
         except Abort:
-            pass
+            self._cancel_show_progress()
+            self.controllers.index = self.controllers.instances.index(
+                self.cur_screen)
+            raise
 
     def show_confirm_install(self):
         self._cancel_show_progress()
@@ -218,6 +221,16 @@ class SubiquityClient(AsyncTuiApplication):
 
     def progress_view(self):
         return self.controllers.Progress.progress_view
+
+    def _exception_handler(self, loop, context):
+        exc = context.get('exception')
+        if self.restarting_server:
+            log.debug('ignoring %s %s during restart', exc, type(exc))
+            return
+        if isinstance(exc, Abort):
+            self.show_error_report(exc.error_report_ref)
+            return
+        super()._exception_handler(loop, context)
 
     def run(self):
         self.aio_loop.create_task(self.connect())
@@ -288,13 +301,29 @@ class SubiquityClient(AsyncTuiApplication):
                 return
         self.add_global_overlay(ErrorReportStretchy(self, error_ref))
 
-    def restart(self, remove_last_screen=True):
+    async def _restart_server(self):
+        log.debug("_restart_server")
+        try:
+            await self.client.meta.restart.POST()
+        except aiohttp.ServerDisconnectedError:
+            pass
+        self.restart(remove_last_screen=False)
+
+    def restart(self, remove_last_screen=True, restart_server=False):
+        log.debug(f"restart {remove_last_screen} {restart_server}")
+        if remove_last_screen:
+            self._remove_last_screen()
+        if restart_server:
+            self.restarting_server = True
+            self.ui.block_input = True
+            self.aio_loop.create_task(self._restart_server())
+            return
         if remove_last_screen:
             self._remove_last_screen()
         self.urwid_loop.stop()
         cmdline = ['snap', 'run', 'subiquity']
         if self.opts.dry_run:
-            if self.server_proc is not None:
+            if self.server_proc is not None and not restart_server:
                 print('killing server {}'.format(self.server_proc.pid))
                 self.server_proc.send_signal(2)
                 self.server_proc.wait()
