@@ -164,7 +164,7 @@ class InstallController(SubiquityController):
             status = getattr(Status, e["RESULT"], Status.WARN)
             curtin_ctx = self.curtin_event_contexts.pop(e["NAME"], None)
             if curtin_ctx is not None:
-                curtin_ctx.exit(status)
+                curtin_ctx.exit(result=status)
 
     def _write_config(self, path, config):
         with open(path, 'w') as conf:

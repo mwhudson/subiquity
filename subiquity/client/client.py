@@ -170,7 +170,11 @@ class SubiquityClient(AsyncTuiApplication):
                     input("confirm?")
                     self.aio_loop.create_task(self.client.meta.confirm.POST())
                 elif e['SUBIQUITY_EVENT_TYPE'] == 'start':
-                    print(e["MESSAGE"])
+                    print('start: ' + e["MESSAGE"])
+                elif e['SUBIQUITY_EVENT_TYPE'] == 'finish':
+                    print('finish: ' + e["MESSAGE"])
+                    if e['SUBIQUITY_CONTEXT_NAME'] == 'subiquity/Reboot/reboot':
+                        self.exit()
             fd1, watcher1 = journald_listener(
                 [state.event_syslog_id], cb2, seek=True)
             self.aio_loop.add_reader(fd1, watcher1)

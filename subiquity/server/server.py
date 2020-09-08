@@ -180,8 +180,8 @@ class SubiquityServer(Application):
         self.event_listeners.append(listener)
 
     def _maybe_push_to_journal(self, event_type, context, description):
-        if context.get('hidden', False):
-            return
+        #if context.get('hidden', False):
+        #    return
         if not context.get('is-install-context') and self.interactive():
             controller = context.get('controller')
             if controller is None or controller.interactive():

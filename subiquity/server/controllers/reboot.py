@@ -78,7 +78,8 @@ class RebootController(SubiquityController):
         except Exception:
             log.exception("saving journal failed")
 
-    def reboot(self):
+    @with_context()
+    def reboot(self, context):
         self.rebooting_event.set()
         if self.opts.dry_run:
             self.app.exit()
