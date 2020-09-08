@@ -266,7 +266,7 @@ class InstallController(SubiquityController):
 
             await self.postinstall(context=context)
 
-            if 1 or self.model.network.has_network:
+            if self.model.network.has_network:
                 self.update_status(InstallState.UU_RUNNING)
                 await self.run_unattended_upgrades(context=context)
 
