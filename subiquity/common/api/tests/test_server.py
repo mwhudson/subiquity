@@ -23,7 +23,11 @@ from subiquitycore.context import Context
 from subiquitycore import contextlib38
 
 from subiquity.common.api.defs import api, Payload
-from subiquity.common.api.server import bind
+from subiquity.common.api.server import (
+    bind,
+    MissingImplementationError,
+    SignatureMisatchError,
+    )
 
 
 def run_coro(coro):
@@ -132,3 +136,30 @@ class TestBind(unittest.TestCase):
                     {'result': 'value'})
 
         run_coro(make_request())
+
+    def test_missing_method(self):
+        @api
+        class API:
+            def GET(arg: str): ...
+
+        class Impl(TestControllerBase):
+            pass
+
+        app = web.Application()
+        with self.assertRaises(MissingImplementationError) as cm:
+            bind(app.router, API, Impl())
+        self.assertEqual(cm.exception.methname, "GET")
+
+    def test_signature_checking(self):
+        @api
+        class API:
+            def GET(arg: str): ...
+
+        class Impl(TestControllerBase):
+            async def GET(self, arg: int):
+                return arg
+
+        app = web.Application()
+        with self.assertRaises(SignatureMisatchError) as cm:
+            bind(app.router, API, Impl())
+        self.assertEqual(cm.exception.methname, "API.GET")

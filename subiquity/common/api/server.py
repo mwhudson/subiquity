@@ -23,6 +23,30 @@ from subiquity.common.serialize import Serializer
 from .defs import Payload
 
 
+class BindError(Exception):
+    pass
+
+
+class MissingImplementationError(BindError):
+    def __init__(self, controller, methname):
+        self.controller = controller
+        self.methname = methname
+
+    def __str__(self):
+        return f"{self.controller} must have method called {self.methname}"
+
+
+class SignatureMisatchError(BindError):
+    def __init__(self, methname, expected, actual):
+        self.methname = methname
+        self.expected = expected
+        self.actual = actual
+
+    def __str__(self):
+        return (f"implementation of {self.methname} has wrong signature, "
+                f"should be {self.expected} but is {self.actual}")
+
+
 def trim(text):
     if len(text) > 80:
         return text[:77] + '...'
@@ -66,9 +90,9 @@ def _make_handler(controller, definition, implementation, serializer):
 
     check_def_sig = def_sig.replace(parameters=check_def_params)
 
-    assert check_impl_sig == check_def_sig, \
-        "implementation of {} has wrong signature, should be {}, is {}".format(
-          definition.__qualname__, check_def_sig, check_impl_sig)
+    if check_impl_sig != check_def_sig:
+        raise SignatureMisatchError(
+            definition.__qualname__, check_def_sig, check_impl_sig)
 
     async def handler(request):
         context = controller.context.child(
@@ -117,6 +141,8 @@ def bind(router, endpoint, controller, serializer=None, _depth=None):
         elif callable(v):
             method = v.__name__
             impl_name = "_".join(endpoint.fullname[_depth:] + (method,))
+            if not hasattr(controller, impl_name):
+                raise MissingImplementationError(controller, impl_name)
             impl = getattr(controller, impl_name)
             router.add_route(
                 method=method,
