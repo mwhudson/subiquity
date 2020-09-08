@@ -95,12 +95,12 @@ class SubiquityController(BaseController):
         return {}
 
     def add_routes(self, app):
-        if self.endpoint:
+        if self.endpoint is not None:
             bind(app.router, self.endpoint, self)
 
     def make_error_response(self, exc):
         report = self.app.make_apport_report(
-            ErrorReportKind.UNKNOWN, "example")
+            ErrorReportKind.SERVER_REQUEST_FAIL, "internal request")
         s = Serializer()
         return {
             'status': 'error',

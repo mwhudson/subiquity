@@ -28,7 +28,7 @@ class DryRunController:
 
     def make_error_response(self, exc):
         report = self.app.make_apport_report(
-            ErrorReportKind.UNKNOWN, "example")
+            ErrorReportKind.SERVER_REQUEST_FAIL, "example")
         s = Serializer()
         return {
             'status': 'error',
