@@ -14,11 +14,64 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import re
 
 from subiquitycore.utils import arun_command
 
+from subiquity.common.types import KeyboardSetting
 
-async def set_keyboard(setting, dry_run):
+
+etc_default_keyboard_template = """\
+# KEYBOARD CONFIGURATION FILE
+
+# Consult the keyboard(5) manual page.
+
+XKBMODEL="pc105"
+XKBLAYOUT="{layout}"
+XKBVARIANT="{variant}"
+XKBOPTIONS="{options}"
+
+BACKSPACE="guess"
+"""
+
+
+def from_config_file(config_file):
+    with open(config_file) as fp:
+        content = fp.read()
+
+    def optval(opt, default):
+        match = re.search(r'(?m)^\s*%s=(.*)$' % (opt,), content)
+        if match:
+            r = match.group(1).strip('"')
+            if r != '':
+                return r
+        return default
+
+    XKBLAYOUT = optval("XKBLAYOUT", "us")
+    XKBVARIANT = optval("XKBVARIANT", "")
+    XKBOPTIONS = optval("XKBOPTIONS", "")
+    toggle = None
+    for option in XKBOPTIONS.split(','):
+        if option.startswith('grp:'):
+            toggle = option[4:]
+    return KeyboardSetting(layout=XKBLAYOUT, variant=XKBVARIANT, toggle=toggle)
+
+
+def render(setting):
+    options = ""
+    if setting.toggle:
+        options = "grp:" + setting.toggle
+    return etc_default_keyboard_template.format(
+        layout=setting.layout,
+        variant=setting.variant,
+        options=options)
+
+
+async def set_keyboard(root, setting, dry_run):
+    path = os.path.join(root, 'etc', 'default', 'keyboard')
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as fp:
+        fp.write(render(setting))
     cmds = [
         ['setupcon', '--save', '--force', '--keyboard-only'],
         ['/snap/bin/subiquity.subiquity-loadkeys'],

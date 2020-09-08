@@ -58,7 +58,8 @@ class KeyboardController(SubiquityController):
     @with_context()
     async def apply_autoinstall_config(self, context):
         if self.needs_set_keyboard:
-            await set_keyboard(self.model.setting, self.opts.dry_run)
+            await set_keyboard(
+                self.app.root, self.model.setting, self.opts.dry_run)
 
     def make_autoinstall(self):
         return attr.asdict(self.model.setting)

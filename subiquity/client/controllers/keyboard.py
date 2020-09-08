@@ -60,7 +60,7 @@ class KeyboardController(SubiquityTuiController):
             self.done(KeyboardSetting(layout=layout, variant=variant), True)
 
     async def set_keyboard(self, setting):
-        await set_keyboard(setting, self.opts.dry_run)
+        await set_keyboard(self.app.root, setting, self.opts.dry_run)
         self.done(setting, False)
 
     def done(self, setting, apply):
