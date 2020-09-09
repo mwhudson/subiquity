@@ -42,9 +42,9 @@ python3 scripts/check-yaml-fields.py .subiquity/subiquity-curtin-install.conf \
         debconf_selections.subiquity='"eek"'
 python3 scripts/check-yaml-fields.py <(python3 scripts/check-yaml-fields.py .subiquity/etc/cloud/cloud.cfg.d/99-installer.cfg datasource.None.userdata_raw) \
         locale='"en_GB.UTF-8"'
-grep -q 'finish: subiquity/InstallProgress/install/postinstall/install_package1: SUCCESS: installing package1' \
+grep -q 'finish: subiquity/Install/install/postinstall/install_package1: SUCCESS: installing package1' \
      .subiquity/subiquity-server-debug.log
-grep -q 'finish: subiquity/InstallProgress/install/postinstall/install_package2: SUCCESS: installing package2' \
+grep -q 'finish: subiquity/Install/install/postinstall/install_package2: SUCCESS: installing package2' \
      .subiquity/subiquity-server-debug.log
 grep -q 'switching subiquity to edge' .subiquity/subiquity-server-debug.log
 
