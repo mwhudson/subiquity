@@ -28,7 +28,10 @@ def api(cls, prefix=(), foo=None):
     return cls
 
 
-class Payload(typing.Generic[typing.TypeVar("T")]):
+T = typing.TypeVar("T")
+
+
+class Payload(typing.Generic[T]):
     pass
 
 
