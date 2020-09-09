@@ -289,13 +289,14 @@ class TuiApplication(Application):
 
         self.ui.block_input = True
         handle = self.aio_loop.call_later(0.1, _show)
-        result = await awaitable
-
-        if min_show_task:
-            await min_show_task
-            hide_load()
-        else:
-            self.ui.block_input = False
-            handle.cancel()
+        try:
+            result = await awaitable
+        finally:
+            if min_show_task:
+                await min_show_task
+                hide_load()
+            else:
+                self.ui.block_input = False
+                handle.cancel()
 
         return result

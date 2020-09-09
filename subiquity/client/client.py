@@ -78,6 +78,7 @@ class SubiquityClient(AsyncTuiApplication):
         "Welcome",
         "Refresh",
         "Keyboard",
+        "Zdev",
         "Network",
         "Proxy",
         "Mirror",
@@ -108,10 +109,12 @@ class SubiquityClient(AsyncTuiApplication):
         self.server_updated = None
 
     def resp_hook(self, response):
-        if self.server_updated is None:
-            self.server_updated = response.headers['x-updated']
-        elif self.server_updated != response.headers['x-updated']:
-            self.restart(remove_last_screen=False)
+        headers = response.headers
+        if 'x-updated' in headers:
+            if self.server_updated is None:
+                self.server_updated = response.headers['x-updated']
+            elif self.server_updated != response.headers['x-updated']:
+                self.restart(remove_last_screen=False)
         status = response.headers.get('x-status')
         if status == 'skip':
             raise Skip
@@ -123,6 +126,13 @@ class SubiquityClient(AsyncTuiApplication):
                 ErrorReportRef,
                 json.loads(response.headers.get('x-error-report')))
             raise Abort(ref)
+        try:
+            response.raise_for_status()
+        except aiohttp.ClientError:
+            report = self.error_reporter.make_apport_report(
+                ErrorReportKind.SERVER_REQUEST_FAIL,
+                "request to {}".format(response.url.path))
+            raise Abort(report.ref())
         return response
 
     async def connect(self):

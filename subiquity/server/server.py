@@ -123,7 +123,7 @@ class SubiquityServer(Application):
         "Welcome",
         "Refresh",
         "Keyboard",
-        # "Zdev",
+        "Zdev",
         "Network",
         "Proxy",
         "Mirror",

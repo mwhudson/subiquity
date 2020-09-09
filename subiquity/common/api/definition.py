@@ -37,6 +37,7 @@ from subiquity.common.types import (
     SnapListResponse,
     SnapSelection,
     StorageResponse,
+    ZdevInfo,
     )
 
 
@@ -77,6 +78,12 @@ class API:
     class errors:
         class wait:
             def GET(error_ref: ErrorReportRef) -> ErrorReportRef: ...
+
+    class zdev:
+        def GET() -> List[ZdevInfo]: ...
+
+        class chzdev:
+            def POST(action: str, zdev: ZdevInfo) -> List[ZdevInfo]: ...
 
     class refresh:
         def GET(wait: bool = False) -> RefreshStatus: ...

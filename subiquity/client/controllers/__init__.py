@@ -25,6 +25,7 @@ from ..controller import RepeatedController
 from .snaplist import SnapListController
 from .ssh import SSHController
 from .welcome import WelcomeController
+from .zdev import ZdevController
 
 __all__ = [
     'FilesystemController',
@@ -39,4 +40,5 @@ __all__ = [
     'SSHController',
     'SnapListController',
     'WelcomeController',
+    'ZdevController',
     ]

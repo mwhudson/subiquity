@@ -20,8 +20,10 @@ Provides device activation and configuration on s390x
 """
 import logging
 
+
 from urwid import (
     connect_signal,
+    LineBox,
     Text,
     )
 
@@ -30,17 +32,21 @@ from subiquitycore.ui.actionmenu import (
     )
 from subiquitycore.ui.buttons import (
     back_btn,
+    cancel_btn,
     done_btn,
     )
 from subiquitycore.ui.container import (
+    Pile,
     WidgetWrap,
     )
+from subiquitycore.ui.spinner import Spinner
 from subiquitycore.ui.table import (
     ColSpec,
     TableListBox,
     TableRow,
     )
 from subiquitycore.ui.utils import (
+    button_pile,
     Color,
     make_action_menu_row,
     screen,
@@ -48,6 +54,47 @@ from subiquitycore.ui.utils import (
 from subiquitycore.view import BaseView
 
 log = logging.getLogger('subiquity.ui.zdev')
+
+
+def status(zdevinfo):
+    if zdevinfo.failed:
+        # for translator: failed is a zdev device status
+        return Color.info_error(Text(_("failed"), align="center"))
+    if zdevinfo.auto and zdevinfo.on:
+        # for translator: auto is a zdev device status
+        return Color.info_minor(Text(_("auto"), align="center"))
+    if zdevinfo.pers and zdevinfo.on:
+        # for translator: online is a zdev device status
+        return Text(_("online"), align="center")
+    return Text("", align="center")
+
+
+class LoadingDialog(WidgetWrap):
+
+    def __init__(self, parent, aio_loop):
+        self.parent = parent
+        self.spinner = Spinner(aio_loop, style='dots')
+        self.spinner.start()
+        self.closed = False
+        text = _("Loading...")
+        # | text |
+        # 12    34
+        self.width = len(text) + 4
+        cancel = cancel_btn(label=_("Cancel"), on_press=self.close)
+        super().__init__(
+            LineBox(
+                Pile([
+                    ('pack', Text(' ' + text)),
+                    ('pack', self.spinner),
+                    ('pack', button_pile([cancel])),
+                    ])))
+
+    def close(self, sender=None):
+        if self.closed:
+            return
+        self.closed = True
+        self.spinner.stop()
+        self.parent.remove_overlay()
 
 
 class ZdevList(WidgetWrap):
@@ -65,13 +112,28 @@ class ZdevList(WidgetWrap):
         super().__init__(self.table)
 
     def _zdev_action(self, sender, action, zdevinfo):
-        if action in ('disable', 'enable'):
-            self.parent.controller.chzdev(action, zdevinfo)
-            self.parent.refresh_model_inputs()
+        app = self.parent.controller.app
+        loop = app.aio_loop
+        ld = None
 
-    def refresh_model_inputs(self):
-        zdevinfos = self.parent.controller.get_zdevinfos()
+        def show_load():
+            nonlocal ld
+            ld = LoadingDialog(self.parent, loop)
+            self.parent.show_overlay(ld, width=ld.width)
 
+        def hide_load():
+            ld.close()
+
+        async def go():
+            if action in ('disable', 'enable'):
+                new_zdevinfos = await app.wait_with_indication(
+                    self.parent.controller.chzdev(action, zdevinfo),
+                    show_load, hide_load)
+                self.update(new_zdevinfos)
+
+        loop.create_task(go())
+
+    def update(self, zdevinfos):
         rows = [TableRow([
             Color.info_minor(heading) for heading in [
                 Text(_("ID")),
@@ -95,7 +157,7 @@ class ZdevList(WidgetWrap):
             if zdevinfo.type == 'zfcp-lun':
                 rows.append(TableRow([
                     Color.info_minor(Text(zdevinfo.id[9:])),
-                    zdevinfo.status,
+                    status(zdevinfo),
                     Text(zdevinfo.names),
                 ]))
                 continue
@@ -106,7 +168,7 @@ class ZdevList(WidgetWrap):
             connect_signal(menu, 'action', self._zdev_action, zdevinfo)
             cells = [
                 Text(zdevinfo.id),
-                zdevinfo.status,
+                status(zdevinfo),
                 Text(zdevinfo.names),
                 menu,
             ]
@@ -128,16 +190,16 @@ class ZdevList(WidgetWrap):
 class ZdevView(BaseView):
     title = _("Zdev setup")
 
-    def __init__(self, controller):
+    def __init__(self, controller, zdevinfos):
         log.debug('FileSystemView init start()')
         self.controller = controller
         self.zdev_list = ZdevList(self)
+        self.zdev_list.update(zdevinfos)
 
         frame = screen(
             self.zdev_list, self._build_buttons(),
             focus_buttons=False)
         super().__init__(frame)
-        self.refresh_model_inputs()
         # Prevent urwid from putting the first focused widget at the
         # very top of the display (obscuring the headings)
         self.zdev_list._w._w.base_widget.set_focus_valign("bottom")
@@ -147,9 +209,6 @@ class ZdevView(BaseView):
             done_btn(_("Continue"), on_press=self.done),
             back_btn(_("Back"), on_press=self.cancel),
             ]
-
-    def refresh_model_inputs(self):
-        self.zdev_list.refresh_model_inputs()
 
     def cancel(self, button=None):
         self.controller.cancel()
