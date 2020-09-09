@@ -58,6 +58,8 @@ from subiquitycore.ui.width import (
 
 from subiquity.ui.views.error import ErrorReportListStretchy
 
+from .zdev import LoadingDialog
+
 log = logging.getLogger('subiquity.ui.help')
 
 
@@ -238,14 +240,6 @@ def menu_item(text, on_press=None):
     if on_press is not None:
         connect_signal(icon, 'click', on_press)
     return Color.frame_button(icon)
-
-
-def get_global_addresses(app):
-    ips = []
-    net_model = app.base_model.network
-    for dev in net_model.get_all_netdevs():
-        ips.extend(dev.actual_global_ip_addresses)
-    return ips
 
 
 def get_installer_password(dry_run=False):
@@ -436,16 +430,29 @@ class HelpMenu(PopUpLauncher):
                 template.format(**info)))
 
     def ssh_help(self, sender=None):
-        texts = ssh_help_texts(
-            get_global_addresses(self.app),
-            self.ssh_password)
+        loop = self.app.aio_loop
+        ld = None
 
-        self._show_overlay(
-            SimpleTextStretchy(
-                self.app,
-                _("Help on SSH access"),
-                *texts,
-                ))
+        def show_load():
+            nonlocal ld
+            ld = LoadingDialog(self.app.ui.body, loop)
+            self.app.ui.body.show_overlay(ld, width=ld.width)
+
+        def hide_load():
+            ld.close()
+
+        async def go():
+            ips = await self.app.client.network.global_addresses.GET()
+            texts = ssh_help_texts(ips, self.ssh_password)
+
+            self._show_overlay(
+                SimpleTextStretchy(
+                    self.app,
+                    _("Help on SSH access"),
+                    *texts,
+                    ))
+
+        loop.create_task(go())
 
     def show_local(self, local_title, local_doc):
 

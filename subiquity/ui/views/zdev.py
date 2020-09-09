@@ -80,13 +80,11 @@ class LoadingDialog(WidgetWrap):
         # | text |
         # 12    34
         self.width = len(text) + 4
-        cancel = cancel_btn(label=_("Cancel"), on_press=self.close)
         super().__init__(
             LineBox(
                 Pile([
                     ('pack', Text(' ' + text)),
                     ('pack', self.spinner),
-                    ('pack', button_pile([cancel])),
                     ])))
 
     def close(self, sender=None):

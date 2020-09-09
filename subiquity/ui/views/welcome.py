@@ -31,7 +31,6 @@ from subiquitycore.view import BaseView
 
 from subiquity.ui.views.help import (
     get_installer_password,
-    get_global_addresses,
     )
 
 log = logging.getLogger("subiquity.views.welcome")

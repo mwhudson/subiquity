@@ -283,11 +283,14 @@ class SubiquityServer(Application):
         resp = await handler(request)
         resp.headers['x-updated'] = updated
         if resp.get('exception'):
+            exc = resp['exception']
+            log.debug(
+                'request to {} crashed'.format(request.raw_path), exc_info=exc)
             s = Serializer()
             report = self.make_apport_report(
                 ErrorReportKind.SERVER_REQUEST_FAIL,
                 "request to {}".format(request.raw_path),
-                exc=resp['exception'])
+                exc=exc)
             resp.headers['x-error-report'] = json.dumps(s.serialize(
                 ErrorReportRef, report.ref()))
         else:

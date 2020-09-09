@@ -208,6 +208,12 @@ class NetworkController(BaseNetworkController, SubiquityController):
     async def POST(self) -> None:
         self.configured()
 
+    async def global_addresses_GET(self) -> List[str]:
+        ips = []
+        for dev in self.model.get_all_netdevs():
+            ips.extend(map(str, dev.actual_global_ip_addresses))
+        return ips
+
     async def subscription_PUT(self, socket_path: str) -> None:
         log.debug('added subscription %s', socket_path)
         conn = aiohttp.UnixConnector(socket_path)
