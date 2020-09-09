@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import json
 import logging
 import os
 import shlex
@@ -37,15 +38,22 @@ from subiquitycore.snapd import (
     )
 
 from subiquity.common.api.definition import API
-from subiquity.common.api.server import bind
+from subiquity.common.api.server import (
+    bind,
+    controller_for_request,
+    )
 from subiquity.common.errorreport import (
     ErrorReporter,
     )
+from subiquity.common.serialize import Serializer
 from subiquity.common.types import (
     ApplicationState,
     ApplicationStatus,
+    ErrorReportRef,
+    ErrorReportKind,
     )
 from subiquity.models.subiquity import SubiquityModel
+from subiquity.server.controller import SubiquityController
 from subiquity.server.errors import ErrorController
 
 
@@ -253,8 +261,34 @@ class SubiquityServer(Application):
             for controller in self.controllers.instances:
                 controller.setup_autoinstall()
 
+    @web.middleware
+    async def middleware(self, request, handler):
+        controller = await controller_for_request(request)
+        status = 'ok'
+        if isinstance(controller, SubiquityController):
+            if not controller.interactive():
+                return web.Response(
+                    status=200,
+                    headers={'x-status': 'skip'})
+            else:
+                bm = self.base_model
+                if controller.model_name is not None:
+                    if bm.needs_confirmation:
+                        if not bm.is_configured(controller.model_name):
+                            status = 'confirm'
+        resp = await handler(request)
+        if resp.get('exception'):
+            s = Serializer()
+            report = self.make_apport_report(
+                ErrorReportKind.SERVER_REQUEST_FAIL, "internal request")
+            resp.headers['x-error-report'] = json.dumps(s.serialize(
+                ErrorReportRef, report.ref()))
+        else:
+            resp.headers['x-status'] = status
+        return resp
+
     async def start_api_server(self):
-        app = web.Application()
+        app = web.Application(middlewares=[self.middleware])
         bind(app.router, API.meta, MetaController(self))
         bind(app.router, API.errors, ErrorController(self))
         if self.opts.dry_run:

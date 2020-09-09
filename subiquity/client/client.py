@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import json
 import logging
 import os
 import sys
@@ -105,16 +106,18 @@ class SubiquityClient(AsyncTuiApplication):
         self.restarting_server = False
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
 
-    def resp_hook(self, resp):
-        if resp['status'] == 'skip':
+    def resp_hook(self, response):
+        status = response.headers.get('x-status')
+        if status == 'skip':
             raise Skip
-        elif resp['status'] == 'confirm':
+        elif status == 'confirm':
             raise Confirm
-        elif resp['status'] == 'error':
+        elif status == 'error':
             s = Serializer()
-            ref = s.deserialize(ErrorReportRef, resp['error_report'])
+            ref = s.deserialize(
+                ErrorReportRef, json.loads(response.headers.get('x-error-report')))
             raise Abort(ref)
-        return resp
+        return response
 
     async def connect(self):
         print("connecting...", end='', flush=True)
