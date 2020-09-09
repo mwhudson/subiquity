@@ -77,11 +77,11 @@ def get_languages():
 class WelcomeView(BaseView):
     title = "Willkommen! Bienvenue! Welcome! Добро пожаловать! Welkom!"
 
-    def __init__(self, controller, cur_lang):
+    def __init__(self, controller, cur_lang, serial, ips):
         self.controller = controller
         self.cur_lang = cur_lang
-        if controller.app.opts.run_on_serial and not controller.app.rich_mode:
-            s = self.make_serial_choices()
+        if serial and not controller.app.rich_mode:
+            s = self.make_serial_choices(ips)
             self.title = "Welcome!"
         else:
             s = self.make_language_choices()
@@ -111,9 +111,8 @@ class WelcomeView(BaseView):
             lb, buttons=None, narrow_rows=True,
             excerpt=_("Use UP, DOWN and ENTER keys to select your language."))
 
-    def make_serial_choices(self):
+    def make_serial_choices(self, ips):
         ssh_password = get_installer_password(self.controller.opts.dry_run)
-        ips = get_global_addresses(self.controller.app)
         btns = [
             other_btn(
                 label="Switch to rich mode",

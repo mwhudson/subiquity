@@ -27,7 +27,12 @@ class WelcomeController(SubiquityTuiController):
 
     async def start_ui(self):
         language = await self.endpoint.GET()
-        view = WelcomeView(self, language)
+        serial = self.app.opts.run_on_serial
+        if serial:
+            ips = await self.app.client.network.global_addresses.GET()
+        else:
+            ips = None
+        view = WelcomeView(self, language, serial, ips)
         await self.app.set_body(view)
         if 'lang' in self.answers:
             self.done(self.answers['lang'])
