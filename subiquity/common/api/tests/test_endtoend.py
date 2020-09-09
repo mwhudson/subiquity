@@ -14,7 +14,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import attr
+import functools
 import unittest
+
+import aiohttp
+from aiohttp import web
 
 from subiquitycore import contextlib38
 
@@ -28,16 +32,18 @@ from .test_server import (
     )
 
 
+def make_request(client, method, path, *, params, json):
+    return client.request(
+        method, path, params=params, json=json)
+
+
 @contextlib38.asynccontextmanager
-async def makeE2EClient(api, impl, resp_hook=lambda x: x):
-    async with makeTestClient(api, impl) as client:
-
-        async def make_request(method, path, *, params, json):
-            async with client.request(
-                    method, path, params=params, json=json) as resp:
-                return resp_hook(await resp.json())
-
-        yield make_client(api, make_request)
+async def makeE2EClient(api, impl,
+                        *, middlewares=(), make_request=make_request):
+    async with makeTestClient(
+            api, impl, middlewares=middlewares) as client:
+        mr = functools.partial(make_request, client)
+        yield make_client(api, mr)
 
 
 class TestEndToEnd(unittest.TestCase):
@@ -51,11 +57,11 @@ class TestEndToEnd(unittest.TestCase):
             async def GET(self) -> str:
                 return 'value'
 
-        async def make_request():
+        async def run():
             async with makeE2EClient(API, Impl()) as client:
                 self.assertEqual(await client.GET(), 'value')
 
-        run_coro(make_request())
+        run_coro(run())
 
     def test_nested(self):
         @api
@@ -68,11 +74,11 @@ class TestEndToEnd(unittest.TestCase):
             async def endpoint_nested_GET(self) -> str:
                 return 'value'
 
-        async def make_request():
+        async def run():
             async with makeE2EClient(API, Impl()) as client:
                 self.assertEqual(await client.endpoint.nested.GET(), 'value')
 
-        run_coro(make_request())
+        run_coro(run())
 
     def test_args(self):
         @api
@@ -83,12 +89,12 @@ class TestEndToEnd(unittest.TestCase):
             async def GET(self, arg1: str, arg2: str) -> str:
                 return '{}+{}'.format(arg1, arg2)
 
-        async def make_request():
+        async def run():
             async with makeE2EClient(API, Impl()) as client:
                 self.assertEqual(
                     await client.GET(arg1="A", arg2="B"), 'A+B')
 
-        run_coro(make_request())
+        run_coro(run())
 
     def test_defaults(self):
         @api
@@ -99,14 +105,14 @@ class TestEndToEnd(unittest.TestCase):
             async def GET(self, arg1: str, arg2: str = "arg2") -> str:
                 return '{}+{}'.format(arg1, arg2)
 
-        async def make_request():
+        async def run():
             async with makeE2EClient(API, Impl()) as client:
                 self.assertEqual(
                     await client.GET(arg1="A", arg2="B"), 'A+B')
                 self.assertEqual(
                     await client.GET(arg1="A"), 'A+arg2')
 
-        run_coro(make_request())
+        run_coro(run())
 
     def test_post(self):
         @api
@@ -117,12 +123,12 @@ class TestEndToEnd(unittest.TestCase):
             async def POST(self, data: dict) -> str:
                 return data['key']
 
-        async def make_request():
+        async def run():
             async with makeE2EClient(API, Impl()) as client:
                 self.assertEqual(
                     await client.POST({'key': 'value'}), 'value')
 
-        run_coro(make_request())
+        run_coro(run())
 
     def test_typed(self):
 
@@ -143,39 +149,50 @@ class TestEndToEnd(unittest.TestCase):
             async def doubler_POST(self, data: In) -> Out:
                 return Out(doubled=data.val*2)
 
-        async def make_request():
+        async def run():
             async with makeE2EClient(API, Impl()) as client:
                 out = await client.doubler.POST(In(3))
                 self.assertEqual(out.doubled, 6)
 
-        run_coro(make_request())
+        run_coro(run())
 
-    def test_hooks(self):
-
+    def test_middleware(self):
         @api
         class API:
-            def GET(x: int) -> int: ...
+            def GET() -> int: ...
 
         class Impl(TestControllerBase):
-            def generic_result(self):
-                return {'other': 2}
+            async def GET(self) -> int:
+                return 1/0
 
-            async def GET(self, x: int) -> int:
-                return x
+        @web.middleware
+        async def middleware(request, handler):
+            return web.Response(
+                status=200,
+                headers={'x-status': 'skip'})
 
-        def resp_hook(resp):
-            resp['result'] *= resp['other']
-            return resp
+        class Skip(Exception):
+            pass
 
-        async def make_request():
-            async with makeE2EClient(API, Impl(), resp_hook) as client:
-                r = await client.GET(2)
-                self.assertEqual(r, 4)
+        @contextlib38.asynccontextmanager
+        async def custom_make_request(client, method, path, *, params, json):
+            async with make_request(
+                    client, method, path, params=params, json=json) as resp:
+                if resp.headers.get('x-status') == 'skip':
+                    raise Skip
+                yield resp
 
-        run_coro(make_request())
+        async def run():
+            async with makeE2EClient(
+                    API, Impl(),
+                    middlewares=[middleware],
+                    make_request=custom_make_request) as client:
+                with self.assertRaises(Skip):
+                    await client.GET()
+
+        run_coro(run())
 
     def test_error(self):
-
         @api
         class API:
             class good:
@@ -185,29 +202,63 @@ class TestEndToEnd(unittest.TestCase):
                 def GET(x: int) -> int: ...
 
         class Impl(TestControllerBase):
-            def make_error_response(self, exc):
-                return {'error': str(exc)}
-
             async def good_GET(self, x: int) -> int:
                 return x + 1
 
             async def bad_GET(self, x: int) -> int:
                 raise Exception("baz")
 
-        excs = []
-
-        def resp_hook(resp):
-            if 'error' in resp:
-                excs.append(resp['error'])
-            return resp
-
-        async def make_request():
-            async with makeE2EClient(API, Impl(), resp_hook) as client:
+        async def run():
+            async with makeE2EClient(API, Impl()) as client:
                 r = await client.good.GET(2)
                 self.assertEqual(r, 3)
-                self.assertEqual(excs, [])
-                r = await client.bad.GET(2)
-                self.assertEqual(r, None)
-                self.assertEqual(excs, ["baz"])
+                with self.assertRaises(aiohttp.ClientResponseError):
+                    await client.bad.GET(2)
 
-        run_coro(make_request())
+        run_coro(run())
+
+    def test_error_middleware(self):
+        @api
+        class API:
+            class good:
+                def GET(x: int) -> int: ...
+
+            class bad:
+                def GET(x: int) -> int: ...
+
+        class Impl(TestControllerBase):
+            async def good_GET(self, x: int) -> int:
+                return x + 1
+
+            async def bad_GET(self, x: int) -> int:
+                1/0
+
+        @web.middleware
+        async def middleware(request, handler):
+            resp = await handler(request)
+            if resp.get('exception'):
+                resp.headers['x-status'] = 'ERROR'
+            return resp
+
+        class Abort(Exception):
+            pass
+
+        @contextlib38.asynccontextmanager
+        async def custom_make_request(client, method, path, *, params, json):
+            async with make_request(
+                    client, method, path, params=params, json=json) as resp:
+                if resp.headers.get('x-status') == 'ERROR':
+                    raise Abort
+                yield resp
+
+        async def run():
+            async with makeE2EClient(
+                    API, Impl(),
+                    middlewares=[middleware],
+                    make_request=custom_make_request) as client:
+                r = await client.good.GET(2)
+                self.assertEqual(r, 3)
+                with self.assertRaises(Abort):
+                    await client.bad.GET(2)
+
+        run_coro(run())

@@ -48,7 +48,9 @@ class SignatureMisatchError(BindError):
 
 
 def trim(text):
-    if len(text) > 80:
+    if text is None:
+        return ''
+    elif len(text) > 80:
         return text[:77] + '...'
     else:
         return text
@@ -103,7 +105,7 @@ def _make_handler(controller, definition, implementation, serializer):
             if data_annotation is not None:
                 payload = json.loads(await request.text())
                 args[data_arg] = serializer.deserialize(
-                    data_annotation, payload['data'])
+                    data_annotation, payload)
             for arg, ann, default in query_args_anns:
                 if arg in request.query:
                     v = serializer.deserialize(
@@ -119,17 +121,24 @@ def _make_handler(controller, definition, implementation, serializer):
                 args['request'] = request
             try:
                 result = await implementation(**args)
-                resp = {
-                    'result': serializer.serialize(def_ret_ann, result),
-                    }
-                resp.update(controller.generic_result())
+                resp = web.json_response(
+                    serializer.serialize(def_ret_ann, result),
+                    headers={'x-status': 'ok'})
             except Exception as exc:
-                resp = controller.make_error_response(exc)
-            resp = web.json_response(resp)
-            context.description = trim(resp.text)
+                resp = web.Response(
+                    status=500,
+                    headers={'x-status': 'error'})
+                resp['exception'] = exc
+            context.description = '{} {}'.format(resp.status, trim(resp.text))
             return resp
+    handler.controller = controller
 
     return handler
+
+
+async def controller_for_request(request):
+    match_info = await request.app.router.resolve(request)
+    return getattr(match_info.handler, 'controller', None)
 
 
 def bind(router, endpoint, controller, serializer=None, _depth=None):

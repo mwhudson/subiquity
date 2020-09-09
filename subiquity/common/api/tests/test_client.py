@@ -15,6 +15,10 @@
 
 import unittest
 
+from aiohttp import web
+
+from subiquitycore import contextlib38
+
 from subiquity.common.api.client import make_client
 from subiquity.common.api.defs import api, Payload
 
@@ -28,6 +32,17 @@ def extract(c):
         raise AssertionError("coroutine not done")
 
 
+class FakeResponse:
+    def __init__(self, data):
+        self.data = data
+
+    def raise_for_status(self):
+        pass
+
+    async def json(self):
+        return self.data
+
+
 class TestClient(unittest.TestCase):
 
     def test_simple(self):
@@ -36,14 +51,16 @@ class TestClient(unittest.TestCase):
         class API:
             class endpoint:
                 def GET() -> str: ...
-                def POST(data: Payload[str]): ...
+                def POST(data: Payload[str]) -> None: ...
 
+        @contextlib38.asynccontextmanager
         async def make_request(method, path, *, params, json):
             requests.append((method, path, params, json))
             if method == "GET":
-                return {'result': 'value'}
+                v = 'value'
             else:
-                return {'result': None}
+                v = None
+            yield FakeResponse(v)
 
         client = make_client(API, make_request)
 
@@ -56,17 +73,18 @@ class TestClient(unittest.TestCase):
         r = extract(client.endpoint.POST('value'))
         self.assertEqual(r, None)
         self.assertEqual(
-            requests, [("POST", '/endpoint', {}, {'data': 'value'})])
+            requests, [("POST", '/endpoint', {}, 'value')])
 
     def test_args(self):
 
         @api
         class API:
-            def GET(arg: str): ...
+            def GET(arg: str) -> str: ...
 
+        @contextlib38.asynccontextmanager
         async def make_request(method, path, *, params, json):
             requests.append((method, path, params, json))
-            return {'result': params['arg']}
+            yield FakeResponse(params['arg'])
 
         client = make_client(API, make_request)
 

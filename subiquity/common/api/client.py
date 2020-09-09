@@ -40,14 +40,13 @@ def _wrap(make_request, path, meth, serializer):
             }
         if payload_arg in args.arguments:
             v = args.arguments[payload_arg]
-            data = {'data': serializer.serialize(payload_ann, v)}
+            data = serializer.serialize(payload_ann, v)
         else:
             data = None
-        r = await make_request(meth.__name__, path, json=data, params=params)
-        if 'result' in r:
-            return serializer.deserialize(r_ann, r['result'])
-        else:
-            return None
+        async with make_request(
+                meth.__name__, path, json=data, params=params) as resp:
+            resp.raise_for_status()
+            return serializer.deserialize(r_ann, await resp.json())
     return impl
 
 

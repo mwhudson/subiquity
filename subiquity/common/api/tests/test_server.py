@@ -25,6 +25,7 @@ from subiquitycore import contextlib38
 from subiquity.common.api.defs import api, Payload
 from subiquity.common.api.server import (
     bind,
+    controller_for_request,
     MissingImplementationError,
     SignatureMisatchError,
     )
@@ -56,8 +57,8 @@ class TestControllerBase:
 
 
 @contextlib38.asynccontextmanager
-async def makeTestClient(api, impl):
-    app = web.Application()
+async def makeTestClient(api, impl, middlewares=()):
+    app = web.Application(middlewares=middlewares)
     bind(app.router, api, impl)
     async with TestClient(TestServer(app)) as client:
         yield client
@@ -79,12 +80,12 @@ class TestBind(unittest.TestCase):
             async def GET(self) -> str:
                 return 'value'
 
-        async def make_request():
+        async def run():
             async with makeTestClient(API, Impl()) as client:
                 await self.assertResponse(
-                    client.get("/"), {'result': 'value'})
+                    client.get("/"), 'value')
 
-        run_coro(make_request())
+        run_coro(run())
 
     def test_nested(self):
         @api
@@ -97,12 +98,12 @@ class TestBind(unittest.TestCase):
             async def nested_get(self, request, context):
                 return 'nested'
 
-        async def make_request():
+        async def run():
             async with makeTestClient(API.endpoint, Impl()) as client:
                 await self.assertResponse(
-                    client.get("/endpoint/nested"), {'result': 'nested'})
+                    client.get("/endpoint/nested"), 'nested')
 
-        run_coro(make_request())
+        run_coro(run())
 
     def test_args(self):
         @api
@@ -113,12 +114,12 @@ class TestBind(unittest.TestCase):
             async def GET(self, arg: str):
                 return arg
 
-        async def make_request():
+        async def run():
             async with makeTestClient(API, Impl()) as client:
                 await self.assertResponse(
-                    client.get('/?arg="whut"'), {'result': 'whut'})
+                    client.get('/?arg="whut"'), 'whut')
 
-        run_coro(make_request())
+        run_coro(run())
 
     def test_post(self):
         @api
@@ -129,13 +130,13 @@ class TestBind(unittest.TestCase):
             async def POST(self, data: str) -> str:
                 return data
 
-        async def make_request():
+        async def run():
             async with makeTestClient(API, Impl()) as client:
                 await self.assertResponse(
-                    client.post("/", json={'data': 'value'}),
-                    {'result': 'value'})
+                    client.post("/", json='value'),
+                    'value')
 
-        run_coro(make_request())
+        run_coro(run())
 
     def test_missing_method(self):
         @api
@@ -163,3 +164,61 @@ class TestBind(unittest.TestCase):
         with self.assertRaises(SignatureMisatchError) as cm:
             bind(app.router, API, Impl())
         self.assertEqual(cm.exception.methname, "API.GET")
+
+    def test_middleware(self):
+
+        @web.middleware
+        async def middleware(request, handler):
+            resp = await handler(request)
+            exc = resp.get('exception')
+            if resp.get('exception') is not None:
+                resp.headers['x-error-type'] = type(exc).__name__
+            return resp
+
+        @api
+        class API:
+            def GET() -> str: ...
+
+        class Impl(TestControllerBase):
+            async def GET(self) -> str:
+                return 1/0
+
+        async def run():
+            async with makeTestClient(
+                    API, Impl(), middlewares=[middleware]) as client:
+                resp = await client.get("/")
+                self.assertEqual(
+                    resp.headers['x-error-type'], 'ZeroDivisionError')
+
+        run_coro(run())
+
+    def test_controller_for_request(self):
+
+        seen_controller = None
+
+        @web.middleware
+        async def middleware(request, handler):
+            nonlocal seen_controller
+            seen_controller = await controller_for_request(request)
+            return await handler(request)
+
+        @api
+        class API:
+            class meth:
+                def GET() -> str: ...
+
+        class Impl(TestControllerBase):
+            async def GET(self) -> str:
+                return ''
+
+        impl = Impl()
+
+        async def run():
+            async with makeTestClient(
+                    API.meth, impl, middlewares=[middleware]) as client:
+                resp = await client.get("/meth")
+                self.assertEqual(await resp.json(), '')
+
+        run_coro(run())
+
+        self.assertIs(impl, seen_controller)
