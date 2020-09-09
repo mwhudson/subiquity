@@ -280,7 +280,9 @@ class SubiquityServer(Application):
         if resp.get('exception'):
             s = Serializer()
             report = self.make_apport_report(
-                ErrorReportKind.SERVER_REQUEST_FAIL, "internal request")
+                ErrorReportKind.SERVER_REQUEST_FAIL,
+                "request to {}".format(request.raw_path),
+                exc=resp['exception'])
             resp.headers['x-error-report'] = json.dumps(s.serialize(
                 ErrorReportRef, report.ref()))
         else:

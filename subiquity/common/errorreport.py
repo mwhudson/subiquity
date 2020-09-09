@@ -369,7 +369,7 @@ class ErrorReporter(object):
     def note_data_for_apport(self, key, value):
         self._apport_data.append((key, value))
 
-    def make_apport_report(self, kind, thing, *, wait=False, **kw):
+    def make_apport_report(self, kind, thing, *, wait=False, exc=None, **kw):
         if not self.dry_run and not os.path.exists('/cdrom/.disk/info'):
             return None
 
@@ -383,11 +383,13 @@ class ErrorReporter(object):
             log.exception("creating crash report failed")
             return
 
-        etype = sys.exc_info()[0]
-        if etype is not None:
+        if exc is None:
+            exc = sys.exc_info()[1]
+        if exc is not None:
             report.pr["Title"] = "{} crashed with {}".format(
-                thing, etype.__name__)
-            report.pr['Traceback'] = traceback.format_exc()
+                thing, type(exc).__name__)
+            tb = traceback.TracebackException.from_exception(exc)
+            report.pr['Traceback'] = "".join(tb.format())
         else:
             report.pr["Title"] = thing
 

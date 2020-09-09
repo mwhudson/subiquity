@@ -185,7 +185,6 @@ class SubiquityClient(AsyncTuiApplication):
 
     async def shutdown(self):
         await self.conn.close()
-        await self.aio_loop.shutdown_asyncgens()
 
     def add_global_overlay(self, overlay):
         self.global_overlays.append(overlay)
