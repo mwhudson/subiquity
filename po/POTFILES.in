@@ -35,8 +35,10 @@ subiquity/common/filesystem.py
 subiquity/common/__init__.py
 subiquity/common/keyboard.py
 subiquity/common/serialize.py
+subiquity/common/tests/test_keyboard.py
 subiquity/common/types.py
 subiquitycore/async_helpers.py
+subiquitycore/contextlib38.py
 subiquitycore/context.py
 subiquitycore/controller.py
 subiquitycore/controllerset.py
@@ -106,7 +108,6 @@ subiquity/models/ssh.py
 subiquity/models/subiquity.py
 subiquity/models/tests/__init__.py
 subiquity/models/tests/test_filesystem.py
-subiquity/models/tests/test_keyboard.py
 subiquity/models/tests/test_mirror.py
 subiquity/models/tests/test_subiquity.py
 subiquity/server/controller.py
