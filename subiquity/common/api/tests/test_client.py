@@ -15,8 +15,6 @@
 
 import unittest
 
-from aiohttp import web
-
 from subiquitycore import contextlib38
 
 from subiquity.common.api.client import make_client

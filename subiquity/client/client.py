@@ -105,8 +105,13 @@ class SubiquityClient(AsyncTuiApplication):
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
         self.restarting_server = False
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
+        self.server_updated = None
 
     def resp_hook(self, response):
+        if self.server_updated is None:
+            self.server_updated = response.headers['x-updated']
+        elif self.server_updated != response.headers['x-updated']:
+            self.restart(remove_last_screen=False)
         status = response.headers.get('x-status')
         if status == 'skip':
             raise Skip
@@ -115,7 +120,8 @@ class SubiquityClient(AsyncTuiApplication):
         elif status == 'error':
             s = Serializer()
             ref = s.deserialize(
-                ErrorReportRef, json.loads(response.headers.get('x-error-report')))
+                ErrorReportRef,
+                json.loads(response.headers.get('x-error-report')))
             raise Abort(ref)
         return response
 

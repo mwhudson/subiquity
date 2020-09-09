@@ -137,15 +137,11 @@ class Application:
 
     def run(self):
         self.base_model = self.make_model()
-        try:
-            self.controllers.load_all()
-            self.load_serialized_state()
-            self._connect_base_signals()
-            self.start_controllers()
-            self.aio_loop.run_forever()
-        finally:
-            self.aio_loop.run_until_complete(
-                self.aio_loop.shutdown_asyncgens())
+        self.controllers.load_all()
+        self.load_serialized_state()
+        self._connect_base_signals()
+        self.start_controllers()
+        self.aio_loop.run_forever()
         if self._exc:
             exc, self._exc = self._exc, None
             raise exc

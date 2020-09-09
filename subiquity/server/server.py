@@ -264,12 +264,16 @@ class SubiquityServer(Application):
     @web.middleware
     async def middleware(self, request, handler):
         controller = await controller_for_request(request)
+        if self.updated:
+            updated = 'yes'
+        else:
+            updated = 'no'
         status = 'ok'
         if isinstance(controller, SubiquityController):
             if not controller.interactive():
                 return web.Response(
                     status=200,
-                    headers={'x-status': 'skip'})
+                    headers={'x-status': 'skip', 'x-updated': updated})
             else:
                 bm = self.base_model
                 if controller.model_name is not None:
@@ -277,6 +281,7 @@ class SubiquityServer(Application):
                         if not bm.is_configured(controller.model_name):
                             status = 'confirm'
         resp = await handler(request)
+        resp.headers['x-updated'] = updated
         if resp.get('exception'):
             s = Serializer()
             report = self.make_apport_report(

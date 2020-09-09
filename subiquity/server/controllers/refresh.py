@@ -102,8 +102,8 @@ class RefreshController(SubiquityController):
                 raise e
             if change['status'] == 'Done':
                 # Clearly if we got here we didn't get restarted by
-                # snapd/systemctl (dry-run mode or logged in via SSH)
-                self.app.restart(remove_last_screen=False)
+                # snapd/systemctl (most likely dry-run mode)
+                self.app.restart()
             if change['status'] not in ['Do', 'Doing']:
                 raise Exception("update failed")
             await asyncio.sleep(0.1)
