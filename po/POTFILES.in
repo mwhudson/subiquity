@@ -14,6 +14,7 @@ subiquity/client/controllers/refresh.py
 subiquity/client/controllers/snaplist.py
 subiquity/client/controllers/ssh.py
 subiquity/client/controllers/welcome.py
+subiquity/client/controllers/zdev.py
 subiquity/client/__init__.py
 subiquity/client/keyboard.py
 subiquity/cmd/common.py
@@ -22,7 +23,7 @@ subiquity/cmd/schema.py
 subiquity/cmd/server.py
 subiquity/cmd/tui.py
 subiquity/common/api/client.py
-subiquity/common/api/definition.py
+subiquity/common/apidef.py
 subiquity/common/api/defs.py
 subiquity/common/api/__init__.py
 subiquity/common/api/server.py
@@ -35,6 +36,7 @@ subiquity/common/filesystem.py
 subiquity/common/__init__.py
 subiquity/common/keyboard.py
 subiquity/common/serialize.py
+subiquity/common/tests/__init__.py
 subiquity/common/tests/test_keyboard.py
 subiquity/common/types.py
 subiquitycore/async_helpers.py
@@ -129,6 +131,7 @@ subiquity/server/controllers/snaplist.py
 subiquity/server/controllers/ssh.py
 subiquity/server/controllers/userdata.py
 subiquity/server/controllers/welcome.py
+subiquity/server/controllers/zdev.py
 subiquity/server/dryrun.py
 subiquity/server/errors.py
 subiquity/server/__init__.py

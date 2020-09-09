@@ -23,7 +23,7 @@ from collections import OrderedDict
 
 from subiquitycore.utils import run_command
 
-from subiquity.common.api.definition import API
+from subiquity.common.apidef import API
 from subiquity.common.types import Bootloader, ZdevInfo
 from subiquity.server.controller import SubiquityController
 

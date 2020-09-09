@@ -37,11 +37,11 @@ from subiquitycore.snapd import (
     SnapdConnection,
     )
 
-from subiquity.common.api.definition import API
 from subiquity.common.api.server import (
     bind,
     controller_for_request,
     )
+from subiquity.common.apidef import API
 from subiquity.common.errorreport import (
     ErrorReporter,
     )

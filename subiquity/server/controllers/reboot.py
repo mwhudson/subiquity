@@ -22,7 +22,7 @@ import subprocess
 from subiquitycore.context import with_context
 from subiquitycore.utils import arun_command, run_command
 
-from subiquity.common.api.definition import API
+from subiquity.common.apidef import API
 from subiquity.server.controller import SubiquityController
 from subiquity.server.controllers.install import InstallState
 

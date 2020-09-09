@@ -27,7 +27,7 @@ from subiquitycore.view import BaseView
 
 from subiquity.client.asyncapp import AsyncTuiApplication
 from subiquity.common.api.client import make_client_for_conn
-from subiquity.common.api.definition import API
+from subiquity.common.apidef import API
 from subiquity.common.serialize import Serializer
 from subiquity.common.errorreport import (
     ErrorReporter,

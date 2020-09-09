@@ -18,7 +18,7 @@ import os
 
 from subiquitycore.context import with_context
 
-from subiquity.common.api.definition import API
+from subiquity.common.apidef import API
 from subiquity.server.controller import SubiquityController
 
 log = logging.getLogger('subiquity.controllers.proxy')

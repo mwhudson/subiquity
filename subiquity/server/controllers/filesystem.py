@@ -33,7 +33,7 @@ from subiquitycore.utils import (
     )
 from subiquitycore.lsb_release import lsb_release
 
-from subiquity.common.api.definition import API
+from subiquity.common.apidef import API
 from subiquity.common.errorreport import ErrorReportKind
 from subiquity.common.filesystem import FilesystemManipulator
 from subiquity.common.types import (

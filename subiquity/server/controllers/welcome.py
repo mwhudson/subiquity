@@ -16,7 +16,7 @@
 import logging
 import os
 
-from subiquity.common.api.definition import API
+from subiquity.common.apidef import API
 from subiquity.server.controller import SubiquityController
 
 

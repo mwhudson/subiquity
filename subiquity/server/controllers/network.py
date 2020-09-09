@@ -29,7 +29,7 @@ from subiquitycore.models.network import (
     )
 
 from subiquity.common.api.client import make_client_for_conn
-from subiquity.common.api.definition import (
+from subiquity.common.apidef import (
     API,
     LinkAction,
     NetEventAPI,

@@ -40,7 +40,7 @@ from subiquitycore.utils import (
     astart_command,
     )
 
-from subiquity.common.api.definition import API
+from subiquity.common.apidef import API
 from subiquity.common.errorreport import ErrorReportKind
 from subiquity.server.controller import (
     SubiquityController,

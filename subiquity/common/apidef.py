@@ -22,7 +22,7 @@ from subiquitycore.models.network import (
     StaticConfig,
     )
 
-from .defs import api, simple_endpoint, Payload
+from subiquity.common.api.defs import api, simple_endpoint, Payload
 from subiquity.common.types import (
     ApplicationState,
     ApplicationStatus,
@@ -43,6 +43,8 @@ from subiquity.common.types import (
 
 @api
 class API:
+    """The API offered by the subiquity installer process."""
+
     # Simple endpoints, that just take and give a single data type:
 
     locale = simple_endpoint(str)
@@ -60,24 +62,32 @@ class API:
                 -> ApplicationState: ...
 
         class mark_configured:
-            def POST(endpoint_names: List[str]) -> None: ...
+            def POST(endpoint_names: List[str]) -> None:
+                """Mark the controllers for endpoint_names as configured."""
 
         class confirm:
-            def POST() -> None: ...
+            def POST() -> None:
+                """Confirm that the installation should proceed."""
 
         class restart:
-            def POST() -> None: ...
+            def POST() -> None:
+                """Restart the server process."""
 
     class dry_run:
+        """This endpoint only works in dry-run mode."""
+
         class make_error:
-            def POST() -> ErrorReportRef: ...
+            def POST() -> ErrorReportRef:
+                """Create an arbitrary error report."""
 
         class crash:
-            def GET() -> None: ...
+            def GET() -> None:
+                """Requests to this method will fail with a HTTP 500."""
 
     class errors:
         class wait:
-            def GET(error_ref: ErrorReportRef) -> ErrorReportRef: ...
+            def GET(error_ref: ErrorReportRef) -> ErrorReportRef:
+                """Block until the error report is fully populated."""
 
     class zdev:
         def GET() -> List[ZdevInfo]: ...

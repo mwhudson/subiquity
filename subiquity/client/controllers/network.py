@@ -30,8 +30,8 @@ from subiquitycore.ui.stretchy import StretchyOverlay
 from subiquitycore.ui.views.network import NetworkView
 
 from subiquity.client.controller import SubiquityTuiController
-from subiquity.common.api.definition import LinkAction, NetEventAPI
 from subiquity.common.api.server import make_server_at_path
+from subiquity.common.apidef import LinkAction, NetEventAPI
 
 log = logging.getLogger('subiquity.client.controllers.network')
 

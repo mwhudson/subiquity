@@ -15,7 +15,7 @@
 
 import logging
 
-from subiquity.common.api.definition import API
+from subiquity.common.apidef import API
 from subiquity.common.types import SSHData
 from subiquity.server.controller import SubiquityController
 

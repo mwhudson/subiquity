@@ -19,7 +19,7 @@ import attr
 
 from subiquitycore.context import with_context
 
-from subiquity.common.api.definition import API
+from subiquity.common.apidef import API
 from subiquity.common.types import IdentityData
 from subiquity.server.controller import SubiquityController
 
