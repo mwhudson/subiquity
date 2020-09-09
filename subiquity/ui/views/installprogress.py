@@ -243,12 +243,13 @@ class InstallConfirmation(Stretchy):
             focus_index=2)
 
     def ok(self, sender):
-        self.app.remove_global_overlay(self)
         if isinstance(self.app.ui.body, ProgressView):
             self.app.ui.body.hide_continue()
         if self.app.controllers.Progress.showing:
+            self.app.remove_global_overlay(self)
             self.app.aio_loop.create_task(self.app.confirm_install())
         else:
+            self.app.global_overlays.remove(self)
             self.app.next_screen(self.app.confirm_install())
 
     def cancel(self, sender):

@@ -68,7 +68,8 @@ def make_client(endpoint_cls, make_request, serializer=None):
     return C
 
 
-def make_client_for_conn(endpoint_cls, conn, resp_hook=lambda r: r):
+def make_client_for_conn(
+        endpoint_cls, conn, resp_hook=lambda r: r, serializer=None):
     @contextlib38.asynccontextmanager
     async def make_request(method, path, *, params, json):
         async with aiohttp.ClientSession(
@@ -78,4 +79,4 @@ def make_client_for_conn(endpoint_cls, conn, resp_hook=lambda r: r):
                     params=params, timeout=0) as response:
                 yield resp_hook(response)
 
-    return make_client(endpoint_cls, make_request)
+    return make_client(endpoint_cls, make_request, serializer)
