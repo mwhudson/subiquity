@@ -50,6 +50,8 @@ class KeyboardController(SubiquityController):
         super().__init__(app)
 
     def load_autoinstall_data(self, data):
+        if data is None:
+            return
         setting = KeyboardSetting(**data)
         if self.model.setting != setting:
             self.needs_set_keyboard = True

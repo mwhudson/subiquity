@@ -26,8 +26,8 @@ late-commands:
   - echo late
   - sleep 1
   - echo late
-keyboard:
-  layout: gb
+#keyboard:
+#  layout: gb
 identity:
   realname: ''
   username: ubuntu
