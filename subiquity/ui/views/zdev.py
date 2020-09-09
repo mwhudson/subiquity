@@ -32,7 +32,6 @@ from subiquitycore.ui.actionmenu import (
     )
 from subiquitycore.ui.buttons import (
     back_btn,
-    cancel_btn,
     done_btn,
     )
 from subiquitycore.ui.container import (
@@ -46,7 +45,6 @@ from subiquitycore.ui.table import (
     TableRow,
     )
 from subiquitycore.ui.utils import (
-    button_pile,
     Color,
     make_action_menu_row,
     screen,

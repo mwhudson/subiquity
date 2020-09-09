@@ -8,21 +8,13 @@ from subiquity.client.controllers.welcome import WelcomeController
 from subiquity.ui.views.welcome import WelcomeView
 
 
-class FakeApp:
-    is_linux_tty = True
-
-    class opts:
-        run_on_serial = False
-
-
 class WelcomeViewTests(unittest.TestCase):
 
     def make_view_with_languages(self, languages):
         controller = mock.create_autospec(spec=WelcomeController)
-        controller.app = FakeApp()
         with mock.patch("subiquity.ui.views.welcome.get_languages") as p:
             p.return_value = languages
-            return WelcomeView(controller, languages[0][0])
+            return WelcomeView(controller, languages[0][0], False, None)
 
     def test_basic(self):
         # Clicking the button for a language calls "switch_language"
