@@ -22,9 +22,6 @@ class ErrorController:
         self.context = app.context.child("Error")
         self.error_reporter = app.error_reporter
 
-    def generic_result(self):
-        return {'status': 'ok'}
-
     async def wait_GET(self, error_ref: ErrorReportRef) -> ErrorReportRef:
         report = self.error_reporter.get(error_ref)
         if report.state == ErrorReportState.INCOMPLETE:

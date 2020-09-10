@@ -121,9 +121,6 @@ class NetworkController(SubiquityTuiController):
         else:
             raise Exception("could not process action {}".format(action))
 
-    def generic_result(self):
-        return {}
-
     async def update_link_POST(self, act: LinkAction,
                                info: NetDevInfo) -> None:
         if self.view is None:

@@ -48,12 +48,8 @@ class TestApp:
 
 class TestControllerBase:
 
-    def __init__(self, generic={}):
-        self.generic = generic
+    def __init__(self):
         self.context = Context.new(TestApp())
-
-    def generic_result(self):
-        return self.generic
 
 
 @contextlib38.asynccontextmanager

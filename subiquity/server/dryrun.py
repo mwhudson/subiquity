@@ -23,18 +23,6 @@ class DryRunController:
         self.app = app
         self.context = app.context.child("DryRun")
 
-    def generic_result(self):
-        return {'status': 'ok'}
-
-    def make_error_response(self, exc):
-        report = self.app.make_apport_report(
-            ErrorReportKind.SERVER_REQUEST_FAIL, "example")
-        s = Serializer()
-        return {
-            'status': 'error',
-            'error_report': s.serialize(ErrorReportRef, report.ref()),
-            }
-
     async def make_error_POST(self) -> ErrorReportRef:
         try:
             1/0

@@ -66,9 +66,6 @@ class MetaController:
         self.app = app
         self.context = app.context.child("Meta")
 
-    def generic_result(self):
-        return {'status': 'ok'}
-
     async def status_GET(self, cur: Optional[ApplicationStatus] = None) \
             -> ApplicationState:
         if cur == self.app.status:

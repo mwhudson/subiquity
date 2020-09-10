@@ -96,27 +96,6 @@ class SubiquityController(BaseController):
         if self.endpoint is not None:
             bind(app.router, self.endpoint, self)
 
-    def make_error_response(self, exc):
-        report = self.app.make_apport_report(
-            ErrorReportKind.SERVER_REQUEST_FAIL, "internal request")
-        s = Serializer()
-        return {
-            'status': 'error',
-            'error_report': s.serialize(ErrorReportRef, report.ref()),
-            }
-
-    def generic_result(self):
-        if self.interactive():
-            status = 'ok'
-            bm = self.app.base_model
-            if self.model_name is not None:
-                if bm.needs_confirmation:
-                    if not bm.is_configured(self.model_name):
-                        status = 'confirm'
-        else:
-            status = 'skip'
-        return {'status': status}
-
 
 class NonInteractiveController(SubiquityController):
 
