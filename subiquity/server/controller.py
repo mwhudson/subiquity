@@ -78,9 +78,7 @@ class SubiquityController(BaseController):
             return True
         i_sections = self.app.autoinstall_config.get(
             'interactive-sections', [])
-        if '*' in i_sections or self.autoinstall_key in i_sections:
-            return True
-        return False
+        return '*' in i_sections or self.autoinstall_key in i_sections
 
     def configured(self):
         """Let the world know that this controller's model is now configured.
