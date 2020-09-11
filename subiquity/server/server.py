@@ -83,7 +83,7 @@ class MetaController:
         self.app.restart()
 
     async def mark_configured_POST(self, endpoint_names: List[str]) -> None:
-        endpoints = {getattr(API, en) for en in endpoint_names}
+        endpoints = {getattr(API, en, None) for en in endpoint_names}
         for controller in self.app.controllers.instances:
             if controller.endpoint in endpoints:
                 controller.configured()
@@ -260,12 +260,12 @@ class SubiquityServer(Application):
 
     @web.middleware
     async def middleware(self, request, handler):
-        controller = await controller_for_request(request)
         if self.updated:
             updated = 'yes'
         else:
             updated = 'no'
         status = 'ok'
+        controller = await controller_for_request(request)
         if isinstance(controller, SubiquityController):
             if not controller.interactive():
                 return web.Response(

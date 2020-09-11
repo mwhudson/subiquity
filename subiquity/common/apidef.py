@@ -59,7 +59,11 @@ class API:
     class meta:
         class status:
             def GET(cur: Optional[ApplicationStatus] = None) \
-                -> ApplicationState: ...
+              -> ApplicationState:
+                """Get the installer state and some syslog ids.
+
+                The syslog ids are where messages sent by the server go.
+                """
 
         class mark_configured:
             def POST(endpoint_names: List[str]) -> None:
@@ -96,8 +100,13 @@ class API:
             def POST(action: str, zdev: ZdevInfo) -> List[ZdevInfo]: ...
 
     class refresh:
-        def GET(wait: bool = False) -> RefreshStatus: ...
-        def POST() -> int: ...
+        def GET(wait: bool = False) -> RefreshStatus:
+            """Get information about the snap refresh status.
+
+            If wait is true, block until the status is known."""
+
+        def POST() -> int:
+            """Start the update and return the change id."""
 
         class progress:
             def GET(change_id: int) -> dict: ...
@@ -107,11 +116,48 @@ class API:
         def POST() -> None: ...
 
         class global_addresses:
-            def GET() -> List[str]: ...
+            def GET() -> List[str]:
+                """Return the global IP addresses the system currently has."""
 
         class subscription:
+            """Subscribe to networking updates.
+
+            The socket must serve the NetEventAPI below.
+            """
             def PUT(socket_path: str) -> None: ...
             def DELETE(socket_path: str) -> None: ...
+
+        # These methods could definitely be more RESTish, like maybe a
+        # GET request to /network/interfaces/$name should return netplan
+        # config which could then be POSTed back the same path. But
+        # well, that's not implemented yet.
+        #
+        # (My idea is that the API definition would look something like
+        #
+        # class network:
+        #     class interfaces:
+        #        class dev_name:
+        #            __subscript__ = True
+        #            def GET() -> dict: ...
+        #            def POST(config: Payload[dict]) -> None: ...
+        #
+        # The client would use subscripting to get a client for
+        # the nic, so something like
+        #
+        #   dev_client = client.network[dev_name]
+        #   config = await dev_client.GET()
+        #   ...
+        #   await dev_client.POST(config)
+        #
+        # The implementation would look like:
+        #
+        # class NetworkController:
+        #
+        #     async def interfaces_devname_GET(dev_name: str) -> dict: ...
+        #     async def interfaces_devname_POST(dev_name: str, config: dict) \
+        #       -> None: ...
+        #
+        # So methods on nics get an extra dev_name: str parameter)
 
         class set_static_config:
             def POST(dev_name: str, ip_version: int,

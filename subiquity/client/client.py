@@ -120,11 +120,11 @@ class SubiquityClient(AsyncTuiApplication):
             raise Skip
         elif status == 'confirm':
             raise Confirm
-        elif status == 'error':
+        elif response.headers.get('x-error-report') is not None:
             s = Serializer()
             ref = s.deserialize(
                 ErrorReportRef,
-                json.loads(response.headers.get('x-error-report')))
+                json.loads(response.headers['x-error-report']))
             raise Abort(ref)
         try:
             response.raise_for_status()

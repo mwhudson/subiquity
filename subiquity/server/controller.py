@@ -22,11 +22,6 @@ from subiquitycore.controller import (
     BaseController,
     )
 
-from subiquity.common.serialize import Serializer
-from subiquity.common.types import (
-    ErrorReportRef,
-    ErrorReportKind,
-    )
 from subiquity.common.api.server import bind
 
 log = logging.getLogger("subiquity.server.controller")

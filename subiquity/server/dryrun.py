@@ -14,7 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from subiquity.common.types import ErrorReportKind, ErrorReportRef
-from subiquity.common.serialize import Serializer
 
 
 class DryRunController:
