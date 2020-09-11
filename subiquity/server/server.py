@@ -18,7 +18,9 @@ import json
 import logging
 import os
 import shlex
+import signal
 import sys
+import traceback
 from typing import List, Optional
 
 from aiohttp import web
@@ -335,7 +337,20 @@ class SubiquityServer(Application):
                 self.aio_loop.shutdown_asyncgens())
         if self._exc:
             exc, self._exc = self._exc, None
-            raise exc
+            print("generating crash report")
+            try:
+                report = self.make_apport_report(
+                    ErrorReportKind.SERVER_CRASH,
+                    "request to {}", wait=True, exc=exc)
+                print("report saved to {path}".format(path=report.path))
+            except Exception:
+                print("report generation failed")
+                traceback.print_exc()
+            if not self.interactive():
+                traceback.print_exc()
+                signal.pause()
+            else:
+                raise exc
 
     server_proc = None
 
