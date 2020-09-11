@@ -319,6 +319,8 @@ class SubiquityServer(Application):
             self.update_status(ApplicationStatus.EARLY_COMMANDS)
             await self.controllers.Early.run()
         self.load_autoinstall_config(only_early=False)
+        if not self.interactive() and not self.opts.dry_run:
+            open('/run/casper-no-prompt', 'w').close()
         self.load_serialized_state()
         self._connect_base_signals()
         self.start_controllers()
