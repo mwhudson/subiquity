@@ -1,5 +1,6 @@
 [encoding: UTF-8]
 subiquity/client/client.py
+subiquity/client/controllers/__init__.py
 subiquity/cmd/common.py
 subiquity/cmd/__init__.py
 subiquity/cmd/schema.py

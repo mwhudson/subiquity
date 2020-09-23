@@ -102,7 +102,7 @@ class SubiquityClient(TuiApplication):
         'additionalProperties': True,
         }
 
-    from subiquity import controllers as controllers_mod
+    from subiquity.client import controllers as controllers_mod
     project = "subiquity"
 
     def make_model(self):
@@ -114,29 +114,7 @@ class SubiquityClient(TuiApplication):
     def make_ui(self):
         return SubiquityUI(self, self.help_menu)
 
-    controllers = [
-        "Early",
-        "Reporting",
-        "Error",
-        "Userdata",
-        "Package",
-        "Debconf",
-        "Welcome",
-        "Refresh",
-        "Keyboard",
-        "Zdev",
-        "Network",
-        "Proxy",
-        "Mirror",
-        "Refresh",
-        "Filesystem",
-        "Identity",
-        "SSH",
-        "SnapList",
-        "InstallProgress",
-        "Late",
-        "Reboot",
-    ]
+    controllers = []
 
     def __init__(self, opts, block_log_dir):
         if is_linux_tty():
