@@ -22,10 +22,6 @@ import traceback
 
 import aiohttp
 
-import jsonschema
-
-import yaml
-
 from subiquitycore.async_helpers import (
     run_in_thread,
     schedule_task,
@@ -42,6 +38,7 @@ from subiquity.common.errorreport import (
     )
 from subiquity.common.serialize import from_json
 from subiquity.common.types import (
+    ApplicationState,
     ErrorReportKind,
     ErrorReportRef,
     )
@@ -113,43 +110,22 @@ class SubiquityClient(TuiApplication):
 
         self.help_menu = HelpMenu(self)
         super().__init__(opts)
+        self.app_state = None
         self.server_updated = None
         self.restarting_server = False
-        journald_listen(
-            self.aio_loop, ["subiquity"], self.subiquity_event, seek=True)
-        self.event_listeners = []
         self.install_lock_file = Lockfile(self.state_path("installing"))
         self.global_overlays = []
         self.block_log_dir = block_log_dir
-        self.signal.connect_signals([
-            ('network-proxy-set', lambda: schedule_task(self._proxy_set())),
-            ('network-change', self._network_change),
-            ])
 
         self.conn = aiohttp.UnixConnector(self.opts.socket)
         self.client = make_client_for_conn(API, self.conn, self.resp_hook)
 
-        self.autoinstall_config = {}
         self.error_reporter = ErrorReporter(
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root,
             self.client)
 
         self.note_data_for_apport("SnapUpdated", str(self.updated))
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
-
-    def subiquity_event(self, event):
-        if event["MESSAGE"] == "starting install":
-            if event["_PID"] == os.getpid():
-                return
-            if not self.install_lock_file.is_exclusively_locked():
-                return
-            from subiquity.ui.views.installprogress import (
-                InstallRunning,
-                )
-            tty = self.install_lock_file.read_content()
-            install_running = InstallRunning(self.ui.body, self, tty)
-            self.add_global_overlay(install_running)
-            schedule_task(self._hide_install_running(install_running))
 
     async def _hide_install_running(self, install_running):
         # Wait until the install has completed...
@@ -187,64 +163,6 @@ class SubiquityClient(TuiApplication):
 
         os.execvp(cmdline[0], cmdline)
 
-    def get_primary_tty(self):
-        tty = '/dev/tty1'
-        for word in self.kernel_cmdline:
-            if word.startswith('console='):
-                tty = '/dev/' + word[len('console='):].split(',')[0]
-        return tty
-
-    async def load_autoinstall_config(self):
-        with open(self.opts.autoinstall) as fp:
-            self.autoinstall_config = yaml.safe_load(fp)
-        primary_tty = self.get_primary_tty()
-        try:
-            our_tty = os.ttyname(0)
-        except OSError:
-            # This is a gross hack for testing in travis.
-            our_tty = "/dev/not a tty"
-        if not self.interactive() and our_tty != primary_tty:
-            while True:
-                print(
-                    _("the installer running on {tty} will perform the "
-                      "autoinstall").format(tty=primary_tty))
-                print()
-                print(_("press enter to start a shell"))
-                input()
-                os.system("cd / && bash")
-        self.controllers.load("Reporting")
-        self.controllers.Reporting.start()
-        self.controllers.load("Error")
-        with self.context.child("core_validation", level="INFO"):
-            jsonschema.validate(self.autoinstall_config, self.base_schema)
-        self.controllers.load("Early")
-        if self.controllers.Early.cmds:
-            stamp_file = self.state_path("early-commands")
-            if our_tty != primary_tty:
-                print(
-                    _("waiting for installer running on {tty} to run early "
-                      "commands").format(tty=primary_tty))
-                while not os.path.exists(stamp_file):
-                    await asyncio.sleep(1)
-            elif not os.path.exists(stamp_file):
-                await self.controllers.Early.run()
-                open(stamp_file, 'w').close()
-            with open(self.opts.autoinstall) as fp:
-                self.autoinstall_config = yaml.safe_load(fp)
-            with self.context.child("core_validation", level="INFO"):
-                jsonschema.validate(self.autoinstall_config, self.base_schema)
-            for controller in self.controllers.instances:
-                controller.setup_autoinstall()
-        if not self.interactive() and self.opts.run_on_serial:
-            # Thanks to the fact that we are launched with agetty's
-            # --skip-login option, on serial lines we can end up starting with
-            # some strange terminal settings (see the docs for --skip-login in
-            # agetty(8)). For an interactive install this does not matter as
-            # the settings will soon be clobbered but for a non-interactive
-            # one we need to clear things up or the prompting for confirmation
-            # in next_screen below will be confusing.
-            os.system('stty sane')
-
     def resp_hook(self, response):
         headers = response.headers
         if 'x-updated' in headers:
@@ -269,27 +187,106 @@ class SubiquityClient(TuiApplication):
             raise Abort(report.ref())
         return response
 
+    def subiquity_event_interactive(self, event):
+        # self.controllers.Progress.event(event)
+        if event["MESSAGE"] == "starting install":
+            if event["_PID"] == os.getpid():
+                return
+            if not self.install_lock_file.is_exclusively_locked():
+                return
+            from subiquity.ui.views.installprogress import (
+                InstallRunning,
+                )
+            tty = self.install_lock_file.read_content()
+            install_running = InstallRunning(self.ui.body, self, tty)
+            self.add_global_overlay(install_running)
+            schedule_task(self._hide_install_running(install_running))
+
+    async def noninteractive_confirmation(self):
+        yes = _('yes')
+        no = _('no')
+        answer = no
+        print(_("Confirmation is required to continue."))
+        print(_("Add 'autoinstall' to your kernel command line to avoid this"))
+        print()
+        prompt = "\n\n{} ({}|{})".format(
+            _("Continue with autoinstall?"), yes, no)
+        while answer != yes:
+            print(prompt)
+            answer = await run_in_thread(input)
+        await self.confirm_install()
+
+    def subiquity_event_noninteractive(self, event):
+        if 'SUBIQUITY_CONFIRMATION' in event:
+            input("confirm?")
+            self.aio_loop.create_task(self.client.meta.confirm.POST())
+        elif event['SUBIQUITY_EVENT_TYPE'] == 'start':
+            print('start: ' + event["MESSAGE"])
+        elif event['SUBIQUITY_EVENT_TYPE'] == 'finish':
+            print('finish: ' + event["MESSAGE"])
+            context_name = event.get('SUBIQUITY_CONTEXT_NAME', '')
+            if context_name == 'subiquity/Reboot/reboot':
+                self.exit()
+
     async def connect(self):
         print("connecting...", end='', flush=True)
         while True:
             try:
-                await self.client.meta.status.GET()
+                status = await self.client.meta.status.GET()
             except aiohttp.ClientError:
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
             else:
                 print()
                 break
+        self.app_state = status.state
+        if self.app_state == ApplicationState.STARTING:
+            print("server is starting...", end='', flush=True)
+            while self.app_state == ApplicationState.STARTING:
+                await asyncio.sleep(1)
+                print(".", end='', flush=True)
+                self.app_state = await self.client.meta.status.GET().state
+            print()
+        if self.app_state == ApplicationState.EARLY_COMMANDS:
+            print("running early commands...")
+            fd = journald_listen(
+                self.aio_loop,
+                [status.early_commands_syslog_id],
+                lambda e: print(e['MESSAGE']))
+            self.app_state = await self.client.meta.status.GET(
+                self.app_state).state
+            await asyncio.sleep(0.5)
+        if self.app_state == ApplicationState.INTERACTIVE:
+            self.aio_loop.remove_reader(fd)
+        if self.app_state == ApplicationState.INTERACTIVE:
+            journald_listen(
+                self.aio_loop,
+                [status.event_syslog_id],
+                self.subiquity_event_interactive)
+            # journald_listen(
+            #     [status.log_syslog_id],
+            #     self.controllers.Progress.log_line)
+            return True
+        elif self.app_state == ApplicationState.NON_INTERACTIVE:
+            if self.opts.run_on_serial:
+                # Thanks to the fact that we are launched with agetty's
+                # --skip-login option, on serial lines we can end up starting
+                # with some strange terminal settings (see the docs for
+                # --skip-login in agetty(8)). For an interactive install this
+                # does not matter as the settings will soon be clobbered but
+                # for a non-interactive one we need to clear things up or the
+                # prompting for confirmation will be confusing.
+                os.system('stty sane')
+            journald_listen(
+                self.aio_loop,
+                [status.event_syslog_id],
+                self.subiquity_event_noninteractive)
+            return False
 
     async def start(self):
-        await self.connect()
-        if self.opts.autoinstall is not None:
-            await self.load_autoinstall_config()
-            if not self.interactive() and not self.opts.dry_run:
-                open('/run/casper-no-prompt', 'w').close()
-        await super().start(start_urwid=self.interactive())
-        if not self.interactive():
-            self.select_initial_screen(0)
+        interactive = await self.connect()
+        if interactive:
+            await super().start()
 
     def _exception_handler(self, loop, context):
         exc = context.get('exception')
@@ -336,24 +333,8 @@ class SubiquityClient(TuiApplication):
                 os.kill(pid, 2)
                 os.waitpid(pid, 0)
 
-    def add_event_listener(self, listener):
-        self.event_listeners.append(listener)
-
-    def report_start_event(self, context, description):
-        for listener in self.event_listeners:
-            listener.report_start_event(context, description)
-
-    def report_finish_event(self, context, description, status):
-        for listener in self.event_listeners:
-            listener.report_finish_event(context, description, status)
-
     async def confirm_install(self):
         self.base_model.confirm()
-
-    def interactive(self):
-        if not self.autoinstall_config:
-            return True
-        return bool(self.autoinstall_config.get('interactive-sections'))
 
     def add_global_overlay(self, overlay):
         self.global_overlays.append(overlay)
@@ -371,61 +352,35 @@ class SubiquityClient(TuiApplication):
             if report.kind == ErrorReportKind.UI and not report.seen:
                 self.show_error_report(report.ref())
                 break
+        self.aio_loop.create_task(self._select_initial_screen(index))
+
+    async def _select_initial_screen(self, index):
+        endpoint_names = []
+        for c in self.controllers.instances[:index]:
+            if c.endpoint_name:
+                endpoint_names.append(c.endpoint_name)
+        if endpoint_names:
+            await self.client.meta.mark_configured.POST(endpoint_names)
         super().select_initial_screen(index)
 
     async def move_screen(self, increment, coro):
         try:
             await super().move_screen(increment, coro)
         except Confirm:
-            if self.interactive():
-                log.debug("showing InstallConfirmation over %s", self.ui.body)
-                from subiquity.ui.views.installprogress import (
-                    InstallConfirmation,
-                    )
-                self.add_global_overlay(InstallConfirmation(self))
-            else:
-                yes = _('yes')
-                no = _('no')
-                answer = no
-                if 'autoinstall' in self.kernel_cmdline:
-                    answer = yes
-                else:
-                    print(_("Confirmation is required to continue."))
-                    print(_("Add 'autoinstall' to your kernel command line to"
-                            " avoid this"))
-                    print()
-                prompt = "\n\n{} ({}|{})".format(
-                    _("Continue with autoinstall?"), yes, no)
-                while answer != yes:
-                    print(prompt)
-                    answer = input()
-                self.next_screen(self.confirm_install())
+            log.debug("showing InstallConfirmation over %s", self.ui.body)
+            from subiquity.ui.views.installprogress import (
+                InstallConfirmation,
+                )
+            self.add_global_overlay(InstallConfirmation(self))
 
     async def make_view_for_controller(self, new):
-        if self.base_model.needs_confirmation(new.model_name):
-            raise Confirm
-        if new.interactive():
-            view = await super().make_view_for_controller(new)
-            if new.answers:
-                self.aio_loop.call_soon(new.run_answers)
-            return view
-        else:
-            if self.autoinstall_config and not new.autoinstall_applied:
-                await new.apply_autoinstall_config()
-                new.autoinstall_applied = True
-            new.configured()
-            raise Skip
+        view = await super().make_view_for_controller(new)
+        if new.answers:
+            self.aio_loop.call_soon(new.run_answers)
+        return view
 
     def show_progress(self):
         self.ui.set_body(self.controllers.InstallProgress.progress_view)
-
-    def _network_change(self):
-        self.signal.emit_signal('snapd-network-change')
-
-    async def _proxy_set(self):
-        await run_in_thread(
-            self.snapd.connection.configure_proxy, self.base_model.proxy)
-        self.signal.emit_signal('snapd-network-change')
 
     def unhandled_input(self, key):
         if key == 'f1':
@@ -495,11 +450,3 @@ class SubiquityClient(TuiApplication):
                 # Don't show an error if already looking at one.
                 return
         self.add_global_overlay(ErrorReportStretchy(self, error_ref))
-
-    def make_autoinstall(self):
-        config = {'version': 1}
-        for controller in self.controllers.instances:
-            controller_conf = controller.make_autoinstall()
-            if controller_conf:
-                config[controller.autoinstall_key] = controller_conf
-        return config

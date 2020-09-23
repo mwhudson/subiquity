@@ -13,13 +13,22 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 import os
 import shlex
 import sys
+from typing import List, Optional
 
 from aiohttp import web
 
+import jsonschema
+
+from systemd import journal
+
+import yaml
+
+from subiquitycore.async_helpers import run_in_thread, schedule_task
 from subiquitycore.core import Application
 from subiquitycore.prober import Prober
 
@@ -35,6 +44,7 @@ from subiquity.common.errorreport import (
 from subiquity.common.serialize import to_json
 from subiquity.common.types import (
     ApplicationState,
+    ApplicationStatus,
     ErrorReportRef,
     )
 from subiquity.server.controller import SubiquityController
@@ -56,11 +66,27 @@ class MetaController:
         self.app = app
         self.context = app.context.child("Meta")
 
-    async def status_GET(self) -> ApplicationState:
-        return self.app.status
+    async def status_GET(self, cur: Optional[ApplicationState] = None) \
+            -> ApplicationStatus:
+        if cur == self.app.state:
+            await self.app.state_event.wait()
+        return ApplicationStatus(
+            self.app.state,
+            early_commands_syslog_id=self.app.early_commands_syslog_id,
+            event_syslog_id=self.app.event_syslog_id,
+            log_syslog_id=self.app.log_syslog_id)
+
+    async def confirm_POST(self) -> None:
+        self.app.base_model.confirm()
 
     async def restart_POST(self) -> None:
         self.app.restart()
+
+    async def mark_configured_POST(self, endpoint_names: List[str]) -> None:
+        endpoints = {getattr(API, en, None) for en in endpoint_names}
+        for controller in self.app.controllers.instances:
+            if controller.endpoint in endpoints:
+                controller.configured()
 
 
 class SubiquityServer(Application):
@@ -80,8 +106,15 @@ class SubiquityServer(Application):
 
     def __init__(self, opts):
         super().__init__(opts)
-        self.status = ApplicationState.STARTING
+        self._state = ApplicationState.STARTING
+        self.state_event = asyncio.Event()
         self.server_proc = None
+
+        self.early_commands_syslog_id = 'subiquity_commands.{}'.format(
+            os.getpid())
+        self.event_syslog_id = 'subiquity_event.{}'.format(os.getpid())
+        self.log_syslog_id = 'subiquity_log.{}'.format(os.getpid())
+
         self.error_reporter = ErrorReporter(
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
         self.prober = Prober(opts.machine_config, self.debug_flags)
@@ -97,7 +130,62 @@ class SubiquityServer(Application):
         else:
             connection = SnapdConnection(self.root, self.snapd_socket_path)
         self.snapd = AsyncSnapd(connection)
+        self.note_data_for_apport("SnapUpdated", str(self.updated))
         self.event_listeners = []
+        self.autoinstall_config = None
+        self.signal.connect_signals([
+            ('network-proxy-set', lambda: schedule_task(self._proxy_set())),
+            ('network-change', self._network_change),
+            ])
+
+    def add_event_listener(self, listener):
+        self.event_listeners.append(listener)
+
+    def _maybe_push_to_journal(self, event_type, context, description):
+        if not context.get('is-install-context') and self.interactive():
+            controller = context.get('controller')
+            if controller is None or controller.interactive():
+                return
+        indent = context.full_name().count('/') - 2
+        if context.get('is-install-context') and self.interactive():
+            indent -= 1
+            msg = context.description
+        else:
+            msg = context.full_name()
+            if description:
+                msg += ': ' + description
+        msg = '  ' * indent + msg
+        if context.parent:
+            parent_id = str(context.parent.id)
+        else:
+            parent_id = ''
+        journal.send(
+            msg,
+            PRIORITY=context.level,
+            SYSLOG_IDENTIFIER=self.event_syslog_id,
+            SUBIQUITY_CONTEXT_NAME=context.full_name(),
+            SUBIQUITY_EVENT_TYPE=event_type,
+            SUBIQUITY_CONTEXT_ID=str(context.id),
+            SUBIQUITY_CONTEXT_PARENT_ID=parent_id)
+
+    def report_start_event(self, context, description):
+        for listener in self.event_listeners:
+            listener.report_start_event(context, description)
+        self._maybe_push_to_journal('start', context, description)
+
+    def report_finish_event(self, context, description, status):
+        for listener in self.event_listeners:
+            listener.report_finish_event(context, description, status)
+        self._maybe_push_to_journal('finish', context, description)
+
+    @property
+    def state(self):
+        return self._state
+
+    def update_state(self, state):
+        self._state = state
+        self.state_event.set()
+        self.state_event.clear()
 
     def note_file_for_apport(self, key, path):
         self.error_reporter.note_file_for_apport(key, path)
@@ -109,16 +197,10 @@ class SubiquityServer(Application):
         return self.error_reporter.make_apport_report(
             kind, thing, wait=wait, **kw)
 
-    def add_event_listener(self, listener):
-        self.event_listeners.append(listener)
-
-    def report_start_event(self, context, description):
-        for listener in self.event_listeners:
-            listener.report_start_event(context, description)
-
-    def report_finish_event(self, context, description, status):
-        for listener in self.event_listeners:
-            listener.report_finish_event(context, description, status)
+    def interactive(self):
+        if not self.autoinstall_config:
+            return True
+        return bool(self.autoinstall_config.get('interactive-sections'))
 
     @web.middleware
     async def middleware(self, request, handler):
@@ -148,6 +230,38 @@ class SubiquityServer(Application):
                 ErrorReportRef, report.ref())
         return resp
 
+    async def apply_autoinstall_config(self):
+        for controller in self.controllers.instances:
+            if not controller.interactive():
+                if self.base_model.needs_confirmation:
+                    if 'autoinstall' in self.kernel_cmdline:
+                        self.base_model.confirm()
+                    else:
+                        if not self.interactive():
+                            journal.send(
+                                "", SYSLOG_IDENTIFIER=self.event_syslog_id,
+                                SUBIQUITY_CONFIRMATION="yes")
+                        await self.base_model.confirmation.wait()
+                await controller.apply_autoinstall_config()
+                controller.configured()
+
+    def load_autoinstall_config(self, only_early):
+        log.debug("load_autoinstall_config only_early %s", only_early)
+        if self.opts.autoinstall is None:
+            return
+        with open(self.opts.autoinstall) as fp:
+            self.autoinstall_config = yaml.safe_load(fp)
+        if only_early:
+            self.controllers.Reporting.setup_autoinstall()
+            self.controllers.Reporting.start()
+            self.controllers.Error.setup_autoinstall()
+            with self.context.child("core_validation", level="INFO"):
+                jsonschema.validate(self.autoinstall_config, self.base_schema)
+            self.controllers.Early.setup_autoinstall()
+        else:
+            for controller in self.controllers.instances:
+                controller.setup_autoinstall()
+
     async def start_api_server(self):
         app = web.Application(middlewares=[self.middleware])
         bind(app.router, API.meta, MetaController(self))
@@ -161,8 +275,29 @@ class SubiquityServer(Application):
         await site.start()
 
     async def start(self):
-        await super().start()
+        self.controllers.load_all()
         await self.start_api_server()
+        self.load_autoinstall_config(only_early=True)
+        if self.controllers.Early.cmds:
+            self.update_state(ApplicationState.EARLY_COMMANDS)
+            await self.controllers.Early.run()
+        self.load_autoinstall_config(only_early=False)
+        if not self.interactive() and not self.opts.dry_run:
+            open('/run/casper-no-prompt', 'w').close()
+        await super().start()
+        if self.interactive():
+            self.update_state(ApplicationState.INTERACTIVE)
+        else:
+            self.update_state(ApplicationState.NON_INTERACTIVE)
+        await self.apply_autoinstall_config()
+
+    def _network_change(self):
+        self.signal.emit_signal('snapd-network-change')
+
+    async def _proxy_set(self):
+        await run_in_thread(
+            self.snapd.connection.configure_proxy, self.base_model.proxy)
+        self.signal.emit_signal('snapd-network-change')
 
     def restart(self):
         cmdline = ['snap', 'run', 'subiquity']
@@ -171,3 +306,11 @@ class SubiquityServer(Application):
                 sys.executable, '-m', 'subiquity.cmd.server',
                 ] + sys.argv[1:]
         os.execvp(cmdline[0], cmdline)
+
+    def make_autoinstall(self):
+        config = {'version': 1}
+        for controller in self.controllers.instances:
+            controller_conf = controller.make_autoinstall()
+            if controller_conf:
+                config[controller.autoinstall_key] = controller_conf
+        return config

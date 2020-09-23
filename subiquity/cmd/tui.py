@@ -73,7 +73,6 @@ def make_client_args_parser():
     parser.add_argument('--click', metavar="PAT", action=ClickAction,
                         help='Synthesize a click on a button matching PAT')
     parser.add_argument('--answers')
-    parser.add_argument('--autoinstall', action='store')
     parser.add_argument('--server-pid')
     return parser
 

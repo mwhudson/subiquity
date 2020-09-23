@@ -43,6 +43,7 @@ def make_server_args_parser():
     parser.add_argument('--bootloader',
                         choices=['none', 'bios', 'prep', 'uefi'],
                         help='Override style of bootloader to use')
+    parser.add_argument('--autoinstall', action='store')
     with open('/proc/cmdline') as fp:
         cmdline = fp.read()
     parser.add_argument('--kernel-cmdline', action='store', default=cmdline)
