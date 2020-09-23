@@ -16,7 +16,6 @@
 import asyncio
 import logging
 import os
-import shlex
 import signal
 import sys
 import traceback
@@ -31,15 +30,9 @@ from subiquitycore.async_helpers import (
     run_in_thread,
     schedule_task,
     )
-from subiquitycore.prober import Prober
 from subiquitycore.screen import is_linux_tty
 from subiquitycore.tuicontroller import Skip
 from subiquitycore.tui import TuiApplication
-from subiquitycore.snapd import (
-    AsyncSnapd,
-    FakeSnapdConnection,
-    SnapdConnection,
-    )
 from subiquitycore.view import BaseView
 
 from subiquity.common.api.client import make_client_for_conn
@@ -59,7 +52,6 @@ from subiquity.keycodes import (
     KeyCodesFilter,
     )
 from subiquity.lockfile import Lockfile
-from subiquity.models.subiquity import SubiquityModel
 from subiquity.ui.frame import SubiquityUI
 from subiquity.ui.views.error import ErrorReportStretchy
 from subiquity.ui.views.help import HelpMenu
@@ -106,10 +98,7 @@ class SubiquityClient(TuiApplication):
     project = "subiquity"
 
     def make_model(self):
-        root = '/'
-        if self.opts.dry_run:
-            root = os.path.abspath('.subiquity')
-        return SubiquityModel(root, self.opts.sources)
+        return None
 
     def make_ui(self):
         return SubiquityUI(self, self.help_menu)
@@ -126,25 +115,12 @@ class SubiquityClient(TuiApplication):
         super().__init__(opts)
         self.server_updated = None
         self.restarting_server = False
-        self.prober = Prober(opts.machine_config, self.debug_flags)
         journald_listen(
             self.aio_loop, ["subiquity"], self.subiquity_event, seek=True)
         self.event_listeners = []
         self.install_lock_file = Lockfile(self.state_path("installing"))
         self.global_overlays = []
         self.block_log_dir = block_log_dir
-        self.kernel_cmdline = shlex.split(opts.kernel_cmdline)
-        if opts.snaps_from_examples:
-            connection = FakeSnapdConnection(
-                os.path.join(
-                    os.path.dirname(
-                        os.path.dirname(
-                            os.path.dirname(__file__))),
-                    "examples", "snaps"),
-                self.scale_factor)
-        else:
-            connection = SnapdConnection(self.root, self.snapd_socket_path)
-        self.snapd = AsyncSnapd(connection)
         self.signal.connect_signals([
             ('network-proxy-set', lambda: schedule_task(self._proxy_set())),
             ('network-change', self._network_change),
@@ -213,9 +189,9 @@ class SubiquityClient(TuiApplication):
 
     def get_primary_tty(self):
         tty = '/dev/tty1'
-        for work in self.kernel_cmdline:
-            if work.startswith('console='):
-                tty = '/dev/' + work[len('console='):].split(',')[0]
+        for word in self.kernel_cmdline:
+            if word.startswith('console='):
+                tty = '/dev/' + word[len('console='):].split(',')[0]
         return tty
 
     async def load_autoinstall_config(self):

@@ -15,11 +15,13 @@
 
 import logging
 import os
+import shlex
 import sys
 
 from aiohttp import web
 
 from subiquitycore.core import Application
+from subiquitycore.prober import Prober
 
 from subiquity.common.api.server import (
     bind,
@@ -36,7 +38,13 @@ from subiquity.common.types import (
     ErrorReportRef,
     )
 from subiquity.server.controller import SubiquityController
+from subiquity.models.subiquity import SubiquityModel
 from subiquity.server.errors import ErrorController
+from subiquitycore.snapd import (
+    AsyncSnapd,
+    FakeSnapdConnection,
+    SnapdConnection,
+    )
 
 
 log = logging.getLogger('subiquity.server.server')
@@ -62,7 +70,10 @@ class SubiquityServer(Application):
     controllers = []
 
     def make_model(self):
-        return None
+        root = '/'
+        if self.opts.dry_run:
+            root = os.path.abspath('.subiquity')
+        return SubiquityModel(root, self.opts.sources)
 
     def __init__(self, opts):
         super().__init__(opts)
@@ -70,6 +81,19 @@ class SubiquityServer(Application):
         self.server_proc = None
         self.error_reporter = ErrorReporter(
             self.context.child("ErrorReporter"), self.opts.dry_run, self.root)
+        self.prober = Prober(opts.machine_config, self.debug_flags)
+        self.kernel_cmdline = shlex.split(opts.kernel_cmdline)
+        if opts.snaps_from_examples:
+            connection = FakeSnapdConnection(
+                os.path.join(
+                    os.path.dirname(
+                        os.path.dirname(
+                            os.path.dirname(__file__))),
+                    "examples", "snaps"),
+                self.scale_factor)
+        else:
+            connection = SnapdConnection(self.root, self.snapd_socket_path)
+        self.snapd = AsyncSnapd(connection)
 
     def note_file_for_apport(self, key, path):
         self.error_reporter.note_file_for_apport(key, path)

@@ -64,12 +64,6 @@ def make_client_args_parser():
     parser.add_argument('--unicode', action='store_false',
                         dest='ascii',
                         help='Run the installer in unicode mode.')
-    parser.add_argument('--machine-config', metavar='CONFIG',
-                        dest='machine_config',
-                        help="Don't Probe. Use probe data file")
-    parser.add_argument('--bootloader',
-                        choices=['none', 'bios', 'prep', 'uefi'],
-                        help='Override style of bootloader to use')
     parser.add_argument('--screens', action='append', dest='screens',
                         default=[])
     parser.add_argument('--script', metavar="SCRIPT", action='append',
@@ -80,28 +74,6 @@ def make_client_args_parser():
                         help='Synthesize a click on a button matching PAT')
     parser.add_argument('--answers')
     parser.add_argument('--autoinstall', action='store')
-    with open('/proc/cmdline') as fp:
-        cmdline = fp.read()
-    parser.add_argument('--kernel-cmdline', action='store', default=cmdline)
-    parser.add_argument('--source', default=[], action='append',
-                        dest='sources', metavar='URL',
-                        help='install from url instead of default.')
-    parser.add_argument(
-        '--snaps-from-examples', action='store_const', const=True,
-        dest="snaps_from_examples",
-        help=("Load snap details from examples/snaps instead of store. "
-              "Default in dry-run mode.  "
-              "See examples/snaps/README.md for more."))
-    parser.add_argument(
-        '--no-snaps-from-examples', action='store_const', const=False,
-        dest="snaps_from_examples",
-        help=("Load snap details from store instead of examples. "
-              "Default in when not in dry-run mode.  "
-              "See examples/snaps/README.md for more."))
-    parser.add_argument(
-        '--snap-section', action='store', default='server',
-        help=("Show snaps from this section of the store in the snap "
-              "list screen."))
     parser.add_argument('--server-pid')
     return parser
 
@@ -143,8 +115,6 @@ def main():
     os.makedirs(os.path.basename(opts.socket), exist_ok=True)
     logdir = LOGDIR
     if opts.dry_run:
-        if opts.snaps_from_examples is None:
-            opts.snaps_from_examples = True
         logdir = ".subiquity"
     logfiles = setup_logger(dir=logdir, base='subiquity')
 

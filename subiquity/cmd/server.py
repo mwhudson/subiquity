@@ -34,6 +34,34 @@ def make_server_args_parser():
                         dest='dry_run',
                         help='menu-only, do not call installer function')
     parser.add_argument('--socket')
+    parser.add_argument('--machine-config', metavar='CONFIG',
+                        dest='machine_config',
+                        help="Don't Probe. Use probe data file")
+    parser.add_argument('--source', default=[], action='append',
+                        dest='sources', metavar='URL',
+                        help='install from url instead of default.')
+    parser.add_argument('--bootloader',
+                        choices=['none', 'bios', 'prep', 'uefi'],
+                        help='Override style of bootloader to use')
+    with open('/proc/cmdline') as fp:
+        cmdline = fp.read()
+    parser.add_argument('--kernel-cmdline', action='store', default=cmdline)
+    parser.add_argument(
+        '--snaps-from-examples', action='store_const', const=True,
+        dest="snaps_from_examples",
+        help=("Load snap details from examples/snaps instead of store. "
+              "Default in dry-run mode.  "
+              "See examples/snaps/README.md for more."))
+    parser.add_argument(
+        '--no-snaps-from-examples', action='store_const', const=False,
+        dest="snaps_from_examples",
+        help=("Load snap details from store instead of examples. "
+              "Default in when not in dry-run mode.  "
+              "See examples/snaps/README.md for more."))
+    parser.add_argument(
+        '--snap-section', action='store', default='server',
+        help=("Show snaps from this section of the store in the snap "
+              "list screen."))
     return parser
 
 
@@ -47,6 +75,8 @@ def main():
     opts = parser.parse_args(sys.argv[1:])
     logdir = LOGDIR
     if opts.dry_run:
+        if opts.snaps_from_examples is None:
+            opts.snaps_from_examples = True
         logdir = ".subiquity"
     if opts.socket is None:
         if opts.dry_run:
