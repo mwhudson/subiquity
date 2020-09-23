@@ -65,7 +65,7 @@ from subiquity.ui.views.error import ErrorReportStretchy
 from subiquity.ui.views.help import HelpMenu
 
 
-log = logging.getLogger('subiquity.core')
+log = logging.getLogger('subiquity.client.client')
 
 
 class Abort(Exception):
@@ -85,7 +85,7 @@ environment will not survive a reboot. If the install has started, the
 installed system will be mounted at /target.""")
 
 
-class Subiquity(TuiApplication):
+class SubiquityClient(TuiApplication):
 
     snapd_socket_path = '/run/snapd.socket'
 
@@ -160,7 +160,8 @@ class Subiquity(TuiApplication):
             connection = FakeSnapdConnection(
                 os.path.join(
                     os.path.dirname(
-                        os.path.dirname(__file__)),
+                        os.path.dirname(
+                            os.path.dirname(__file__))),
                     "examples", "snaps"),
                 self.scale_factor)
         else:

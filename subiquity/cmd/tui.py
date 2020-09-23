@@ -113,7 +113,7 @@ def main():
     setup_environment()
     # setup_environment sets $APPORT_DATA_DIR which must be set before
     # apport is imported, which is done by this import:
-    from subiquity.core import Subiquity
+    from subiquity.client.client import SubiquityClient
     parser = make_client_args_parser()
     args = sys.argv[1:]
     if '--dry-run' in args:
@@ -219,7 +219,7 @@ def main():
             opts.answers.close()
             opts.answers = None
 
-    subiquity_interface = Subiquity(opts, block_log_dir)
+    subiquity_interface = SubiquityClient(opts, block_log_dir)
 
     subiquity_interface.note_file_for_apport(
         "InstallerLog", logfiles['debug'])

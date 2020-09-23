@@ -1,4 +1,5 @@
 [encoding: UTF-8]
+subiquity/client/client.py
 subiquity/cmd/common.py
 subiquity/cmd/__init__.py
 subiquity/cmd/schema.py
@@ -61,7 +62,6 @@ subiquitycore/models/network.py
 subiquitycore/netplan.py
 subiquitycore/palette.py
 subiquitycore/prober.py
-subiquity/core.py
 subiquitycore/screen.py
 subiquitycore/signals.py
 subiquitycore/snapd.py
