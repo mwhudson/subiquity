@@ -120,7 +120,9 @@ subiquity/models/tests/test_filesystem.py
 subiquity/models/tests/test_mirror.py
 subiquity/models/tests/test_subiquity.py
 subiquity/server/controller.py
+subiquity/server/controllers/cmdlist.py
 subiquity/server/controllers/__init__.py
+subiquity/server/controllers/reporting.py
 subiquity/server/dryrun.py
 subiquity/server/errors.py
 subiquity/server/server.py

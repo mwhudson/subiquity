@@ -67,7 +67,10 @@ class SubiquityServer(Application):
 
     project = "subiquity"
     from subiquity.server import controllers as controllers_mod
-    controllers = []
+    controllers = [
+        "Early",
+        "Reporting",
+        ]
 
     def make_model(self):
         root = '/'
@@ -94,6 +97,7 @@ class SubiquityServer(Application):
         else:
             connection = SnapdConnection(self.root, self.snapd_socket_path)
         self.snapd = AsyncSnapd(connection)
+        self.event_listeners = []
 
     def note_file_for_apport(self, key, path):
         self.error_reporter.note_file_for_apport(key, path)
@@ -104,6 +108,17 @@ class SubiquityServer(Application):
     def make_apport_report(self, kind, thing, *, wait=False, **kw):
         return self.error_reporter.make_apport_report(
             kind, thing, wait=wait, **kw)
+
+    def add_event_listener(self, listener):
+        self.event_listeners.append(listener)
+
+    def report_start_event(self, context, description):
+        for listener in self.event_listeners:
+            listener.report_start_event(context, description)
+
+    def report_finish_event(self, context, description, status):
+        for listener in self.event_listeners:
+            listener.report_finish_event(context, description, status)
 
     @web.middleware
     async def middleware(self, request, handler):
