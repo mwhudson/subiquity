@@ -269,6 +269,8 @@ class SubiquityServer(Application):
         if self.opts.dry_run:
             from .dryrun import DryRunController
             bind(app.router, API.dry_run, DryRunController(self))
+        for controller in self.controllers.instances:
+            controller.add_routes(app)
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.UnixSite(runner, self.opts.socket)
