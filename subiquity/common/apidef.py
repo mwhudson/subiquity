@@ -15,7 +15,7 @@
 
 from typing import List, Optional
 
-from subiquity.common.api.defs import api
+from subiquity.common.api.defs import api, simple_endpoint
 from subiquity.common.types import (
     ApplicationState,
     ApplicationStatus,
@@ -26,6 +26,8 @@ from subiquity.common.types import (
 @api
 class API:
     """The API offered by the subiquity installer process."""
+
+    locale = simple_endpoint(str)
 
     class meta:
         class status:

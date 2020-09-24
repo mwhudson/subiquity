@@ -2,6 +2,7 @@
 subiquity/client/client.py
 subiquity/client/controller.py
 subiquity/client/controllers/__init__.py
+subiquity/client/controllers/welcome.py
 subiquity/cmd/common.py
 subiquity/cmd/__init__.py
 subiquity/cmd/schema.py
@@ -43,7 +44,6 @@ subiquity/controllers/ssh.py
 subiquity/controllers/tests/__init__.py
 subiquity/controllers/tests/test_filesystem.py
 subiquity/controllers/userdata.py
-subiquity/controllers/welcome.py
 subiquity/controllers/zdev.py
 subiquitycore/async_helpers.py
 subiquitycore/contextlib38.py
@@ -124,6 +124,7 @@ subiquity/server/controller.py
 subiquity/server/controllers/cmdlist.py
 subiquity/server/controllers/__init__.py
 subiquity/server/controllers/reporting.py
+subiquity/server/controllers/welcome.py
 subiquity/server/dryrun.py
 subiquity/server/errors.py
 subiquity/server/server.py

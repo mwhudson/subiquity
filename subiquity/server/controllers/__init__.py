@@ -15,8 +15,10 @@
 
 from .cmdlist import EarlyController
 from .reporting import ReportingController
+from .welcome import WelcomeController
 
 __all__ = [
     'EarlyController',
     'ReportingController',
+    'WelcomeController',
     ]

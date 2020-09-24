@@ -96,6 +96,7 @@ class SubiquityServer(Application):
     controllers = [
         "Early",
         "Reporting",
+        "Welcome",
         ]
 
     def make_model(self):
