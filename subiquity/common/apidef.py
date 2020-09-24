@@ -20,6 +20,7 @@ from subiquity.common.types import (
     ApplicationState,
     ApplicationStatus,
     ErrorReportRef,
+    RefreshStatus,
     )
 
 
@@ -58,3 +59,15 @@ class API:
         class crash:
             def GET() -> None:
                 """Requests to this method will fail with a HTTP 500."""
+
+    class refresh:
+        def GET(wait: bool = False) -> RefreshStatus:
+            """Get information about the snap refresh status.
+
+            If wait is true, block until the status is known."""
+
+        def POST() -> int:
+            """Start the update and return the change id."""
+
+        class progress:
+            def GET(change_id: int) -> dict: ...

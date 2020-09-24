@@ -97,6 +97,7 @@ class SubiquityServer(Application):
         "Early",
         "Reporting",
         "Welcome",
+        "Refresh",
         ]
 
     def make_model(self):

@@ -102,6 +102,7 @@ class SubiquityClient(TuiApplication):
 
     controllers = [
         "Welcome",
+        "Refresh",
         ]
 
     def __init__(self, opts, block_log_dir):
@@ -322,7 +323,7 @@ class SubiquityClient(TuiApplication):
                 new_loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(new_loop)
                 new_loop.run_until_complete(Error.run())
-            if self.interactive():
+            if self.app_state == ApplicationState.INTERACTIVE:
                 self._remove_last_screen()
                 raise
             else:
@@ -439,7 +440,7 @@ class SubiquityClient(TuiApplication):
         report = self.error_reporter.make_apport_report(
             kind, thing, wait=wait, **kw)
 
-        if report is not None and interrupt and self.interactive():
+        if report is not None and interrupt:
             self.show_error_report(report.ref())
 
         return report
