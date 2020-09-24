@@ -2,8 +2,10 @@
 subiquity/client/client.py
 subiquity/client/controller.py
 subiquity/client/controllers/__init__.py
+subiquity/client/controllers/keyboard.py
 subiquity/client/controllers/refresh.py
 subiquity/client/controllers/welcome.py
+subiquity/client/keyboard.py
 subiquity/cmd/common.py
 subiquity/cmd/__init__.py
 subiquity/cmd/schema.py
@@ -32,7 +34,6 @@ subiquity/controllers/filesystem.py
 subiquity/controllers/identity.py
 subiquity/controllers/__init__.py
 subiquity/controllers/installprogress.py
-subiquity/controllers/keyboard.py
 subiquity/controllers/mirror.py
 subiquity/controllers/network.py
 subiquity/controllers/package.py
@@ -101,7 +102,6 @@ subiquitycore/utils.py
 subiquitycore/view.py
 subiquity/__init__.py
 subiquity/journald.py
-subiquity/keyboard.py
 subiquity/keycodes.py
 subiquity/lockfile.py
 subiquity/__main__.py
@@ -123,6 +123,7 @@ subiquity/models/tests/test_subiquity.py
 subiquity/server/controller.py
 subiquity/server/controllers/cmdlist.py
 subiquity/server/controllers/__init__.py
+subiquity/server/controllers/keyboard.py
 subiquity/server/controllers/refresh.py
 subiquity/server/controllers/reporting.py
 subiquity/server/controllers/welcome.py

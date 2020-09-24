@@ -35,7 +35,7 @@ from subiquity.server.controller import (
     )
 
 
-log = logging.getLogger('subiquity.client.controllers.refresh')
+log = logging.getLogger('subiquity.server.controllers.refresh')
 
 
 class RefreshController(SubiquityController):

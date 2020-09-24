@@ -98,6 +98,7 @@ class SubiquityServer(Application):
         "Reporting",
         "Welcome",
         "Refresh",
+        "Keyboard",
         ]
 
     def make_model(self):

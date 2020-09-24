@@ -14,12 +14,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from .cmdlist import EarlyController
+from .keyboard import KeyboardController
 from .refresh import RefreshController
 from .reporting import ReportingController
 from .welcome import WelcomeController
 
 __all__ = [
     'EarlyController',
+    'KeyboardController',
     'RefreshController',
     'ReportingController',
     'WelcomeController',

@@ -103,6 +103,7 @@ class SubiquityClient(TuiApplication):
     controllers = [
         "Welcome",
         "Refresh",
+        "Keyboard",
         ]
 
     def __init__(self, opts, block_log_dir):

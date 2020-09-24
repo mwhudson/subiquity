@@ -28,7 +28,7 @@ from subiquity.client.controller import (
 from subiquity.ui.views.refresh import RefreshView
 
 
-log = logging.getLogger('subiquity.controllers.refresh')
+log = logging.getLogger('subiquity.client.controllers.refresh')
 
 
 class RefreshController(SubiquityTuiController):
