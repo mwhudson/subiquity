@@ -100,6 +100,7 @@ class SubiquityServer(Application):
         "Refresh",
         "Keyboard",
         "Network",
+        "Proxy",
         ]
 
     def make_model(self):
