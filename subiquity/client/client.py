@@ -266,9 +266,6 @@ class SubiquityClient(TuiApplication):
                 self.aio_loop,
                 [status.event_syslog_id],
                 self.subiquity_event_interactive)
-            # journald_listen(
-            #     [status.log_syslog_id],
-            #     self.controllers.Progress.log_line)
             return True
         elif self.app_state == ApplicationState.NON_INTERACTIVE:
             if self.opts.run_on_serial:
@@ -290,6 +287,9 @@ class SubiquityClient(TuiApplication):
         interactive = await self.connect()
         if interactive:
             await super().start()
+            # journald_listen(
+            #     [status.log_syslog_id],
+            #     self.controllers.Progress.log_line)
 
     def _exception_handler(self, loop, context):
         exc = context.get('exception')
@@ -349,12 +349,33 @@ class SubiquityClient(TuiApplication):
         if isinstance(self.ui.body, BaseView):
             self.ui.body.remove_overlay(overlay)
 
-    def select_initial_screen(self, index):
+    def _remove_last_screen(self):
+        last_screen = self.state_path('last-screen')
+        if os.path.exists(last_screen):
+            os.unlink(last_screen)
+
+    def exit(self):
+        self._remove_last_screen()
+        super().exit()
+
+    def select_initial_screen(self):
         self.error_reporter.load_reports()
         for report in self.error_reporter.reports:
             if report.kind == ErrorReportKind.UI and not report.seen:
                 self.show_error_report(report.ref())
                 break
+
+        last_screen = None
+        if self.updated:
+            state_path = self.state_path('last-screen')
+            if os.path.exists(state_path):
+                with open(state_path) as fp:
+                    last_screen = fp.read().strip()
+        index = 0
+        if last_screen:
+            for i, controller in enumerate(self.controllers.instances):
+                if controller.name == last_screen:
+                    index = i
         self.aio_loop.create_task(self._select_initial_screen(index))
 
     async def _select_initial_screen(self, index):
@@ -364,7 +385,8 @@ class SubiquityClient(TuiApplication):
                 endpoint_names.append(c.endpoint_name)
         if endpoint_names:
             await self.client.meta.mark_configured.POST(endpoint_names)
-        super().select_initial_screen(index)
+        self.controllers.index = index - 1
+        self.next_screen()
 
     async def move_screen(self, increment, coro):
         try:
@@ -380,6 +402,8 @@ class SubiquityClient(TuiApplication):
         view = await super().make_view_for_controller(new)
         if new.answers:
             self.aio_loop.call_soon(new.run_answers)
+        with open(self.state_path('last-screen'), 'w') as fp:
+            fp.write(new.name)
         return view
 
     def show_progress(self):

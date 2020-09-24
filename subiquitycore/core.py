@@ -14,7 +14,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
-import json
 import logging
 import os
 
@@ -94,13 +93,6 @@ class Application:
     def state_path(self, *parts):
         return os.path.join(self.state_dir, *parts)
 
-    def save_state(self):
-        cur = self.controllers.cur
-        if cur is None:
-            return
-        with open(self.state_path('states', cur.name), 'w') as fp:
-            json.dump(cur.serialize(), fp)
-
     def report_start_event(self, context, description):
         log = logging.getLogger(context.full_name())
         level = getattr(logging, context.level)
@@ -122,17 +114,8 @@ class Application:
             controller.start()
         log.debug("controllers started")
 
-    def load_serialized_state(self):
-        for controller in self.controllers.instances:
-            state_path = self.state_path('states', controller.name)
-            if not os.path.exists(state_path):
-                continue
-            with open(state_path) as fp:
-                controller.deserialize(json.load(fp))
-
     async def start(self):
         self.controllers.load_all()
-        self.load_serialized_state()
         self._connect_base_signals()
         self.start_controllers()
 

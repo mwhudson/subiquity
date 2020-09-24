@@ -140,6 +140,10 @@ class SubiquityServer(Application):
             ('network-change', self._network_change),
             ])
 
+    def load_serialized_state(self):
+        for controller in self.controllers.instances:
+            controller.load_state()
+
     def add_event_listener(self, listener):
         self.event_listeners.append(listener)
 
@@ -288,6 +292,7 @@ class SubiquityServer(Application):
         self.load_autoinstall_config(only_early=False)
         if not self.interactive() and not self.opts.dry_run:
             open('/run/casper-no-prompt', 'w').close()
+        self.load_serialized_state()
         await super().start()
         if self.interactive():
             self.update_state(ApplicationState.INTERACTIVE)
