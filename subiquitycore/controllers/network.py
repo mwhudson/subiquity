@@ -29,13 +29,12 @@ from subiquitycore.file_util import write_file
 from subiquitycore.models.network import (
     BondConfig,
     DHCPState,
-    NetDevAction,
     StaticConfig,
     WLANConfig,
     )
 from subiquitycore import netplan
+from subiquitycore.controller import BaseController
 from subiquitycore.tuicontroller import TuiController
-from subiquitycore.ui.stretchy import StretchyOverlay
 from subiquitycore.ui.views.network import (
     NetworkView,
     )
@@ -45,7 +44,7 @@ from subiquitycore.utils import (
     )
 
 
-log = logging.getLogger("subiquitycore.controller.network")
+log = logging.getLogger("subiquitycore.controllers.network")
 
 
 class SubiquityNetworkEventReceiver(NetworkEventReceiver):
@@ -122,7 +121,7 @@ network:
 '''
 
 
-class NetworkController(TuiController):
+class BaseNetworkController(BaseController):
 
     model_name = "network"
     root = "/"
@@ -130,7 +129,6 @@ class NetworkController(TuiController):
     def __init__(self, app):
         super().__init__(app)
         self.view = None
-        self.view_shown = False
         self.apply_config_task = SingleInstanceTask(self._apply_config)
         if self.opts.dry_run:
             self.root = os.path.abspath(".subiquity")
@@ -153,24 +151,18 @@ class NetworkController(TuiController):
     def update_default_routes(self, routes):
         if routes:
             self.signal.emit_signal('network-change')
-        if self.view:
-            self.view.update_default_routes(routes)
 
     def new_link(self, netdev):
-        if self.view is not None:
-            self.view.new_link(netdev.netdev_info())
+        pass
 
     def update_link(self, netdev):
         for v, e in netdev.dhcp_events.items():
             if netdev.dhcp_addresses()[v]:
                 netdev.set_dhcp_state(v, DHCPState.CONFIGURED)
                 e.set()
-        if self.view is not None:
-            self.view.update_link(netdev.netdev_info())
 
     def del_link(self, netdev):
-        if self.view is not None:
-            self.view.del_link(netdev.netdev_info())
+        pass
 
     def start(self):
         self._observer_handles = []
@@ -203,72 +195,6 @@ class NetworkController(TuiController):
             loop.call_later(0.1, self.start_watching)
             return
         self.observer.data_ready(fd)
-
-    def _action_get(self, id):
-        dev_spec = id[0].split()
-        dev = None
-        if dev_spec[0] == "interface":
-            if dev_spec[1] == "index":
-                dev = self.model.get_all_netdevs()[int(dev_spec[2])]
-            elif dev_spec[1] == "name":
-                dev = self.model.get_netdev_by_name(dev_spec[2])
-        if dev is None:
-            raise Exception("could not resolve {}".format(id))
-        if len(id) > 1:
-            part, index = id[1].split()
-            if part == "part":
-                return dev.partitions()[int(index)]
-        else:
-            return dev
-        raise Exception("could not resolve {}".format(id))
-
-    def _action_clean_interfaces(self, devices):
-        r = [self._action_get(device).name for device in devices]
-        log.debug("%s", r)
-        return r
-
-    def _answers_action(self, action):
-        log.debug("_answers_action %r", action)
-        if 'obj' in action:
-            obj = self._action_get(action['obj']).netdev_info()
-            meth = getattr(
-                self.ui.body,
-                "_action_{}".format(action['action']))
-            action_obj = getattr(NetDevAction, action['action'])
-            table = self.ui.body.dev_name_to_table[obj.name]
-            self.ui.body._action(None, (action_obj, meth), table)
-            yield
-            body = self.ui.body._w
-            if not isinstance(body, StretchyOverlay):
-                return
-            for k, v in action.items():
-                if not k.endswith('data'):
-                    continue
-                form_name = "form"
-                submit_key = "submit"
-                if '-' in k:
-                    prefix = k.split('-')[0]
-                    form_name = prefix + "_form"
-                    submit_key = prefix + "-submit"
-                yield from self._enter_form_data(
-                    getattr(body.stretchy, form_name),
-                    v,
-                    action.get(submit_key, True))
-        elif action['action'] == 'create-bond':
-            self.ui.body._create_bond()
-            yield
-            body = self.ui.body._w
-            data = action['data'].copy()
-            if 'devices' in data:
-                data['interfaces'] = data.pop('devices')
-            yield from self._enter_form_data(
-                body.stretchy.form,
-                data,
-                action.get("submit", True))
-        elif action['action'] == 'done':
-            self.ui.body.done()
-        else:
-            raise Exception("could not process action {}".format(action))
 
     def update_initial_configs(self):
         # Any device that does not have a (global) address by the time
@@ -339,6 +265,15 @@ class NetworkController(TuiController):
 
         self.parse_netplan_configs()
 
+    def apply_starting(self):
+        pass
+
+    def apply_stopping(self):
+        pass
+
+    def apply_error(self, stage):
+        pass
+
     @with_context(
         name="apply_config", description="silent={silent}", level="INFO")
     async def _apply_config(self, *, context, silent):
@@ -369,7 +304,7 @@ class NetworkController(TuiController):
         self._write_config()
 
         if not silent and self.view:
-            self.view.show_apply_spinner()
+            self.apply_starting()
 
         try:
             def error(stage):
@@ -423,15 +358,8 @@ class NetworkController(TuiController):
                         ['systemctl', 'start', 'systemd-networkd.socket'],
                         check=False)
         finally:
-            if not silent and self.view:
-                self.view.hide_apply_spinner()
-
-        if self.answers.get('accept-default', False):
-            self.done()
-        elif self.answers.get('actions', False):
-            actions = self.answers['actions']
-            self.answers.clear()
-            self._run_iterator(self._run_actions(actions))
+            if not silent:
+                self.apply_stopping()
 
         if not dhcp_events:
             return
@@ -448,32 +376,6 @@ class NetworkController(TuiController):
             if not dev.dhcp_addresses()[v]:
                 dev.set_dhcp_state(v, DHCPState.TIMED_OUT)
                 self.network_event_receiver.update_link(dev.ifindex)
-
-    def make_ui(self):
-        if not self.view_shown:
-            self.update_initial_configs()
-        netdev_infos = [
-            dev.netdev_info() for dev in self.model.get_all_netdevs()
-            ]
-        self.view = NetworkView(self, netdev_infos)
-        if not self.view_shown:
-            self.apply_config(silent=True)
-            self.view_shown = True
-        self.view.update_default_routes(
-            self.network_event_receiver.default_routes)
-        return self.view
-
-    def end_ui(self):
-        self.view = None
-
-    def done(self):
-        log.debug("NetworkController.done next_screen")
-        self.model.has_network = bool(
-            self.network_event_receiver.default_routes)
-        self.app.next_screen()
-
-    def cancel(self):
-        self.app.prev_screen()
 
     def set_static_config(self, dev_name: str, ip_version: int,
                           static_config: StaticConfig) -> None:
@@ -513,6 +415,7 @@ class NetworkController(TuiController):
         self.apply_config()
 
     def delete_link(self, dev_name: str):
+        log.debug('hi')
         dev = self.model.get_netdev_by_name(dev_name)
         touched_devices = set()
         if dev.type == "bond":
@@ -534,7 +437,8 @@ class NetworkController(TuiController):
         touched_devices = set()
         for device_name in new_info.interfaces:
             device = get_netdev_by_name(device_name)
-            device.config = {}
+            if device.config is not None:
+                device.config = {}
             touched_devices.add(device)
         if existing_name is None:
             new_dev = self.model.new_bond(new_name, new_info)
@@ -557,7 +461,7 @@ class NetworkController(TuiController):
             self.update_link(dev)
         self.apply_config()
 
-    def get_info_for_netdev(self, dev_name: str) -> str:
+    async def get_info_for_netdev(self, dev_name: str) -> str:
         device = self.model.get_netdev_by_name(dev_name)
         if device.info is not None:
             return yaml.dump(
@@ -575,3 +479,72 @@ class NetworkController(TuiController):
         device = self.model.get_netdev_by_name(dev_name)
         self.observer.trigger_scan(device.ifindex)
         self.update_link(device)
+
+
+class NetworkController(BaseNetworkController, TuiController):
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.view = None
+        self.view_shown = False
+
+    def apply_starting(self):
+        super().apply_starting()
+        if self.view is not None:
+            self.view.show_apply_spinner()
+
+    def apply_stopping(self):
+        super().apply_stopping()
+        if self.view is not None:
+            self.view.hide_apply_spinner()
+
+    def apply_error(self, stage):
+        super().apply_error()
+        if self.view is not None:
+            self.view.show_network_error(stage)
+
+    def update_default_routes(self, routes):
+        super().update_default_routes(routes)
+        if self.view is not None:
+            self.view.update_default_routes(routes)
+
+    def new_link(self, netdev):
+        super().new_link(netdev)
+        if self.view is not None:
+            self.view.new_link(netdev.netdev_info())
+
+    def update_link(self, netdev):
+        super().update_link(netdev)
+        if self.view is not None:
+            self.view.update_link(netdev.netdev_info())
+
+    def del_link(self, netdev):
+        super().del_link(netdev)
+        if self.view is not None:
+            self.view.del_link(netdev.netdev_info())
+
+    def make_ui(self):
+        if not self.view_shown:
+            self.update_initial_configs()
+        netdev_infos = [
+            dev.netdev_info() for dev in self.model.get_all_netdevs()
+            ]
+        self.view = NetworkView(self, netdev_infos)
+        if not self.view_shown:
+            self.apply_config(silent=True)
+            self.view_shown = True
+        self.view.update_default_routes(
+            self.network_event_receiver.default_routes)
+        return self.view
+
+    def end_ui(self):
+        self.view = None
+
+    def done(self):
+        log.debug("NetworkController.done next_screen")
+        self.model.has_network = bool(
+            self.network_event_receiver.default_routes)
+        self.app.next_screen()
+
+    def cancel(self):
+        self.app.prev_screen()

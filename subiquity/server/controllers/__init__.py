@@ -15,6 +15,7 @@
 
 from .cmdlist import EarlyController
 from .keyboard import KeyboardController
+from .network import NetworkController
 from .refresh import RefreshController
 from .reporting import ReportingController
 from .welcome import WelcomeController
@@ -22,6 +23,7 @@ from .welcome import WelcomeController
 __all__ = [
     'EarlyController',
     'KeyboardController',
+    'NetworkController',
     'RefreshController',
     'ReportingController',
     'WelcomeController',
