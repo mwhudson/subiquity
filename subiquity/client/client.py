@@ -106,6 +106,7 @@ class SubiquityClient(TuiApplication):
         "Keyboard",
         "Network",
         "Proxy",
+        "Mirror",
         ]
 
     def __init__(self, opts, block_log_dir):

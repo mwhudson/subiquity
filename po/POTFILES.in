@@ -3,6 +3,7 @@ subiquity/client/client.py
 subiquity/client/controller.py
 subiquity/client/controllers/__init__.py
 subiquity/client/controllers/keyboard.py
+subiquity/client/controllers/mirror.py
 subiquity/client/controllers/network.py
 subiquity/client/controllers/proxy.py
 subiquity/client/controllers/refresh.py
@@ -36,7 +37,6 @@ subiquity/controllers/filesystem.py
 subiquity/controllers/identity.py
 subiquity/controllers/__init__.py
 subiquity/controllers/installprogress.py
-subiquity/controllers/mirror.py
 subiquity/controllers/package.py
 subiquity/controllers/reboot.py
 subiquity/controllers/reporting.py
@@ -124,6 +124,7 @@ subiquity/server/controller.py
 subiquity/server/controllers/cmdlist.py
 subiquity/server/controllers/__init__.py
 subiquity/server/controllers/keyboard.py
+subiquity/server/controllers/mirror.py
 subiquity/server/controllers/network.py
 subiquity/server/controllers/proxy.py
 subiquity/server/controllers/refresh.py
