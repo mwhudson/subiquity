@@ -147,17 +147,6 @@ def main():
                 "cloud-init status: %r, assumed disabled",
                 status_txt)
 
-    block_log_dir = os.path.join(logdir, "block")
-    os.makedirs(block_log_dir, exist_ok=True)
-    handler = logging.FileHandler(os.path.join(block_log_dir, 'discover.log'))
-    handler.setLevel('DEBUG')
-    handler.setFormatter(
-        logging.Formatter("%(asctime)s %(name)s:%(lineno)d %(message)s"))
-    logging.getLogger('probert').addHandler(handler)
-    handler.addFilter(lambda rec: rec.name != 'probert.network')
-    logging.getLogger('curtin').addHandler(handler)
-    logging.getLogger('block-discover').addHandler(handler)
-
     if opts.ssh:
         from subiquity.ui.views.help import (
             ssh_help_texts, get_installer_password)
@@ -188,12 +177,7 @@ def main():
             opts.answers.close()
             opts.answers = None
 
-    subiquity_interface = SubiquityClient(opts, block_log_dir)
-
-    subiquity_interface.note_file_for_apport(
-        "InstallerLog", logfiles['debug'])
-    subiquity_interface.note_file_for_apport(
-        "InstallerLogInfo", logfiles['info'])
+    subiquity_interface = SubiquityClient(opts)
 
     subiquity_interface.run()
 

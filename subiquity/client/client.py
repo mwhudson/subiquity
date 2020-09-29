@@ -107,9 +107,10 @@ class SubiquityClient(TuiApplication):
         "Network",
         "Proxy",
         "Mirror",
+        "Filesystem",
         ]
 
-    def __init__(self, opts, block_log_dir):
+    def __init__(self, opts):
         if is_linux_tty():
             self.input_filter = KeyCodesFilter()
         else:
@@ -122,7 +123,6 @@ class SubiquityClient(TuiApplication):
         self.restarting_server = False
         self.install_lock_file = Lockfile(self.state_path("installing"))
         self.global_overlays = []
-        self.block_log_dir = block_log_dir
 
         self.conn = aiohttp.UnixConnector(self.opts.socket)
         self.client = make_client_for_conn(API, self.conn, self.resp_hook)

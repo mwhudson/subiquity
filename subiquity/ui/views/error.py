@@ -276,6 +276,8 @@ class ErrorReportStretchy(Stretchy):
         await self.pending
         self.pending = None
         await self.min_wait
+        if self.pending is not None:
+            return
         self.min_wait = self.app.aio_loop.create_task(asyncio.sleep(1))
         if self.report:
             self.error_ref = self.report.ref()

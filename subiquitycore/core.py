@@ -55,6 +55,7 @@ class Application:
             #  - copy-logs-fail: makes post-install copying of logs fail, see
             #    subiquity/controllers/installprogress.py
             self.debug_flags = os.environ.get('SUBIQUITY_DEBUG', '').split(',')
+            log.debug("debug_flags: %r", self.debug_flags)
 
         self.opts = opts
         opts.project = self.project

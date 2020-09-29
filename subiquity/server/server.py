@@ -102,6 +102,7 @@ class SubiquityServer(Application):
         "Network",
         "Proxy",
         "Mirror",
+        "Filesystem",
         ]
 
     def make_model(self):
@@ -110,8 +111,9 @@ class SubiquityServer(Application):
             root = os.path.abspath('.subiquity')
         return SubiquityModel(root, self.opts.sources)
 
-    def __init__(self, opts):
+    def __init__(self, opts, block_log_dir):
         super().__init__(opts)
+        self.block_log_dir = block_log_dir
         self._state = ApplicationState.STARTING
         self.state_event = asyncio.Event()
         self.server_proc = None

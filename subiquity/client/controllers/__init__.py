@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from .filesystem import FilesystemController
 from .keyboard import KeyboardController
 from .mirror import MirrorController
 from .network import NetworkController
@@ -21,6 +22,7 @@ from .refresh import RefreshController
 from .welcome import WelcomeController
 
 __all__ = [
+    'FilesystemController',
     'KeyboardController',
     'MirrorController',
     'NetworkController',

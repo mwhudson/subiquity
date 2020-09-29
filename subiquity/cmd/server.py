@@ -86,6 +86,17 @@ def main():
             opts.socket = '/run/subiquity/socket'
     os.makedirs(os.path.basename(opts.socket), exist_ok=True)
 
+    block_log_dir = os.path.join(logdir, "block")
+    os.makedirs(block_log_dir, exist_ok=True)
+    handler = logging.FileHandler(os.path.join(block_log_dir, 'discover.log'))
+    handler.setLevel('DEBUG')
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(name)s:%(lineno)d %(message)s"))
+    logging.getLogger('probert').addHandler(handler)
+    handler.addFilter(lambda rec: rec.name != 'probert.network')
+    logging.getLogger('curtin').addHandler(handler)
+    logging.getLogger('block-discover').addHandler(handler)
+
     logfiles = setup_logger(dir=logdir, base='subiquity-server')
 
     logger = logging.getLogger('subiquity')
@@ -93,14 +104,14 @@ def main():
     logger.info("Starting Subiquity server revision {}".format(version))
     logger.info("Arguments passed: {}".format(sys.argv))
 
-    subiquity_interface = SubiquityServer(opts)
+    server = SubiquityServer(opts, block_log_dir)
 
-    subiquity_interface.note_file_for_apport(
+    server.note_file_for_apport(
         "InstallerServerLog", logfiles['debug'])
-    subiquity_interface.note_file_for_apport(
+    server.note_file_for_apport(
         "InstallerServerLogInfo", logfiles['info'])
 
-    subiquity_interface.run()
+    server.run()
 
 
 if __name__ == '__main__':
