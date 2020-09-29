@@ -15,6 +15,7 @@
 
 from .cmdlist import EarlyController
 from .filesystem import FilesystemController
+from .identity import IdentityController
 from .keyboard import KeyboardController
 from .mirror import MirrorController
 from .network import NetworkController
@@ -26,6 +27,7 @@ from .welcome import WelcomeController
 __all__ = [
     'EarlyController',
     'FilesystemController',
+    'IdentityController',
     'KeyboardController',
     'MirrorController',
     'NetworkController',

@@ -2,6 +2,7 @@
 subiquity/client/client.py
 subiquity/client/controller.py
 subiquity/client/controllers/filesystem.py
+subiquity/client/controllers/identity.py
 subiquity/client/controllers/__init__.py
 subiquity/client/controllers/keyboard.py
 subiquity/client/controllers/mirror.py
@@ -35,7 +36,6 @@ subiquity/controller.py
 subiquity/controllers/cmdlist.py
 subiquity/controllers/debconf.py
 subiquity/controllers/error.py
-subiquity/controllers/identity.py
 subiquity/controllers/__init__.py
 subiquity/controllers/installprogress.py
 subiquity/controllers/package.py
@@ -124,6 +124,7 @@ subiquity/models/tests/test_subiquity.py
 subiquity/server/controller.py
 subiquity/server/controllers/cmdlist.py
 subiquity/server/controllers/filesystem.py
+subiquity/server/controllers/identity.py
 subiquity/server/controllers/__init__.py
 subiquity/server/controllers/keyboard.py
 subiquity/server/controllers/mirror.py

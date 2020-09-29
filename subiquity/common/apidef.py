@@ -27,6 +27,7 @@ from subiquity.common.types import (
     ApplicationState,
     ApplicationStatus,
     ErrorReportRef,
+    IdentityData,
     KeyboardSetting,
     RefreshStatus,
     StorageResponse,
@@ -41,6 +42,7 @@ class API:
     keyboard = simple_endpoint(KeyboardSetting)
     proxy = simple_endpoint(str)
     mirror = simple_endpoint(str)
+    identity = simple_endpoint(IdentityData)
 
     class meta:
         class status:

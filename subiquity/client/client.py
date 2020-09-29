@@ -108,6 +108,7 @@ class SubiquityClient(TuiApplication):
         "Proxy",
         "Mirror",
         "Filesystem",
+        "Identity",
         ]
 
     def __init__(self, opts):

@@ -103,6 +103,7 @@ class SubiquityServer(Application):
         "Proxy",
         "Mirror",
         "Filesystem",
+        "Identity",
         ]
 
     def make_model(self):
