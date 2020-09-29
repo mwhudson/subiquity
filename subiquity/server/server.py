@@ -29,6 +29,7 @@ from systemd import journal
 import yaml
 
 from subiquitycore.async_helpers import run_in_thread, schedule_task
+from subiquitycore.context import with_context
 from subiquitycore.core import Application
 from subiquitycore.prober import Prober
 
@@ -96,6 +97,7 @@ class SubiquityServer(Application):
     controllers = [
         "Early",
         "Reporting",
+        "Debconf",
         "Welcome",
         "Refresh",
         "Keyboard",
@@ -243,20 +245,31 @@ class SubiquityServer(Application):
                 ErrorReportRef, report.ref())
         return resp
 
-    async def apply_autoinstall_config(self):
+    @with_context()
+    async def apply_autoinstall_config(self, context):
         for controller in self.controllers.instances:
-            if not controller.interactive():
-                if self.base_model.needs_confirmation:
-                    if 'autoinstall' in self.kernel_cmdline:
-                        self.base_model.confirm()
-                    else:
-                        if not self.interactive():
-                            journal.send(
-                                "", SYSLOG_IDENTIFIER=self.event_syslog_id,
-                                SUBIQUITY_CONFIRMATION="yes")
-                        await self.base_model.confirmation.wait()
-                await controller.apply_autoinstall_config()
-                controller.configured()
+            if controller.interactive():
+                log.debug(
+                    "apply_autoinstall_config: skipping %s as interactive",
+                    controller.name)
+                continue
+            log.debug(
+                "apply_autoinstall_config: configuring %s",
+                controller.name)
+            mn = controller.model_name
+            if mn and self.base_model.needs_confirmation(mn):
+                if 'autoinstall' in self.kernel_cmdline:
+                    self.base_model.confirm()
+                else:
+                    if not self.interactive():
+                        journal.send(
+                            "", SYSLOG_IDENTIFIER=self.event_syslog_id,
+                            SUBIQUITY_CONFIRMATION="yes")
+                    log.debug(
+                        'apply_autoinstall_config: awaiting confirmation')
+                    await self.base_model.confirmation.wait()
+            await controller.apply_autoinstall_config(context=context)
+            controller.configured()
 
     def load_autoinstall_config(self, only_early):
         log.debug("load_autoinstall_config only_early %s", only_early)

@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from .cmdlist import EarlyController
+from .debconf import DebconfController
 from .filesystem import FilesystemController
 from .identity import IdentityController
 from .keyboard import KeyboardController
@@ -25,6 +26,7 @@ from .reporting import ReportingController
 from .welcome import WelcomeController
 
 __all__ = [
+    'DebconfController',
     'EarlyController',
     'FilesystemController',
     'IdentityController',

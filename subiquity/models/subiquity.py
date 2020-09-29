@@ -149,7 +149,7 @@ class SubiquityModel:
         if model_name is None:
             return False
         if not all(e.is_set() for e in self.install_events):
-            return None
+            return False
         return not self.confirmation.is_set()
 
     def confirm(self):
