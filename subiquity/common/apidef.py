@@ -37,6 +37,7 @@ from subiquity.common.types import (
     SnapSelection,
     SSHData,
     StorageResponse,
+    ZdevInfo,
     )
 
 
@@ -80,6 +81,11 @@ class API:
         class crash:
             def GET() -> None:
                 """Requests to this method will fail with a HTTP 500."""
+    class zdev:
+        def GET() -> List[ZdevInfo]: ...
+
+        class chzdev:
+            def POST(action: str, zdev: ZdevInfo) -> List[ZdevInfo]: ...
 
     class refresh:
         def GET(wait: bool = False) -> RefreshStatus:

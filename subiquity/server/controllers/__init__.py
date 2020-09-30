@@ -27,6 +27,7 @@ from .reporting import ReportingController
 from .snaplist import SnapListController
 from .ssh import SSHController
 from .welcome import WelcomeController
+from .zdev import ZdevController
 
 __all__ = [
     'DebconfController',
@@ -43,4 +44,5 @@ __all__ = [
     'SnapListController',
     'SSHController',
     'WelcomeController',
+    'ZdevController',
     ]
