@@ -106,6 +106,8 @@ class SubiquityServer(Application):
         "Mirror",
         "Filesystem",
         "Identity",
+        "SSH",
+        "SnapList",
         "Install",
         ]
 

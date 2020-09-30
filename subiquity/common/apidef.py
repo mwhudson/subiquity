@@ -32,6 +32,10 @@ from subiquity.common.types import (
     InstallStatus,
     KeyboardSetting,
     RefreshStatus,
+    SnapInfo,
+    SnapListResponse,
+    SnapSelection,
+    SSHData,
     StorageResponse,
     )
 
@@ -45,6 +49,7 @@ class API:
     proxy = simple_endpoint(str)
     mirror = simple_endpoint(str)
     identity = simple_endpoint(IdentityData)
+    ssh = simple_endpoint(SSHData)
 
     class meta:
         class status:
@@ -165,6 +170,13 @@ class API:
 
         class reset:
             def POST() -> StorageResponse: ...
+
+    class snaplist:
+        def GET(wait: bool = False) -> SnapListResponse: ...
+        def POST(data: Payload[List[SnapSelection]]): ...
+
+        class snap_info:
+            def GET(snap_name: str) -> SnapInfo: ...
 
     class install:
         class status:

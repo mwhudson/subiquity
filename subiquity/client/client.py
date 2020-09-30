@@ -109,6 +109,8 @@ class SubiquityClient(TuiApplication):
         "Mirror",
         "Filesystem",
         "Identity",
+        "SSH",
+        "SnapList",
         "Progress",
         ]
 
