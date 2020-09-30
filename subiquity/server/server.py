@@ -97,6 +97,9 @@ class SubiquityServer(Application):
     controllers = [
         "Early",
         "Reporting",
+        "Error",
+        "Userdata",
+        "Package",
         "Debconf",
         "Welcome",
         "Refresh",
@@ -110,7 +113,9 @@ class SubiquityServer(Application):
         "SSH",
         "SnapList",
         "Install",
-        ]
+        "Late",
+        "Reboot",
+    ]
 
     def make_model(self):
         root = '/'

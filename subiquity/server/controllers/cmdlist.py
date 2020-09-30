@@ -21,6 +21,7 @@ from systemd import journal
 from subiquitycore.context import with_context
 from subiquitycore.utils import arun_command
 
+from subiquity.common.types import InstallState
 from subiquity.server.controller import NonInteractiveController
 
 
@@ -80,26 +81,26 @@ class EarlyController(CmdListController):
     send_to_journal = True
 
 
-# class LateController(CmdListController):
+class LateController(CmdListController):
 
-#     autoinstall_key = 'late-commands'
+    autoinstall_key = 'late-commands'
 
-#     def env(self):
-#         env = super().env()
-#         env['TARGET_MOUNT_POINT'] = self.app.base_model.target
-#         return env
+    def env(self):
+        env = super().env()
+        env['TARGET_MOUNT_POINT'] = self.app.base_model.target
+        return env
 
-#     def start(self):
-#         self.app.aio_loop.create_task(self._run())
+    def start(self):
+        self.app.aio_loop.create_task(self._run())
 
-#     async def _run(self):
-#         Install = self.app.controllers.Install
-#         await Install.install_task
-#         if Install.install_state == InstallState.DONE:
-#             await self.run()
+    async def _run(self):
+        Install = self.app.controllers.Install
+        await Install.install_task
+        if Install.install_state == InstallState.DONE:
+            await self.run()
 
 
-# class ErrorController(CmdListController):
+class ErrorController(CmdListController):
 
-#     autoinstall_key = 'error-commands'
-#     cmd_check = False
+    autoinstall_key = 'error-commands'
+    cmd_check = False

@@ -188,6 +188,9 @@ class API:
         class status:
             def GET(cur: Optional[InstallState] = None) -> InstallStatus: ...
 
+    class reboot:
+        def POST(): ...
+
 
 class LinkAction(enum.Enum):
     NEW = enum.auto()
