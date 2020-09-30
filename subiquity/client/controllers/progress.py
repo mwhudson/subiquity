@@ -63,7 +63,10 @@ class ProgressController(SubiquityTuiController):
         self.app.aio_loop.create_task(self.send_reboot_and_wait())
 
     async def send_reboot_and_wait(self):
-        await self.app.client.reboot.POST()
+        try:
+            await self.app.client.reboot.POST()
+        except aiohttp.ClientError:
+            pass
         self.app.exit()
 
     @with_context()

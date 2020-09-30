@@ -268,7 +268,6 @@ class SubiquityClient(TuiApplication):
             self.app_state = await self.client.meta.status.GET(
                 self.app_state).state
             await asyncio.sleep(0.5)
-        if self.app_state == ApplicationState.INTERACTIVE:
             self.aio_loop.remove_reader(fd)
         if self.app_state == ApplicationState.INTERACTIVE:
             journald_listen(
