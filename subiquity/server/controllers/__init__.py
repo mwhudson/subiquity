@@ -17,6 +17,7 @@ from .cmdlist import EarlyController
 from .debconf import DebconfController
 from .filesystem import FilesystemController
 from .identity import IdentityController
+from .install import InstallController
 from .keyboard import KeyboardController
 from .mirror import MirrorController
 from .network import NetworkController
@@ -30,6 +31,7 @@ __all__ = [
     'EarlyController',
     'FilesystemController',
     'IdentityController',
+    'InstallController',
     'KeyboardController',
     'MirrorController',
     'NetworkController',

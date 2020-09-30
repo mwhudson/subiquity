@@ -52,7 +52,7 @@ def extend_dec_special_charmap():
 
 # When waiting for something of unknown duration, block the UI for at
 # most this long before showing an indication of progress.
-MAX_BLOCK_TIME = 1.1
+MAX_BLOCK_TIME = 0.1
 # If an indication of progress is shown, show it for at least this
 # long to avoid excessive flicker in the UI.
 MIN_SHOW_PROGRESS_TIME = 1.0

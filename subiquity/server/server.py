@@ -106,6 +106,7 @@ class SubiquityServer(Application):
         "Mirror",
         "Filesystem",
         "Identity",
+        "Install",
         ]
 
     def make_model(self):

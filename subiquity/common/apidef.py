@@ -28,6 +28,8 @@ from subiquity.common.types import (
     ApplicationStatus,
     ErrorReportRef,
     IdentityData,
+    InstallState,
+    InstallStatus,
     KeyboardSetting,
     RefreshStatus,
     StorageResponse,
@@ -163,6 +165,10 @@ class API:
 
         class reset:
             def POST() -> StorageResponse: ...
+
+    class install:
+        class status:
+            def GET(cur: Optional[InstallState] = None) -> InstallStatus: ...
 
 
 class LinkAction(enum.Enum):

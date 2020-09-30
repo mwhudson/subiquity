@@ -204,3 +204,9 @@ class InstallState(enum.Enum):
     UU_CANCELLING = enum.auto()
     DONE = enum.auto()
     ERROR = enum.auto()
+
+
+@attr.s(auto_attribs=True)
+class InstallStatus:
+    state: InstallState
+    error: Optional[ErrorReportRef] = None

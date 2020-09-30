@@ -18,6 +18,7 @@ from .identity import IdentityController
 from .keyboard import KeyboardController
 from .mirror import MirrorController
 from .network import NetworkController
+from .progress import ProgressController
 from .proxy import ProxyController
 from .refresh import RefreshController
 from .welcome import WelcomeController
@@ -28,6 +29,7 @@ __all__ = [
     'KeyboardController',
     'MirrorController',
     'NetworkController',
+    'ProgressController',
     'ProxyController',
     'RefreshController',
     'WelcomeController',

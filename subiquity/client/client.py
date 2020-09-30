@@ -109,6 +109,7 @@ class SubiquityClient(TuiApplication):
         "Mirror",
         "Filesystem",
         "Identity",
+        "Progress",
         ]
 
     def __init__(self, opts):
@@ -196,7 +197,7 @@ class SubiquityClient(TuiApplication):
         return response
 
     def subiquity_event_interactive(self, event):
-        # self.controllers.Progress.event(event)
+        self.controllers.Progress.event(event)
         if event["MESSAGE"] == "starting install":
             if event["_PID"] == os.getpid():
                 return
@@ -271,7 +272,7 @@ class SubiquityClient(TuiApplication):
                 self.aio_loop,
                 [status.event_syslog_id],
                 self.subiquity_event_interactive)
-            return True
+            return status.log_syslog_id
         elif self.app_state == ApplicationState.NON_INTERACTIVE:
             if self.opts.run_on_serial:
                 # Thanks to the fact that we are launched with agetty's
@@ -286,15 +287,16 @@ class SubiquityClient(TuiApplication):
                 self.aio_loop,
                 [status.event_syslog_id],
                 self.subiquity_event_noninteractive)
-            return False
+            return None
 
     async def start(self):
-        interactive = await self.connect()
-        if interactive:
+        log_syslog_id = await self.connect()
+        if log_syslog_id is not None:
             await super().start()
-            # journald_listen(
-            #     [status.log_syslog_id],
-            #     self.controllers.Progress.log_line)
+            journald_listen(
+                self.aio_loop,
+                [log_syslog_id],
+                self.controllers.Progress.log_line)
 
     def _exception_handler(self, loop, context):
         exc = context.get('exception')
@@ -342,7 +344,7 @@ class SubiquityClient(TuiApplication):
                 os.waitpid(pid, 0)
 
     async def confirm_install(self):
-        self.base_model.confirm()
+        await self.client.meta.confirm.POST()
 
     def add_global_overlay(self, overlay):
         self.global_overlays.append(overlay)
@@ -412,7 +414,7 @@ class SubiquityClient(TuiApplication):
         return view
 
     def show_progress(self):
-        self.ui.set_body(self.controllers.InstallProgress.progress_view)
+        self.ui.set_body(self.controllers.Progress.progress_view)
 
     def unhandled_input(self, key):
         if key == 'f1':
