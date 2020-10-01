@@ -37,16 +37,9 @@ subiquity/common/serialize.py
 subiquity/common/tests/test_keyboard.py
 subiquity/common/types.py
 subiquity/controller.py
-subiquity/controllers/cmdlist.py
-subiquity/controllers/error.py
 subiquity/controllers/__init__.py
-subiquity/controllers/installprogress.py
-subiquity/controllers/package.py
-subiquity/controllers/reboot.py
-subiquity/controllers/reporting.py
 subiquity/controllers/tests/__init__.py
 subiquity/controllers/tests/test_filesystem.py
-subiquity/controllers/userdata.py
 subiquitycore/async_helpers.py
 subiquitycore/contextlib38.py
 subiquitycore/context.py
