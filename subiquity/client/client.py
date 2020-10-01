@@ -230,8 +230,7 @@ class SubiquityClient(TuiApplication):
 
     def subiquity_event_noninteractive(self, event):
         if 'SUBIQUITY_CONFIRMATION' in event:
-            input("confirm?")
-            self.aio_loop.create_task(self.client.meta.confirm.POST())
+            self.aio_loop.create_task(self.noninteractive_confirmation())
         elif event['SUBIQUITY_EVENT_TYPE'] == 'start':
             print('start: ' + event["MESSAGE"])
         elif event['SUBIQUITY_EVENT_TYPE'] == 'finish':
