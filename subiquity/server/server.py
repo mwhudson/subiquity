@@ -183,6 +183,8 @@ class SubiquityServer(Application):
             controller = context.get('controller')
             if controller is None or controller.interactive():
                 return
+        if context.get('request'):
+            return
         indent = context.full_name().count('/') - 2
         if context.get('is-install-context') and self.interactive():
             indent -= 1
@@ -203,7 +205,8 @@ class SubiquityServer(Application):
             SUBIQUITY_CONTEXT_NAME=context.full_name(),
             SUBIQUITY_EVENT_TYPE=event_type,
             SUBIQUITY_CONTEXT_ID=str(context.id),
-            SUBIQUITY_CONTEXT_PARENT_ID=parent_id)
+            SUBIQUITY_CONTEXT_PARENT_ID=parent_id,
+            SUBIQUITY_UPDATED=str(self.updated))
 
     def report_start_event(self, context, description):
         for listener in self.event_listeners:
@@ -241,20 +244,21 @@ class SubiquityServer(Application):
 
     @web.middleware
     async def middleware(self, request, handler):
-        if self.updated:
-            updated = 'yes'
-        else:
-            updated = 'no'
         controller = await controller_for_request(request)
         if isinstance(controller, SubiquityController):
+            override_status = None
             if not controller.interactive():
-                return web.Response(
-                    headers={'x-status': 'skip', 'x-updated': updated})
+                override_status = 'skip'
             elif self.base_model.needs_confirmation(controller.model_name):
+                override_status = 'confirm'
+            if override_status is not None:
                 return web.Response(
-                    headers={'x-status': 'confirm', 'x-updated': updated})
+                    headers={
+                        'x-status': override_status,
+                        'x-updated': str(self.updated),
+                        })
         resp = await handler(request)
-        resp.headers['x-updated'] = updated
+        resp.headers['x-updated'] = str(self.updated)
         if resp.get('exception'):
             exc = resp['exception']
             log.debug(
@@ -278,18 +282,13 @@ class SubiquityServer(Application):
             log.debug(
                 "apply_autoinstall_config: configuring %s",
                 controller.name)
-            mn = controller.model_name
-            if mn and self.base_model.needs_confirmation(mn):
-                if 'autoinstall' in self.kernel_cmdline:
-                    self.base_model.confirm()
-                else:
-                    if not self.interactive():
-                        journal.send(
-                            "", SYSLOG_IDENTIFIER=self.event_syslog_id,
-                            SUBIQUITY_CONFIRMATION="yes")
-                    log.debug(
-                        'apply_autoinstall_config: awaiting confirmation')
-                    await self.base_model.confirmation.wait()
+            #if self.base_model.needs_confirmation(controller.model_name):
+            #    if 'autoinstall' in self.kernel_cmdline:
+            #        self.base_model.confirm()
+            #    else:
+            #        log.debug(
+            #            'apply_autoinstall_config: awaiting confirmation')
+            #        await self.base_model.confirmation.wait()
             await controller.apply_autoinstall_config()
             controller.configured()
 
@@ -329,17 +328,21 @@ class SubiquityServer(Application):
         await self.start_api_server()
         self.load_autoinstall_config(only_early=True)
         if self.controllers.Early.cmds:
-            self.update_state(ApplicationState.EARLY_COMMANDS)
-            await self.controllers.Early.run()
+            stamp_file = self.state_path("early-commands")
+            if not os.path.exists(stamp_file):
+                self.update_state(ApplicationState.EARLY_COMMANDS)
+                await self.controllers.Early.run()
+                open(stamp_file, 'w').close()
         self.load_autoinstall_config(only_early=False)
         if not self.interactive() and not self.opts.dry_run:
             open('/run/casper-no-prompt', 'w').close()
         self.load_serialized_state()
-        await super().start()
         if self.interactive():
             self.update_state(ApplicationState.INTERACTIVE)
         else:
             self.update_state(ApplicationState.NON_INTERACTIVE)
+            await asyncio.sleep(1)
+        await super().start()
         await self.apply_autoinstall_config()
 
     def _network_change(self):

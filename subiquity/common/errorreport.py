@@ -333,6 +333,7 @@ class ErrorReporter(object):
         self.context = context
         self.dry_run = dry_run
         self.crash_directory = os.path.join(root, 'var/crash')
+        os.makedirs(self.crash_directory, exist_ok=True)
         self.client = client
 
         self.reports = []
@@ -347,7 +348,6 @@ class ErrorReporter(object):
         self._apport_files = []
 
     def load_reports(self):
-        os.makedirs(self.crash_directory, exist_ok=True)
         filenames = os.listdir(self.crash_directory)
         to_load = []
         for filename in sorted(filenames, reverse=True):

@@ -204,7 +204,7 @@ class RefreshController(SubiquityController):
         if change['status'] == 'Done':
             # Clearly if we got here we didn't get restarted by
             # snapd/systemctl (dry-run mode or logged in via SSH)
-            self.app.aio_loop.call_later(0.1, self.app.restart)
+            self.app.restart()
         return change
 
     async def GET(self, wait: bool = False) -> RefreshStatus:

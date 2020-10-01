@@ -79,6 +79,7 @@ class InstallController(SubiquityController):
 
     def __init__(self, app):
         super().__init__(app)
+        self.model_name = 'install'
         self.model = app.base_model
         self.install_state = InstallState.NOT_STARTED
         self.install_status_event = asyncio.Event()
@@ -96,7 +97,7 @@ class InstallController(SubiquityController):
         self.install_state = status
 
     def interactive(self):
-        return self.app.interactive()
+        return True
 
     async def status_GET(
             self, cur: Optional[InstallState] = None) -> InstallStatus:
@@ -242,6 +243,10 @@ class InstallController(SubiquityController):
         try:
             await asyncio.wait(
                 {e.wait() for e in self.model.install_events})
+
+            if not self.app.interactive():
+                if 'autoinstall' in self.app.kernel_cmdline:
+                    self.model.confirm()
 
             self.update_status(InstallState.NEEDS_CONFIRMATION)
 

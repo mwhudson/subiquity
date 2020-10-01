@@ -179,6 +179,11 @@ def main():
 
     subiquity_interface = SubiquityClient(opts)
 
+    subiquity_interface.note_file_for_apport(
+        "InstallerLog", logfiles['debug'])
+    subiquity_interface.note_file_for_apport(
+        "InstallerLogInfo", logfiles['info'])
+
     subiquity_interface.run()
 
 

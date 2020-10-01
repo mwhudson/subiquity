@@ -154,7 +154,7 @@ class SubiquityClient(TuiApplication):
         self.restart(remove_last_screen=False)
 
     def restart(self, remove_last_screen=True, restart_server=False):
-        log.debug(f"restart {remove_last_screen} {restart_server}")
+        print(f"restart {remove_last_screen} {restart_server}")
         if remove_last_screen:
             self._remove_last_screen()
         if restart_server:
@@ -175,14 +175,19 @@ class SubiquityClient(TuiApplication):
 
         os.execvp(cmdline[0], cmdline)
 
+    def _check_server_update(self, updated):
+        if updated is None:
+            return
+        if self.server_updated is None:
+            self.server_updated = updated
+        elif self.server_updated != updated:
+            print('restarting client as server has updated')
+            self.restart(remove_last_screen=False)
+
     def resp_hook(self, response):
         headers = response.headers
-        if 'x-updated' in headers:
-            if self.server_updated is None:
-                self.server_updated = headers['x-updated']
-            elif self.server_updated != headers['x-updated']:
-                self.restart(remove_last_screen=False)
-        status = response.headers.get('x-status')
+        self._check_server_update(headers.get('x-updated'))
+        status = headers.get('x-status')
         if status == 'skip':
             raise Skip
         elif status == 'confirm':
@@ -200,6 +205,7 @@ class SubiquityClient(TuiApplication):
         return response
 
     def subiquity_event_interactive(self, event):
+        self._check_server_update(event.get('SUBIQUITY_UPDATED'))
         self.controllers.Progress.event(event)
         if event["MESSAGE"] == "starting install":
             if event["_PID"] == os.getpid():
@@ -215,6 +221,7 @@ class SubiquityClient(TuiApplication):
             schedule_task(self._hide_install_running(install_running))
 
     async def noninteractive_confirmation(self):
+        await asyncio.sleep(1)
         yes = _('yes')
         no = _('no')
         answer = no
@@ -228,10 +235,22 @@ class SubiquityClient(TuiApplication):
             answer = await run_in_thread(input)
         await self.confirm_install()
 
+    async def noninteractive_watch_install_state(self):
+        install_state = None
+        while True:
+            try:
+                install_status = await self.client.install.status.GET(
+                    cur=install_state)
+                install_state = install_status.state
+            except aiohttp.ClientError:
+                await asyncio.sleep(1)
+                continue
+            except Confirm:
+                await self.noninteractive_confirmation()
+
     def subiquity_event_noninteractive(self, event):
-        if 'SUBIQUITY_CONFIRMATION' in event:
-            self.aio_loop.create_task(self.noninteractive_confirmation())
-        elif event['SUBIQUITY_EVENT_TYPE'] == 'start':
+        self._check_server_update(event.get('SUBIQUITY_UPDATED'))
+        if event['SUBIQUITY_EVENT_TYPE'] == 'start':
             print('start: ' + event["MESSAGE"])
         elif event['SUBIQUITY_EVENT_TYPE'] == 'finish':
             print('finish: ' + event["MESSAGE"])
@@ -256,7 +275,7 @@ class SubiquityClient(TuiApplication):
             while self.app_state == ApplicationState.STARTING:
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
-                self.app_state = await self.client.meta.status.GET().state
+                self.app_state = (await self.client.meta.status.GET()).state
             print()
         if self.app_state == ApplicationState.EARLY_COMMANDS:
             print("running early commands...")
@@ -287,7 +306,10 @@ class SubiquityClient(TuiApplication):
             journald_listen(
                 self.aio_loop,
                 [status.event_syslog_id],
-                self.subiquity_event_noninteractive)
+                self.subiquity_event_noninteractive,
+                seek=True)
+            self.aio_loop.create_task(
+                self.noninteractive_watch_install_state())
             return None
 
     async def start(self):

@@ -98,8 +98,8 @@ def _make_handler(controller, definition, implementation, serializer):
     async def handler(request):
         context = controller.context.child(
             implementation.__name__, trim(await request.text()))
+        context.set('request', request)
         with context:
-            context.set('request', request)
             args = {}
             try:
                 if data_annotation is not None:
