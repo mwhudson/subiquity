@@ -34,12 +34,12 @@ subiquity/common/filesystem.py
 subiquity/common/__init__.py
 subiquity/common/keyboard.py
 subiquity/common/serialize.py
+subiquity/common/tests/test_filesystem.py
 subiquity/common/tests/test_keyboard.py
 subiquity/common/types.py
 subiquity/controller.py
 subiquity/controllers/__init__.py
 subiquity/controllers/tests/__init__.py
-subiquity/controllers/tests/test_filesystem.py
 subiquitycore/async_helpers.py
 subiquitycore/contextlib38.py
 subiquitycore/context.py
