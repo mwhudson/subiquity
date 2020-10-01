@@ -92,6 +92,19 @@ class MetaController:
 
 class SubiquityServer(Application):
 
+    base_schema = {
+        'type': 'object',
+        'properties': {
+            'version': {
+                'type': 'integer',
+                'minimum': 1,
+                'maximum': 1,
+                },
+            },
+        'required': ['version'],
+        'additionalProperties': True,
+        }
+
     project = "subiquity"
     from subiquity.server import controllers as controllers_mod
     controllers = [

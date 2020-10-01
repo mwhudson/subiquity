@@ -265,8 +265,8 @@ class SubiquityClient(TuiApplication):
                 self.aio_loop,
                 [status.early_commands_syslog_id],
                 lambda e: print(e['MESSAGE']))
-            self.app_state = await self.client.meta.status.GET(
-                self.app_state).state
+            self.app_state = (await self.client.meta.status.GET(
+                self.app_state)).state
             await asyncio.sleep(0.5)
             self.aio_loop.remove_reader(fd)
         if self.app_state == ApplicationState.INTERACTIVE:

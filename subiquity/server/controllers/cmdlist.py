@@ -63,10 +63,10 @@ class CmdListController(NonInteractiveController):
                 if self.send_to_journal:
                     journal.send(
                         "  running " + desc,
-                        SYSLOG_IDENTIFIER=self.app.commands_syslog_id)
+                        SYSLOG_IDENTIFIER=self.app.early_commands_syslog_id)
                     cmd = [
                         'systemd-cat', '--level-prefix=false',
-                        '--identifier=' + self.app.commands_syslog_id,
+                        '--identifier=' + self.app.early_commands_syslog_id,
                         ] + cmd
                 await arun_command(
                     cmd, env=env,
