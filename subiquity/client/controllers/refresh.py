@@ -13,7 +13,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
+
+import aiohttp
 
 from subiquitycore.tuicontroller import (
     Skip,
@@ -40,7 +43,12 @@ class RefreshController(SubiquityTuiController):
         self.offered_first_time = False
 
     async def get_progress(self, change):
-        return await self.endpoint.progress.GET(change_id=change)
+        while True:
+            try:
+                return await self.endpoint.progress.GET(change_id=change)
+            except aiohttp.ClientError:
+                # Probably the server is restarting.
+                await asyncio.sleep(1)
 
     async def make_ui(self, index=1):
         if self.app.updated:

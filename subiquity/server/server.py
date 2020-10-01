@@ -205,8 +205,7 @@ class SubiquityServer(Application):
             SUBIQUITY_CONTEXT_NAME=context.full_name(),
             SUBIQUITY_EVENT_TYPE=event_type,
             SUBIQUITY_CONTEXT_ID=str(context.id),
-            SUBIQUITY_CONTEXT_PARENT_ID=parent_id,
-            SUBIQUITY_UPDATED=str(self.updated))
+            SUBIQUITY_CONTEXT_PARENT_ID=parent_id)
 
     def report_start_event(self, context, description):
         for listener in self.event_listeners:
@@ -245,20 +244,20 @@ class SubiquityServer(Application):
     @web.middleware
     async def middleware(self, request, handler):
         controller = await controller_for_request(request)
+        override_status = None
         if isinstance(controller, SubiquityController):
-            override_status = None
             if not controller.interactive():
                 override_status = 'skip'
             elif self.base_model.needs_confirmation(controller.model_name):
                 override_status = 'confirm'
-            if override_status is not None:
-                return web.Response(
-                    headers={
-                        'x-status': override_status,
-                        'x-updated': str(self.updated),
-                        })
-        resp = await handler(request)
-        resp.headers['x-updated'] = str(self.updated)
+        if override_status is not None:
+            resp = web.Response(headers={'x-status': override_status})
+        else:
+            resp = await handler(request)
+        if self.updated:
+            resp.headers['x-updated'] = 'yes'
+        else:
+            resp.headers['x-updated'] = 'no'
         if resp.get('exception'):
             exc = resp['exception']
             log.debug(
@@ -279,16 +278,6 @@ class SubiquityServer(Application):
                     "apply_autoinstall_config: skipping %s as interactive",
                     controller.name)
                 continue
-            log.debug(
-                "apply_autoinstall_config: configuring %s",
-                controller.name)
-            #if self.base_model.needs_confirmation(controller.model_name):
-            #    if 'autoinstall' in self.kernel_cmdline:
-            #        self.base_model.confirm()
-            #    else:
-            #        log.debug(
-            #            'apply_autoinstall_config: awaiting confirmation')
-            #        await self.base_model.confirmation.wait()
             await controller.apply_autoinstall_config()
             controller.configured()
 

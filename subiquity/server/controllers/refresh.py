@@ -203,7 +203,7 @@ class RefreshController(SubiquityController):
         change = result['result']
         if change['status'] == 'Done':
             # Clearly if we got here we didn't get restarted by
-            # snapd/systemctl (dry-run mode or logged in via SSH)
+            # snapd/systemctl (dry-run mode)
             self.app.restart()
         return change
 

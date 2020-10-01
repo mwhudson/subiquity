@@ -154,7 +154,7 @@ class SubiquityClient(TuiApplication):
         self.restart(remove_last_screen=False)
 
     def restart(self, remove_last_screen=True, restart_server=False):
-        print(f"restart {remove_last_screen} {restart_server}")
+        log.debug(f"restart {remove_last_screen} {restart_server}")
         if remove_last_screen:
             self._remove_last_screen()
         if restart_server:
@@ -175,18 +175,13 @@ class SubiquityClient(TuiApplication):
 
         os.execvp(cmdline[0], cmdline)
 
-    def _check_server_update(self, updated):
-        if updated is None:
-            return
-        if self.server_updated is None:
-            self.server_updated = updated
-        elif self.server_updated != updated:
-            print('restarting client as server has updated')
-            self.restart(remove_last_screen=False)
-
     def resp_hook(self, response):
         headers = response.headers
-        self._check_server_update(headers.get('x-updated'))
+        if 'x-updated' in headers:
+            if self.server_updated is None:
+                self.server_updated = headers['x-updated']
+            elif self.server_updated != headers['x-updated']:
+                self.restart(remove_last_screen=False)
         status = headers.get('x-status')
         if status == 'skip':
             raise Skip
@@ -205,7 +200,6 @@ class SubiquityClient(TuiApplication):
         return response
 
     def subiquity_event_interactive(self, event):
-        self._check_server_update(event.get('SUBIQUITY_UPDATED'))
         self.controllers.Progress.event(event)
         if event["MESSAGE"] == "starting install":
             if event["_PID"] == os.getpid():
@@ -249,7 +243,6 @@ class SubiquityClient(TuiApplication):
                 await self.noninteractive_confirmation()
 
     def subiquity_event_noninteractive(self, event):
-        self._check_server_update(event.get('SUBIQUITY_UPDATED'))
         if event['SUBIQUITY_EVENT_TYPE'] == 'start':
             print('start: ' + event["MESSAGE"])
         elif event['SUBIQUITY_EVENT_TYPE'] == 'finish':
