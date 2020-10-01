@@ -99,3 +99,6 @@ class ProgressController(SubiquityTuiController):
         if self.install_state == InstallState.NEEDS_CONFIRMATION:
             self.app.show_confirm_install()
         return self.progress_view
+
+    def run_answers(self):
+        pass

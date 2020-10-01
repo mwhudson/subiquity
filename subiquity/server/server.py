@@ -290,7 +290,7 @@ class SubiquityServer(Application):
                     log.debug(
                         'apply_autoinstall_config: awaiting confirmation')
                     await self.base_model.confirmation.wait()
-            await controller.apply_autoinstall_config(context=context)
+            await controller.apply_autoinstall_config()
             controller.configured()
 
     def load_autoinstall_config(self, only_early):

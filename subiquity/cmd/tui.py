@@ -115,7 +115,7 @@ def main():
     logdir = LOGDIR
     if opts.dry_run:
         logdir = ".subiquity"
-    logfiles = setup_logger(dir=logdir, base='subiquity')
+    logfiles = setup_logger(dir=logdir, base='subiquity-client')
 
     logger = logging.getLogger('subiquity')
     version = os.environ.get("SNAP_REVISION", "unknown")

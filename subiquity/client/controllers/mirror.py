@@ -34,7 +34,7 @@ class MirrorController(SubiquityTuiController):
             self.done(self.answers['mirror'])
         elif 'country-code' in self.answers \
              or 'accept-default' in self.answers:
-            self.done(self.model.get_mirror())
+            self.app.ui.body.form._click_done(None)
 
     def cancel(self):
         self.app.prev_screen()

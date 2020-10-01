@@ -96,8 +96,8 @@ class RefreshController(SubiquityController):
         change_id = await self.start_update(context=context)
         while True:
             change = await self.get_progress(change_id)
-            if change['status'] not in ['Do', 'Doing']:
-                raise Exception("update failed")
+            if change['status'] not in ['Do', 'Doing', 'Done']:
+                raise Exception("update failed: %s", change['status'])
             await asyncio.sleep(0.1)
 
     @with_context()
