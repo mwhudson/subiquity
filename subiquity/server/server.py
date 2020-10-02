@@ -47,6 +47,7 @@ from subiquity.common.types import (
     ApplicationState,
     ApplicationStatus,
     ErrorReportRef,
+    InstallState,
     )
 from subiquity.server.controller import SubiquityController
 from subiquity.models.subiquity import SubiquityModel
@@ -243,13 +244,15 @@ class SubiquityServer(Application):
 
     @web.middleware
     async def middleware(self, request, handler):
-        controller = await controller_for_request(request)
         override_status = None
+        controller = await controller_for_request(request)
         if isinstance(controller, SubiquityController):
+            install_state = self.controllers.Install.install_state
             if not controller.interactive():
                 override_status = 'skip'
-            elif self.base_model.needs_confirmation(controller.model_name):
-                override_status = 'confirm'
+            elif install_state == InstallState.NEEDS_CONFIRMATION:
+                if self.base_model.needs_configuration(controller.model_name):
+                    override_status = 'confirm'
         if override_status is not None:
             resp = web.Response(headers={'x-status': override_status})
         else:

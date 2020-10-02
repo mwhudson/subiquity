@@ -147,12 +147,10 @@ class SubiquityModel:
                 }
         log.debug("model %s is configured, to go %s", model_name, unconfigured)
 
-    def needs_confirmation(self, model_name):
+    def needs_configuration(self, model_name):
         if model_name is None:
             return False
-        if not all(e.is_set() for e in self.install_events):
-            return False
-        return not self.confirmation.is_set()
+        return not self._events[model_name].is_set()
 
     def confirm(self):
         self.confirmation.set()
