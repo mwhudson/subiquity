@@ -63,7 +63,7 @@ class API:
                 """Mark the controllers for endpoint_names as configured."""
 
         class confirm:
-            def POST() -> None:
+            def POST(tty: str) -> None:
                 """Confirm that the installation should proceed."""
 
         class restart:

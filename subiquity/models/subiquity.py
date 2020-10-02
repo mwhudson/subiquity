@@ -150,6 +150,8 @@ class SubiquityModel:
     def needs_configuration(self, model_name):
         if model_name is None:
             return False
+        if model_name == 'install':
+            return False
         return not self._events[model_name].is_set()
 
     def confirm(self):

@@ -52,6 +52,10 @@ from subiquity.lockfile import Lockfile
 from subiquity.ui.frame import SubiquityUI
 from subiquity.ui.views.error import ErrorReportStretchy
 from subiquity.ui.views.help import HelpMenu
+from subiquity.ui.views.installprogress import (
+    InstallConfirmation,
+    InstallRunning,
+    )
 
 
 log = logging.getLogger('subiquity.client.client')
@@ -129,6 +133,11 @@ class SubiquityClient(TuiApplication):
         self.install_lock_file = Lockfile(self.state_path("installing"))
         self.global_overlays = []
 
+        try:
+            self.our_tty = os.ttyname(0)
+        except OSError:
+            self.our_tty = "not a tty"
+
         self.conn = aiohttp.UnixConnector(self.opts.socket)
         self.client = make_client_for_conn(API, self.conn, self.resp_hook)
 
@@ -200,19 +209,16 @@ class SubiquityClient(TuiApplication):
         return response
 
     def subiquity_event_interactive(self, event):
-        self.controllers.Progress.event(event)
         if event["MESSAGE"] == "starting install":
-            if event["_PID"] == os.getpid():
-                return
-            if not self.install_lock_file.is_exclusively_locked():
-                return
-            from subiquity.ui.views.installprogress import (
-                InstallRunning,
-                )
             tty = self.install_lock_file.read_content()
+            log.debug('tty %s our_tty %s', tty, self.our_tty)
+            if tty == self.our_tty:
+                return
             install_running = InstallRunning(self.ui.body, self, tty)
             self.add_global_overlay(install_running)
             schedule_task(self._hide_install_running(install_running))
+        else:
+            self.controllers.Progress.event(event)
 
     async def noninteractive_confirmation(self):
         await asyncio.sleep(1)
@@ -243,6 +249,8 @@ class SubiquityClient(TuiApplication):
                 await self.noninteractive_confirmation()
 
     def subiquity_event_noninteractive(self, event):
+        if event["MESSAGE"] == "starting install":
+            return
         if event['SUBIQUITY_EVENT_TYPE'] == 'start':
             print('start: ' + event["MESSAGE"])
         elif event['SUBIQUITY_EVENT_TYPE'] == 'finish':
@@ -262,6 +270,7 @@ class SubiquityClient(TuiApplication):
             else:
                 print()
                 break
+        self.event_syslog_id = status.event_syslog_id
         self.app_state = status.state
         if self.app_state == ApplicationState.STARTING:
             print("server is starting...", end='', flush=True)
@@ -360,7 +369,7 @@ class SubiquityClient(TuiApplication):
                 os.waitpid(pid, 0)
 
     async def confirm_install(self):
-        await self.client.meta.confirm.POST()
+        await self.client.meta.confirm.POST(self.our_tty)
 
     def add_global_overlay(self, overlay):
         self.global_overlays.append(overlay)
@@ -416,9 +425,6 @@ class SubiquityClient(TuiApplication):
             await super().move_screen(increment, coro)
         except Confirm:
             log.debug("showing InstallConfirmation over %s", self.ui.body)
-            from subiquity.ui.views.installprogress import (
-                InstallConfirmation,
-                )
             self.add_global_overlay(InstallConfirmation(self))
 
     async def make_view_for_controller(self, new):
@@ -449,9 +455,10 @@ class SubiquityClient(TuiApplication):
 
             async def mock_install():
                 async with self.install_lock_file.exclusive():
-                    self.install_lock_file.write_content("nowhere")
+                    self.install_lock_file.write_content(self.our_tty)
                     journal.send(
-                        "starting install", SYSLOG_IDENTIFIER="subiquity")
+                        "starting install",
+                        SYSLOG_IDENTIFIER=self.event_syslog_id)
                     await asyncio.sleep(5)
             schedule_task(mock_install())
         elif key in ['ctrl e', 'ctrl r']:

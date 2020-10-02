@@ -29,6 +29,8 @@ from curtin.commands.install import (
     )
 from curtin.util import write_file
 
+from systemd import journal
+
 import yaml
 
 from subiquitycore.async_helpers import (
@@ -231,8 +233,12 @@ class InstallController(SubiquityController):
 
         log.debug('curtin install cmd: {}'.format(curtin_cmd))
 
-        cp = await arun_command(
-            self.logged_command(curtin_cmd), check=True)
+        async with self.app.install_lock_file.exclusive():
+            self.app.install_lock_file.write_content(self.app.confirming_tty)
+            journal.send(
+                "starting install", SYSLOG_IDENTIFIER=self.app.event_syslog_id)
+            cp = await arun_command(
+                self.logged_command(curtin_cmd), check=True)
 
         log.debug('curtin_install completed: %s', cp.returncode)
         log.debug('After curtin install OK')

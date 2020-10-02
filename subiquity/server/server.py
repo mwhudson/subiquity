@@ -49,6 +49,7 @@ from subiquity.common.types import (
     ErrorReportRef,
     InstallState,
     )
+from subiquity.lockfile import Lockfile
 from subiquity.server.controller import SubiquityController
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.server.errors import ErrorController
@@ -78,7 +79,8 @@ class MetaController:
             event_syslog_id=self.app.event_syslog_id,
             log_syslog_id=self.app.log_syslog_id)
 
-    async def confirm_POST(self) -> None:
+    async def confirm_POST(self, tty: str) -> None:
+        self.app.confirming_tty = tty
         self.app.base_model.confirm()
 
     async def restart_POST(self) -> None:
@@ -142,7 +144,7 @@ class SubiquityServer(Application):
         self.block_log_dir = block_log_dir
         self._state = ApplicationState.STARTING
         self.state_event = asyncio.Event()
-        self.server_proc = None
+        self.confirming_tty = ''
 
         self.early_commands_syslog_id = 'subiquity_commands.{}'.format(
             os.getpid())
@@ -171,6 +173,7 @@ class SubiquityServer(Application):
             ('network-proxy-set', lambda: schedule_task(self._proxy_set())),
             ('network-change', self._network_change),
             ])
+        self.install_lock_file = Lockfile(self.state_path("installing"))
 
     def load_serialized_state(self):
         for controller in self.controllers.instances:
