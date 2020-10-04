@@ -49,7 +49,6 @@ from subiquity.keycodes import (
     DummyKeycodesFilter,
     KeyCodesFilter,
     )
-from subiquity.lockfile import Lockfile
 from subiquity.ui.frame import SubiquityUI
 from subiquity.ui.views.error import ErrorReportStretchy
 from subiquity.ui.views.help import HelpMenu
@@ -130,7 +129,6 @@ class SubiquityClient(TuiApplication):
         self.interactive = None
         self.server_updated = None
         self.restarting_server = False
-        self.install_lock_file = Lockfile(self.state_path("installing"))
         self.global_overlays = []
 
         try:
@@ -147,12 +145,6 @@ class SubiquityClient(TuiApplication):
 
         self.note_data_for_apport("SnapUpdated", str(self.updated))
         self.note_data_for_apport("UsingAnswers", str(bool(self.answers)))
-
-    async def _hide_install_running(self, install_running):
-        # Wait until the install has completed...
-        async with self.install_lock_file.shared():
-            # And remove the overlay.
-            self.remove_global_overlay(install_running)
 
     async def _restart_server(self):
         log.debug("_restart_server")
@@ -440,18 +432,7 @@ class SubiquityClient(TuiApplication):
             super().unhandled_input(key)
 
     def unhandled_input_dry_run(self, key):
-        if key == 'ctrl g':
-            from systemd import journal
-
-            async def mock_install():
-                async with self.install_lock_file.exclusive():
-                    self.install_lock_file.write_content(self.our_tty)
-                    journal.send(
-                        "starting install",
-                        SYSLOG_IDENTIFIER=self.event_syslog_id)
-                    await asyncio.sleep(5)
-            schedule_task(mock_install())
-        elif key in ['ctrl e', 'ctrl r']:
+        if key in ['ctrl e', 'ctrl r']:
             interrupt = key == 'ctrl e'
             try:
                 1/0

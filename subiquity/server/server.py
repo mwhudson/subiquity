@@ -49,7 +49,6 @@ from subiquity.common.types import (
     ErrorReportRef,
     InstallState,
     )
-from subiquity.lockfile import Lockfile
 from subiquity.server.controller import SubiquityController
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.server.errors import ErrorController
@@ -173,7 +172,6 @@ class SubiquityServer(Application):
             ('network-proxy-set', lambda: schedule_task(self._proxy_set())),
             ('network-change', self._network_change),
             ])
-        self.install_lock_file = Lockfile(self.state_path("installing"))
 
     def load_serialized_state(self):
         for controller in self.controllers.instances:
