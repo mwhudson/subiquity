@@ -41,6 +41,7 @@ from subiquity.common.types import (
     ApplicationState,
     ErrorReportKind,
     ErrorReportRef,
+    InstallState,
     )
 from subiquity.controller import Confirm
 from subiquity.journald import journald_listen
@@ -237,6 +238,7 @@ class SubiquityClient(TuiApplication):
 
     async def noninteractive_watch_install_state(self):
         install_state = None
+        confirm_task = None
         while True:
             try:
                 install_status = await self.client.install.status.GET(
@@ -245,8 +247,11 @@ class SubiquityClient(TuiApplication):
             except aiohttp.ClientError:
                 await asyncio.sleep(1)
                 continue
-            except Confirm:
-                await self.noninteractive_confirmation()
+            if install_state == InstallState.NEEDS_CONFIRMATION:
+                confirm_task = self.aio_loop.create_task(
+                    self.noninteractive_confirmation())
+            elif confirm_task is not None:
+                confirm_task.cancel()
 
     def subiquity_event_noninteractive(self, event):
         if event["MESSAGE"] == "starting install":

@@ -132,8 +132,6 @@ class SubiquityModel:
             }
 
     def configured(self, model_name):
-        if model_name == 'install':
-            return
         self._events[model_name].set()
         if model_name in INSTALL_MODEL_NAMES:
             unconfigured = {

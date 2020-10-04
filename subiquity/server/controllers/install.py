@@ -81,7 +81,6 @@ class InstallController(SubiquityController):
 
     def __init__(self, app):
         super().__init__(app)
-        self.model_name = 'install'
         self.model = app.base_model
         self.install_state = InstallState.NOT_STARTED
         self.install_state_event = asyncio.Event()
