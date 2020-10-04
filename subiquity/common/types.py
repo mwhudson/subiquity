@@ -209,4 +209,5 @@ class InstallState(enum.Enum):
 @attr.s(auto_attribs=True)
 class InstallStatus:
     state: InstallState
+    confirming_tty: str = ''
     error: Optional[ErrorReportRef] = None

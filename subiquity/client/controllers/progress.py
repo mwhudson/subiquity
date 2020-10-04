@@ -19,11 +19,13 @@ import logging
 import aiohttp
 
 from subiquitycore.context import with_context
-from subiquitycore.tuicontroller import Skip
 
 from subiquity.client.controller import SubiquityTuiController
 from subiquity.common.types import InstallState
-from subiquity.ui.views.installprogress import ProgressView
+from subiquity.ui.views.installprogress import (
+    InstallRunning,
+    ProgressView,
+    )
 
 
 log = logging.getLogger("subiquity.client.controllers.progress")
@@ -71,6 +73,7 @@ class ProgressController(SubiquityTuiController):
 
     @with_context()
     async def _wait_status(self, context):
+        install_running = None
         while True:
             try:
                 install_status = await self.endpoint.status.GET(
@@ -78,21 +81,28 @@ class ProgressController(SubiquityTuiController):
             except aiohttp.ClientError:
                 await asyncio.sleep(1)
                 continue
-            except Skip:
-                return
             self.install_state = install_status.state
             self.crash_report = install_status.error
             if self.crash_report:
                 self.ui.set_body(self.progress_view)
                 self.app.show_error_report(self.crash_report)
             self.progress_view.update_for_state(self.install_state)
-            if (self.install_state == InstallState.NEEDS_CONFIRMATION and
-                    self.showing):
-                self.app.show_confirm_install()
             if self.ui.body is self.progress_view:
                 self.ui.set_header(self.progress_view.title)
-            if self.answers.get('reboot', False):
-                if self.install_state == InstallState.DONE:
+            if self.install_state == InstallState.NEEDS_CONFIRMATION:
+                if self.showing:
+                    self.app.show_confirm_install()
+            if self.install_state == InstallState.RUNNING:
+                if install_status.confirming_tty != self.app.our_tty:
+                    install_running = InstallRunning(
+                        self.ui.body, self, install_status.confirming_tty)
+                    self.app.add_global_overlay(install_running)
+            else:
+                if install_running is not None:
+                    self.app.remove_global_overlay(install_running)
+                    install_running = None
+            if self.install_state == InstallState.DONE:
+                if self.answers.get('reboot', False):
                     self.click_reboot()
 
     def make_ui(self):

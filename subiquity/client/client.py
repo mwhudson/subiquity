@@ -55,7 +55,6 @@ from subiquity.ui.views.error import ErrorReportStretchy
 from subiquity.ui.views.help import HelpMenu
 from subiquity.ui.views.installprogress import (
     InstallConfirmation,
-    InstallRunning,
     )
 
 
@@ -128,7 +127,7 @@ class SubiquityClient(TuiApplication):
 
         self.help_menu = HelpMenu(self)
         super().__init__(opts)
-        self.app_state = None
+        self.interactive = None
         self.server_updated = None
         self.restarting_server = False
         self.install_lock_file = Lockfile(self.state_path("installing"))
@@ -209,18 +208,6 @@ class SubiquityClient(TuiApplication):
             raise Abort(report.ref())
         return response
 
-    def subiquity_event_interactive(self, event):
-        if event["MESSAGE"] == "starting install":
-            tty = self.install_lock_file.read_content()
-            log.debug('tty %s our_tty %s', tty, self.our_tty)
-            if tty == self.our_tty:
-                return
-            install_running = InstallRunning(self.ui.body, self, tty)
-            self.add_global_overlay(install_running)
-            schedule_task(self._hide_install_running(install_running))
-        else:
-            self.controllers.Progress.event(event)
-
     async def noninteractive_confirmation(self):
         await asyncio.sleep(1)
         yes = _('yes')
@@ -254,8 +241,6 @@ class SubiquityClient(TuiApplication):
                 confirm_task.cancel()
 
     def subiquity_event_noninteractive(self, event):
-        if event["MESSAGE"] == "starting install":
-            return
         if event['SUBIQUITY_EVENT_TYPE'] == 'start':
             print('start: ' + event["MESSAGE"])
         elif event['SUBIQUITY_EVENT_TYPE'] == 'finish':
@@ -276,31 +261,41 @@ class SubiquityClient(TuiApplication):
                 print()
                 break
         self.event_syslog_id = status.event_syslog_id
-        self.app_state = status.state
-        if self.app_state == ApplicationState.STARTING:
+        app_state = status.state
+        if app_state == ApplicationState.STARTING:
             print("server is starting...", end='', flush=True)
-            while self.app_state == ApplicationState.STARTING:
+            while app_state == ApplicationState.STARTING:
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
-                self.app_state = (await self.client.meta.status.GET()).state
+                app_state = (await self.client.meta.status.GET()).state
             print()
-        if self.app_state == ApplicationState.EARLY_COMMANDS:
+        if app_state == ApplicationState.EARLY_COMMANDS:
             print("running early commands...")
             fd = journald_listen(
                 self.aio_loop,
                 [status.early_commands_syslog_id],
                 lambda e: print(e['MESSAGE']))
-            self.app_state = (await self.client.meta.status.GET(
-                self.app_state)).state
+            app_state = (await self.client.meta.status.GET(
+                app_state)).state
             await asyncio.sleep(0.5)
             self.aio_loop.remove_reader(fd)
-        if self.app_state == ApplicationState.INTERACTIVE:
+        return status
+
+    async def start(self):
+        status = await self.connect()
+        if status.state == ApplicationState.INTERACTIVE:
+            self.interactive = True
+            await super().start()
             journald_listen(
                 self.aio_loop,
                 [status.event_syslog_id],
-                self.subiquity_event_interactive)
-            return status.log_syslog_id
-        elif self.app_state == ApplicationState.NON_INTERACTIVE:
+                self.controllers.Progress.event)
+            journald_listen(
+                self.aio_loop,
+                [status.log_syslog_id],
+                self.controllers.Progress.log_line)
+        else:
+            self.interactive = False
             if self.opts.run_on_serial:
                 # Thanks to the fact that we are launched with agetty's
                 # --skip-login option, on serial lines we can end up starting
@@ -317,16 +312,6 @@ class SubiquityClient(TuiApplication):
                 seek=True)
             self.aio_loop.create_task(
                 self.noninteractive_watch_install_state())
-            return None
-
-    async def start(self):
-        log_syslog_id = await self.connect()
-        if log_syslog_id is not None:
-            await super().start()
-            journald_listen(
-                self.aio_loop,
-                [log_syslog_id],
-                self.controllers.Progress.log_line)
 
     def _exception_handler(self, loop, context):
         exc = context.get('exception')
@@ -360,7 +345,7 @@ class SubiquityClient(TuiApplication):
                 new_loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(new_loop)
                 new_loop.run_until_complete(Error.run())
-            if self.app_state == ApplicationState.INTERACTIVE:
+            if self.interactive:
                 self._remove_last_screen()
                 raise
             else:
