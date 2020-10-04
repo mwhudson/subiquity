@@ -22,6 +22,10 @@ from subiquitycore.tuicontroller import (
 log = logging.getLogger("subiquity.controller")
 
 
+class Confirm(Exception):
+    pass
+
+
 class SubiquityTuiController(TuiController):
 
     endpoint_name = None

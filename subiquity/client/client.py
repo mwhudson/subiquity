@@ -30,6 +30,11 @@ from subiquitycore.tuicontroller import Skip
 from subiquitycore.tui import TuiApplication
 from subiquitycore.view import BaseView
 
+from subiquity.client.controller import Confirm
+from subiquity.client.keycodes import (
+    DummyKeycodesFilter,
+    KeyCodesFilter,
+    )
 from subiquity.common.api.client import make_client_for_conn
 from subiquity.common.apidef import API
 from subiquity.common.errorreport import (
@@ -42,12 +47,7 @@ from subiquity.common.types import (
     ErrorReportRef,
     InstallState,
     )
-from subiquity.controller import Confirm
 from subiquity.journald import journald_listen
-from subiquity.keycodes import (
-    DummyKeycodesFilter,
-    KeyCodesFilter,
-    )
 from subiquity.ui.frame import SubiquityUI
 from subiquity.ui.views.error import ErrorReportStretchy
 from subiquity.ui.views.help import HelpMenu
