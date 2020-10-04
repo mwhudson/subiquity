@@ -24,7 +24,6 @@ import aiohttp
 
 from subiquitycore.async_helpers import (
     run_in_thread,
-    schedule_task,
     )
 from subiquitycore.screen import is_linux_tty
 from subiquitycore.tuicontroller import Skip
@@ -227,10 +226,12 @@ class SubiquityClient(TuiApplication):
                 await asyncio.sleep(1)
                 continue
             if install_state == InstallState.NEEDS_CONFIRMATION:
-                confirm_task = self.aio_loop.create_task(
-                    self.noninteractive_confirmation())
+                if confirm_task is not None:
+                    confirm_task = self.aio_loop.create_task(
+                        self.noninteractive_confirmation())
             elif confirm_task is not None:
                 confirm_task.cancel()
+                confirm_task = None
 
     def subiquity_event_noninteractive(self, event):
         if event['SUBIQUITY_EVENT_TYPE'] == 'start':
@@ -250,25 +251,23 @@ class SubiquityClient(TuiApplication):
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
             else:
-                print()
                 break
+        print()
         self.event_syslog_id = status.event_syslog_id
-        app_state = status.state
-        if app_state == ApplicationState.STARTING:
+        if status.state == ApplicationState.STARTING:
             print("server is starting...", end='', flush=True)
-            while app_state == ApplicationState.STARTING:
+            while status.state == ApplicationState.STARTING:
                 await asyncio.sleep(1)
                 print(".", end='', flush=True)
-                app_state = (await self.client.meta.status.GET()).state
+                status = await self.client.meta.status.GET()
             print()
-        if app_state == ApplicationState.EARLY_COMMANDS:
+        if status.state == ApplicationState.EARLY_COMMANDS:
             print("running early commands...")
             fd = journald_listen(
                 self.aio_loop,
                 [status.early_commands_syslog_id],
                 lambda e: print(e['MESSAGE']))
-            app_state = (await self.client.meta.status.GET(
-                app_state)).state
+            status.state = await self.client.meta.status.GET(cur=status.state)
             await asyncio.sleep(0.5)
             self.aio_loop.remove_reader(fd)
         return status
