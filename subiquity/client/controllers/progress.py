@@ -95,7 +95,7 @@ class ProgressController(SubiquityTuiController):
             if self.install_state == InstallState.RUNNING:
                 if install_status.confirming_tty != self.app.our_tty:
                     install_running = InstallRunning(
-                        self.ui.body, self, install_status.confirming_tty)
+                        self.app, install_status.confirming_tty)
                     self.app.add_global_overlay(install_running)
             else:
                 if install_running is not None:

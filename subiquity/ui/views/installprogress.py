@@ -147,6 +147,12 @@ class ProgressView(BaseView):
         elif state == InstallState.RUNNING:
             self.title = _("Installing system")
             btns = [self.view_log_btn]
+        elif state == InstallState.POST_WAIT:
+            self.title = _("Installing system")
+            btns = [self.view_log_btn]
+        elif state == InstallState.POST_RUNNING:
+            self.title = _("Installing system")
+            btns = [self.view_log_btn]
         elif state == InstallState.UU_RUNNING:
             self.title = _("Install complete!")
             self.reboot_btn.base_widget.set_label(
@@ -271,8 +277,7 @@ You can wait for this to complete or switch to a shell.
 
 
 class InstallRunning(Stretchy):
-    def __init__(self, parent, app, tty):
-        self.parent = parent
+    def __init__(self, app, tty):
         self.app = app
         self.btn = Toggleable(other_btn(
                 _("Switch to a shell"), on_press=self._debug_shell))

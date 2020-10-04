@@ -260,10 +260,14 @@ class InstallController(SubiquityController):
 
             await self.curtin_install(context=context)
 
+            self.update_state(InstallState.POST_WAIT)
+
             await asyncio.wait(
                 {e.wait() for e in self.model.postinstall_events})
 
             await self.drain_curtin_events(context=context)
+
+            self.update_state(InstallState.POST_RUNNING)
 
             await self.postinstall(context=context)
 
