@@ -19,7 +19,7 @@ from subiquitycore.tuicontroller import (
     TuiController,
     )
 
-log = logging.getLogger("subiquity.controller")
+log = logging.getLogger("subiquity.client.controller")
 
 
 class Confirm(Exception):

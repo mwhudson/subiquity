@@ -35,7 +35,7 @@ from subiquity.ui.views.filesystem.probing import (
     )
 
 
-log = logging.getLogger("subiquitycore.client.controllers.filesystem")
+log = logging.getLogger("subiquity.client.controllers.filesystem")
 
 BIOS_GRUB_SIZE_BYTES = 1 * 1024 * 1024    # 1MiB
 PREP_GRUB_SIZE_BYTES = 8 * 1024 * 1024    # 8MiB

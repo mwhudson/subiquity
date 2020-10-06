@@ -7,13 +7,11 @@
 1. Subiquity is entirely usable by pressing up, down, space (or return) and the
    occasional bit of typing.
 
-2. The UI never blocks.  If something takes more than about 0.1s, it is done
-   in the background, possibly with some kind of indication in the UI and the
-   ability to cancel if appropriate.  (We should consider making sure that if
-   we pop up a progress dialog while something happens -- e.g. applying
-   keyboard configuration, which the user just has to wait for until going on
-   to the next screen -- that the dialog appears for at least, say, 0.5s to
-   avoid flickering the UI).
+2. The UI never blocks.  If something takes more than about 0.1s, it is done in
+   the background, possibly with some kind of indication in the UI and the
+   ability to cancel if appropriate.  If indication is shown, it is shown for
+   at least 1s to avoid flickering the UI.  There is a helper,
+   `wait_with_text_dialog` for this.
 
 3. General UX principles that it is worth keeping in mind:
 
@@ -124,7 +122,17 @@ complicated, but the ability to start easily makes it well worth it IMHO.
 
 ## Code structure
 
-Subiquity follows a model / view / controller sort of approach.
+### Overall architecture
+
+Subiquity has a client / server model: there is one server, which collects the
+data that will go into the curtin config and runs the install, and one or more
+client processes which connect to it.  One client runs on tty1 (apart from on
+s390x) and others run on any configured serial console.  One can also ssh into
+the live session as another way of starting a client.
+
+Subiquity follows a model / view / controller sort of approach, where the model
+lives in the server and the view in the client, and controller classes in both
+the server and client handle the communication.
 
 The model is ultimately the config that will be passed to curtin, which is
 broken apart into classes for the configuration of the network, the filesystem,
@@ -139,11 +147,24 @@ outside world and the model and views -- in the network view, it is the
 controller that listens to netlink events and calls methods on the model and
 view instances in response to, say, a NIC gaining an address.
 
-The views display the model and call methods on the controller to make changes.
+Obviously for most screens there is a triple of a model class, controller
+classes in server and client and a view class, but this isn't always true --
+some controllers don't have a corresponding model class.
 
-Obviously for most screens there is a triple of a model class, controller class
-and a view class for the initial view, but this isn't always true -- some
-controllers don't have a corresponding model class.
+### API details
+
+The api is HTTP over a unix socket (/run/subiquity/socket). It is defined in
+the subiquity.common.apidef module, and is all fairly ad hoc and designed as
+needed.  The API uses basic Python types, classes defined by
+[attrs](https://attrs.org) and enums and there is general machinery for
+converting these to and from JSON, building a client from the api definition
+and serving bits of the API from a particular class.
+
+### autoinstalls
+
+### Confirming the install
+
+### Refreshing the snap
 
 ### Doing things in the background
 
@@ -155,7 +176,7 @@ running things in the background and subiquity uses
  * `schedule_task` (a wrapper around `create_task` / `ensure_future`)
  * `run_in_thread` (just a nicer wrapper around `run_in_executor`)
     * We still use threads for HTTP requests (this could change in the future
-      I guess) and come compute-bound things like generating error reports.
+      I guess) and some compute-bound things like generating error reports.
  * `SingleInstanceTask` is a way of running tasks that only need to run once
    but might need to be cancelled and restarted.
    * This is useful for things like checking for snap updates: it's possible
@@ -185,7 +206,7 @@ does not use, so we can add support for at least a dozen or so more glyphs if
 there's a need.
 
 `subiquity.palette` defines the 8 RGB colors and a bunch of named "styles" in
-terms of foreground and background colors.  `subiquitycore.core` contains some
+terms of foreground and background colors.  `subiquitycore.screen` contains some
 rather hair-raising code for mangling these definitions so that using these
 style names in urwid comes out in the right color both in gnome-terminal (using
 ISO-8613-3 color codes) and in the linux tty (using the PIO_CMAP ioctl).
@@ -198,9 +219,9 @@ makes writing them a bit easier.
 
 subiquity supports a limited form of automation in the form of an "answers
 file". This yaml file provides data that controllers can use to drive the UI
-automatically (this is not a replacement for preseeding: that is to be designed
-during the 18.10 cycle).  There are some answers files in the `examples/`
-directory that are run as a sort of integration test for the UI.
+automatically (this is not a replacement for preseeding: that is "autoinstall"
+which has its own documentation).  There are some answers files in the
+`examples/` directory that are run as a sort of integration test for the UI.
 
 Tests (and lint checks) are run by travis using lxd.  See `.travis.yml` and
 `./scripts/test-in-lxd.sh` and so on.
