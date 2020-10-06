@@ -285,6 +285,11 @@ class SubiquityClient(TuiApplication):
                 self.aio_loop,
                 [status.log_syslog_id],
                 self.controllers.Progress.log_line)
+            self.error_reporter.load_reports()
+            for report in self.error_reporter.reports:
+                if report.kind == ErrorReportKind.UI and not report.seen:
+                    self.show_error_report(report.ref())
+                    break
         else:
             self.interactive = False
             if self.opts.run_on_serial:
@@ -372,12 +377,6 @@ class SubiquityClient(TuiApplication):
         super().exit()
 
     def select_initial_screen(self):
-        self.error_reporter.load_reports()
-        for report in self.error_reporter.reports:
-            if report.kind == ErrorReportKind.UI and not report.seen:
-                self.show_error_report(report.ref())
-                break
-
         last_screen = None
         if self.updated:
             state_path = self.state_path('last-screen')
