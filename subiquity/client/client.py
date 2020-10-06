@@ -405,8 +405,11 @@ class SubiquityClient(TuiApplication):
         try:
             await super().move_screen(increment, coro)
         except Confirm:
-            log.debug("showing InstallConfirmation over %s", self.ui.body)
-            self.add_global_overlay(InstallConfirmation(self))
+            self.show_confirm_install()
+
+    def show_confirm_install(self):
+        log.debug("showing InstallConfirmation over %s", self.ui.body)
+        self.add_global_overlay(InstallConfirmation(self))
 
     async def make_view_for_controller(self, new):
         view = await super().make_view_for_controller(new)
