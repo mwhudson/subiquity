@@ -39,6 +39,7 @@ class ProgressController(SubiquityTuiController):
         super().__init__(app)
         self.progress_view = ProgressView(self)
         self.install_state = None
+        self.crash_report_ref = None
         self.answers = app.answers.get("InstallProgress", {})
 
     def event(self, event):
@@ -82,16 +83,21 @@ class ProgressController(SubiquityTuiController):
                 await asyncio.sleep(1)
                 continue
             self.install_state = install_status.state
-            self.crash_report = install_status.error
-            if self.crash_report:
-                self.ui.set_body(self.progress_view)
-                self.app.show_error_report(self.crash_report)
+
             self.progress_view.update_for_state(self.install_state)
             if self.ui.body is self.progress_view:
                 self.ui.set_header(self.progress_view.title)
+
+            if install_status.error is not None:
+                if self.crash_report_ref is None:
+                    self.ui.set_body(self.progress_view)
+                    self.app.show_error_report(self.crash_report)
+                    self.crash_report_ref = install_status.error
+
             if self.install_state == InstallState.NEEDS_CONFIRMATION:
                 if self.showing:
                     self.app.show_confirm_install()
+
             if self.install_state == InstallState.RUNNING:
                 if install_status.confirming_tty != self.app.our_tty:
                     install_running = InstallRunning(
@@ -101,6 +107,7 @@ class ProgressController(SubiquityTuiController):
                 if install_running is not None:
                     self.app.remove_global_overlay(install_running)
                     install_running = None
+
             if self.install_state == InstallState.DONE:
                 if self.answers.get('reboot', False):
                     self.click_reboot()
