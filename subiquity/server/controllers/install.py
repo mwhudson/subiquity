@@ -80,8 +80,8 @@ class InstallController(SubiquityController):
     def __init__(self, app):
         super().__init__(app)
         self.model = app.base_model
-        self.install_state = InstallState.NOT_STARTED
-        self.install_state_event = asyncio.Event()
+        self._install_state = InstallState.NOT_STARTED
+        self._install_state_event = asyncio.Event()
         self.error_ref = None
 
         self.unattended_upgrades_proc = None
@@ -89,11 +89,6 @@ class InstallController(SubiquityController):
         self._event_syslog_id = 'curtin_event.%s' % (os.getpid(),)
         self.tb_extractor = TracebackExtractor()
         self.curtin_event_contexts = {}
-
-    def update_state(self, state):
-        self.install_state_event.set()
-        self.install_state_event.clear()
-        self.install_state = state
 
     def interactive(self):
         return True
@@ -115,6 +110,15 @@ class InstallController(SubiquityController):
     def start(self):
         self.install_task = self.app.aio_loop.create_task(self.install())
 
+    @property
+    def install_state(self):
+        return self._install_state
+
+    def update_state(self, state):
+        self._install_state_event.set()
+        self._install_state_event.clear()
+        self._install_state = state
+
     def tpath(self, *path):
         return os.path.join(self.model.target, *path)
 
@@ -132,9 +136,6 @@ class InstallController(SubiquityController):
     def logged_command(self, cmd):
         return ['systemd-cat', '--level-prefix=false',
                 '--identifier=' + self.app.log_syslog_id] + cmd
-
-    def log_event(self, event):
-        self.tb_extractor.feed(event['MESSAGE'])
 
     def curtin_event(self, event):
         e = {
@@ -168,6 +169,9 @@ class InstallController(SubiquityController):
             curtin_ctx = self.curtin_event_contexts.pop(e["NAME"], None)
             if curtin_ctx is not None:
                 curtin_ctx.exit(result=status)
+
+    def log_event(self, event):
+        self.tb_extractor.feed(event['MESSAGE'])
 
     def _write_config(self, path, config):
         with open(path, 'w') as conf:
@@ -224,19 +228,25 @@ class InstallController(SubiquityController):
         log.debug('curtin_install')
         self.curtin_event_contexts[''] = context
 
-        journald_listen(
-            self.app.aio_loop, [self._event_syslog_id], self.curtin_event)
-        journald_listen(
-            self.app.aio_loop, [self.app.log_syslog_id], self.log_event)
+        loop = self.app.aio_loop
+
+        fds = [
+            journald_listen(loop, [self.app.log_syslog_id], self.curtin_log),
+            journald_listen(loop, [self._event_syslog_id], self.curtin_event),
+            ]
 
         curtin_cmd = self._get_curtin_command()
 
         log.debug('curtin install cmd: {}'.format(curtin_cmd))
 
-        cp = await arun_command(self.logged_command(curtin_cmd), check=True)
+        try:
+            cp = await arun_command(
+                self.logged_command(curtin_cmd), check=True)
+        finally:
+            for fd in fds:
+                loop.remove_reader(fd)
 
         log.debug('curtin_install completed: %s', cp.returncode)
-        log.debug('After curtin install OK')
 
     @with_context()
     async def install(self, *, context):
