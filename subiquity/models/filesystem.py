@@ -360,11 +360,11 @@ class attributes:
         return attr.ib(default=attr.Factory(factory))
 
     @staticmethod
-    def ref(*, backlink=None):
+    def ref(*, backlink=None, **kw):
         metadata = {'ref': True}
         if backlink:
             metadata['backlink'] = backlink
-        return attr.ib(metadata=metadata)
+        return attr.ib(metadata=metadata, **kw)
 
     @staticmethod
     def reflist(*, backlink=None, default=attr.NOTHING):
@@ -630,9 +630,6 @@ class _Device(_Formattable, ABC):
     # [Partition]
     _partitions = attributes.backlink(default=attr.Factory(list))
 
-    def dasd(self):
-        return None
-
     def ptable_for_new_partition(self):
         if self.ptable is not None:
             return self.ptable
@@ -640,7 +637,7 @@ class _Device(_Formattable, ABC):
             if action['id'] == self.id:
                 if action.get('ptable') == 'vtoc':
                     return action['ptable']
-        if self.dasd() is not None:
+        if getattr(self, 'dasd', None) is not None:
             return 'vtoc'
         return 'gpt'
 
@@ -725,9 +722,10 @@ class _Device(_Formattable, ABC):
 
 @fsobj("dasd")
 class Dasd:
-    device_id = attr.ib()
-    blocksize = attr.ib()
-    disk_layout = attr.ib()
+    dasd_type = attr.ib()
+    device_id = attr.ib(default=None)
+    blocksize = attr.ib(default=None)
+    disk_layout = attr.ib(default=None)
     label = attr.ib(default=None)
     mode = attr.ib(default=None)
     preserve = attr.ib(default=False)
@@ -745,7 +743,7 @@ class Disk(_Device):
     preserve = attr.ib(default=False)
     name = attr.ib(default="")
     grub_device = attr.ib(default=False)
-    device_id = attr.ib(default=None)
+    dasd = attributes.ref(default=None)
 
     _info = attr.ib(default=None)
 
