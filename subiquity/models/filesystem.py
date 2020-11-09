@@ -798,9 +798,6 @@ class Disk(_Device):
             return self.wwn
         return self.serial or self.path
 
-    def dasd(self):
-        return self._m._one(type='dasd', device_id=self.device_id)
-
     def _can_be_boot_disk(self):
         bl = self._m.bootloader
         if self._has_preexisting_partition():
@@ -1712,8 +1709,8 @@ class FilesystemModel(object):
         if p.is_bootloader_partition:
             device._partitions.insert(0, device._partitions.pop())
         device.ptable = device.ptable_for_new_partition()
-        dasd = device.dasd()
-        if dasd is not None:
+        dasd = device.dasd
+        if dasd is not None and dasd.dasd_type == 'ECKD':
             dasd.device_layout = 'cdl'
             dasd.preserve = False
         self._actions.append(p)
