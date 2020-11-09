@@ -41,8 +41,8 @@ parts:
       sed -e "s,@@PACKAGED_VERSION@@,$PACKAGED_VERSION,g" -i curtin/version.py
     plugin: python
     source-type: git
-    source: https://git.launchpad.net/curtin
-    source-branch: ubuntu/devel
+    source: https://git.launchpad.net/~mwhudson/curtin
+    source-branch: dasd-rework
     requirements: [requirements.txt]
     organize:
       'lib/python*/site-packages/usr/lib/curtin': 'usr/lib/'
@@ -150,7 +150,7 @@ parts:
   probert:
     plugin: python
     build-packages: [python-setuptools, build-essential, libnl-3-dev, libnl-genl-3-dev, libnl-route-3-dev]
-    source: https://github.com/CanonicalLtd/probert.git
+    source: https://github.com/mwhudson/probert.git
     source-type: git
-    source-commit: e34bee1a363615e71d38aff15d00e1837c62729b
+    source-branch: detect-virtio-dasds
     requirements: [requirements.txt]
