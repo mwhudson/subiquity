@@ -121,10 +121,6 @@ def fsobj(typ):
 
 
 def dependencies(obj):
-    if obj.type == 'disk':
-        dasd = obj.dasd()
-        if dasd:
-            yield dasd
     for f in attr.fields(type(obj)):
         v = getattr(obj, f.name)
         if not v:
@@ -136,10 +132,6 @@ def dependencies(obj):
 
 
 def reverse_dependencies(obj):
-    if obj.type == 'dasd':
-        disk = obj._m._one(type='disk', device_id=obj.device_id)
-        if disk:
-            yield disk
     for f in attr.fields(type(obj)):
         if not f.metadata.get('is_backlink', False):
             continue
