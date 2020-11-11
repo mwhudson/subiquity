@@ -1701,7 +1701,7 @@ class FilesystemModel(object):
         if p.is_bootloader_partition:
             device._partitions.insert(0, device._partitions.pop())
         device.ptable = device.ptable_for_new_partition()
-        dasd = device.dasd
+        dasd = getattr(device, 'dasd', None)
         if dasd is not None and dasd.dasd_type == 'ECKD':
             dasd.device_layout = 'cdl'
             dasd.preserve = False
