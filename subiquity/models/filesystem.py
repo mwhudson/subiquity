@@ -773,7 +773,20 @@ class Disk(_Device):
 
     @property
     def size(self):
-        return align_down(self._info.size)
+        if self._info.size:
+            return align_down(self._info.size)
+        # An unformatted (ECKD) dasd reports a size of 0 via e.g. blockdev
+        # --getsize64. So figuring out how big it is requires a bit more work.
+        if self.dasd is None or self.dasd.dasd_type == "virt":
+            return 0
+        data = self._m._probe_data.get('dasd', {}).get(self.path)
+        if data is None:
+            return 0
+        tracks_per_cylinder = data['tracks_per_cylinder']
+        cylinders = data['cylinders']
+        blocksize = 4096  # hard coded for us!
+        blocks_per_track = 12  # just a mystery fact that has to be known
+        return blocksize * blocks_per_track * tracks_per_cylinder * cylinders
 
     @property
     def annotations(self):
@@ -1704,6 +1717,7 @@ class FilesystemModel(object):
         dasd = getattr(device, 'dasd', None)
         if dasd is not None and dasd.dasd_type == 'ECKD':
             dasd.device_layout = 'cdl'
+            dasd.blocksize = 4096
             dasd.preserve = False
         self._actions.append(p)
         return p
