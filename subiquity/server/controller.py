@@ -29,7 +29,7 @@ from subiquity.common.api.server import bind
 log = logging.getLogger("subiquity.server.controller")
 
 
-class SectionValidationError:
+class SectionValidationError(Exception):
     def __init__(self, section, error):
         self.section = section
         self.error = error
