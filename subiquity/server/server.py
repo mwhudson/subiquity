@@ -17,7 +17,9 @@ import asyncio
 import logging
 import os
 import shlex
+import subprocess
 import sys
+import traceback
 from typing import List, Optional
 
 from aiohttp import web
@@ -75,6 +77,7 @@ class MetaController:
         return ApplicationStatus(
             self.app.state,
             cloud_init_ok=self.app.cloud_init_ok,
+            error_msg=self.app.autoinstall_error_message,
             early_commands_syslog_id=self.app.early_commands_syslog_id,
             event_syslog_id=self.app.event_syslog_id,
             log_syslog_id=self.app.log_syslog_id)
@@ -145,6 +148,7 @@ class SubiquityServer(Application):
         super().__init__(opts)
         self.block_log_dir = block_log_dir
         self.cloud_init_ok = cloud_init_ok
+        self.autoinstall_error_message = ''
         self._state = ApplicationState.STARTING
         self.state_event = asyncio.Event()
         self.confirming_tty = ''
@@ -323,14 +327,37 @@ class SubiquityServer(Application):
     async def start(self):
         self.controllers.load_all()
         await self.start_api_server()
-        self.load_autoinstall_config(only_early=True)
-        if self.autoinstall_config and self.controllers.Early.cmds:
-            stamp_file = self.state_path("early-commands")
-            if not os.path.exists(stamp_file):
-                self.update_state(ApplicationState.EARLY_COMMANDS)
-                await self.controllers.Early.run()
-                open(stamp_file, 'w').close()
-        self.load_autoinstall_config(only_early=False)
+        try:
+            self.load_autoinstall_config(only_early=True)
+            if self.autoinstall_config and self.controllers.Early.cmds:
+                stamp_file = self.state_path("early-commands")
+                if not os.path.exists(stamp_file):
+                    self.update_state(ApplicationState.EARLY_COMMANDS)
+                    try:
+                        await self.controllers.Early.run()
+                    except subprocess.CalledProcessError as exc:
+                        self.update_state(ApplicationState.AUTOINSTALL_ERROR)
+                        self.autoinstall_error_message = (
+                            _("The early command {} failed:\n{}").format(
+                                exc.cmd, exc))
+                        return
+                    open(stamp_file, 'w').close()
+            self.load_autoinstall_config(only_early=False)
+        except Exception as exc:
+            self.update_state(ApplicationState.AUTOINSTALL_ERROR)
+            if isinstance(exc, jsonschema.ValidationError):
+                self.autoinstall_error_message = (
+                    _("The autoinstall data failed validation:\n{}").format(
+                        exc))
+            else:
+                report = self.make_apport_report(
+                    ErrorReportKind.AUTOINSTALL_ERROR,
+                    "Loading autoinstall data")
+                self.autoinstall_error_message = (
+                    _("Loading autoinstall data failed (this is a bug).\n"
+                        "Report written to {}. Details:\n{}").format(
+                        report.path, traceback.format_exc()))
+            return
         if not self.interactive() and not self.opts.dry_run:
             open('/run/casper-no-prompt', 'w').close()
         self.load_serialized_state()

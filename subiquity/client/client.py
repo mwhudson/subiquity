@@ -266,7 +266,10 @@ class SubiquityClient(TuiApplication):
 
     async def start(self):
         status = await self.connect()
-        if status.state == ApplicationState.INTERACTIVE:
+        if status.state == ApplicationState.AUTOINSTALL_ERROR:
+            print(status.error_msg)
+            return
+        elif status.state == ApplicationState.INTERACTIVE:
             self.interactive = True
             await super().start()
             journald_listen(

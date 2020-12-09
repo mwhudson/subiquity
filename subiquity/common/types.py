@@ -27,6 +27,7 @@ import attr
 
 class ApplicationState(enum.Enum):
     STARTING = enum.auto()
+    AUTOINSTALL_ERROR = enum.auto()
     EARLY_COMMANDS = enum.auto()
     INTERACTIVE = enum.auto()
     NON_INTERACTIVE = enum.auto()
@@ -35,6 +36,7 @@ class ApplicationState(enum.Enum):
 @attr.s(auto_attribs=True)
 class ApplicationStatus:
     state: ApplicationState
+    error_msg: str
     cloud_init_ok: bool
     early_commands_syslog_id: str
     log_syslog_id: str
@@ -56,6 +58,7 @@ class ErrorReportKind(enum.Enum):
     UI = _("Installer crash")
     NETWORK_FAIL = _("Network error")
     SERVER_REQUEST_FAIL = _("Server request failure")
+    AUTOINSTALL_ERROR = _("Loading autoinstall data failed")
     UNKNOWN = _("Unknown error")
 
 
