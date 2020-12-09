@@ -29,6 +29,12 @@ from subiquity.common.api.server import bind
 log = logging.getLogger("subiquity.server.controller")
 
 
+class SectionValidationError:
+    def __init__(self, section, error):
+        self.section = section
+        self.error = error
+
+
 class SubiquityController(BaseController):
 
     autoinstall_key = None
@@ -48,7 +54,10 @@ class SubiquityController(BaseController):
                 self.autoinstall_key,
                 self.autoinstall_default)
             if ai_data is not None and self.autoinstall_schema is not None:
-                jsonschema.validate(ai_data, self.autoinstall_schema)
+                try:
+                    jsonschema.validate(ai_data, self.autoinstall_schema)
+                except jsonschema.ValidationError as exc:
+                    raise SectionValidationError(self.autoinstall_key, exc)
             self.load_autoinstall_data(ai_data)
 
     def load_autoinstall_data(self, data):

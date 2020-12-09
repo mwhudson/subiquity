@@ -51,7 +51,10 @@ from subiquity.common.types import (
     ErrorReportRef,
     InstallState,
     )
-from subiquity.server.controller import SubiquityController
+from subiquity.server.controller import (
+    SectionValidationError,
+    SubiquityController,
+    )
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.server.errors import ErrorController
 from subiquitycore.snapd import (
@@ -299,12 +302,12 @@ class SubiquityServer(Application):
             return
         with open(self.opts.autoinstall) as fp:
             self.autoinstall_config = yaml.safe_load(fp)
+        with self.context.child("core_validation", level="INFO"):
+            jsonschema.validate(self.autoinstall_config, self.base_schema)
         if only_early:
             self.controllers.Reporting.setup_autoinstall()
             self.controllers.Reporting.start()
             self.controllers.Error.setup_autoinstall()
-            with self.context.child("core_validation", level="INFO"):
-                jsonschema.validate(self.autoinstall_config, self.base_schema)
             self.controllers.Early.setup_autoinstall()
         else:
             for controller in self.controllers.instances:
@@ -349,6 +352,10 @@ class SubiquityServer(Application):
                 self.autoinstall_error_message = (
                     _("The autoinstall data failed validation:\n{}").format(
                         exc))
+            elif isinstance(exc, SectionValidationError):
+                self.autoinstall_error_message = (
+                    _("The autoinstall data for section {} failed "
+                      "validation:\n{}").format(exc.section, exc.error))
             else:
                 report = self.make_apport_report(
                     ErrorReportKind.AUTOINSTALL_ERROR,
