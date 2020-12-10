@@ -290,11 +290,12 @@ class SubiquityServer(Application):
         for controller in self.controllers.instances:
             if controller.interactive():
                 log.debug(
-                    "apply_autoinstall_config: skipping %s as interactive",
-                    controller.name)
-                continue
-            await controller.apply_autoinstall_config()
-            controller.configured()
+                    "apply_autoinstall_config: waiting for interfactive "
+                    "configuration of %s", controller.name)
+                await self.base_model.wait_configuration(controller.model_name)
+            else:
+                await controller.apply_autoinstall_config()
+                controller.configured()
 
     def load_autoinstall_config(self, only_early):
         log.debug("load_autoinstall_config only_early %s", only_early)
@@ -326,6 +327,22 @@ class SubiquityServer(Application):
         await runner.setup()
         site = web.UnixSite(runner, self.opts.socket)
         await site.start()
+            Error = getattr(self.controllers, "Error", None)
+            if Error is not None and Error.cmds:
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                new_loop.run_until_complete(Error.run())
+            if self.interactive:
+
+    def _exception_handler(self, loop, context):
+        exc = context.get('exception')
+        if self.restarting_server:
+            log.debug('ignoring %s %s during restart', exc, type(exc))
+            return
+        if isinstance(exc, Abort):
+            self.show_error_report(exc.error_report_ref)
+            return
+        super()._exception_handler(loop, context)
 
     async def start(self):
         self.controllers.load_all()

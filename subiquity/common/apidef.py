@@ -68,6 +68,7 @@ class API:
         class restart:
             def POST() -> None:
                 """Restart the server process."""
+
     class errors:
         class wait:
             def GET(error_ref: ErrorReportRef) -> ErrorReportRef:

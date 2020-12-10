@@ -225,6 +225,19 @@ class SubiquityClient(TuiApplication):
                 confirm_task.cancel()
                 confirm_task = None
 
+    async def noninteractive_watch_app_state(self):
+        app_state = None
+        while True:
+            try:
+                app_status = await self.client.meta.status.GET(
+                    cur=app_state)
+                app_state = app_status.state
+            except aiohttp.ClientError:
+                await asyncio.sleep(1)
+                continue
+        if app_state == ApplicationState.AUTOINSTALL_ERROR:
+            print(app_status.error_msg)
+
     def subiquity_event_noninteractive(self, event):
         if event['SUBIQUITY_EVENT_TYPE'] == 'start':
             print('start: ' + event["MESSAGE"])
@@ -305,6 +318,8 @@ class SubiquityClient(TuiApplication):
                 seek=True)
             self.aio_loop.create_task(
                 self.noninteractive_watch_install_state())
+            self.aio_loop.create_task(
+                self.noninteractive_watch_app_state())
 
     def _exception_handler(self, loop, context):
         exc = context.get('exception')
@@ -333,17 +348,8 @@ class SubiquityClient(TuiApplication):
             except Exception:
                 print("report generation failed")
                 traceback.print_exc()
-            Error = getattr(self.controllers, "Error", None)
-            if Error is not None and Error.cmds:
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
-                new_loop.run_until_complete(Error.run())
-            if self.interactive:
-                self._remove_last_screen()
-                raise
-            else:
-                traceback.print_exc()
-                signal.pause()
+            self._remove_last_screen()
+            raise
         finally:
             if self.opts.server_pid:
                 print('killing server {}'.format(self.opts.server_pid))

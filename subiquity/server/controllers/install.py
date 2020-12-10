@@ -46,6 +46,7 @@ from subiquity.server.controller import (
     SubiquityController,
     )
 from subiquity.common.types import (
+    ApplicationState,
     InstallState,
     InstallStatus,
     )
@@ -122,16 +123,20 @@ class InstallController(SubiquityController):
     def tpath(self, *path):
         return os.path.join(self.model.target, *path)
 
-    def curtin_error(self):
+    def fail_with_report(self, report):
         self.update_state(InstallState.ERROR)
+        self.error_ref = report.ref()
+
+    def curtin_error(self):
         kw = {}
         if sys.exc_info()[0] is not None:
             log.exception("curtin_error")
             # send traceback.format_exc() to journal?
         if self.tb_extractor.traceback:
             kw["Traceback"] = "\n".join(self.tb_extractor.traceback)
-        self.error_ref = self.app.make_apport_report(
-            ErrorReportKind.INSTALL_FAIL, "install failed", **kw).ref()
+        report = self.app.make_apport_report(
+            ErrorReportKind.INSTALL_FAIL, "install failed", **kw)
+        self.fail_with_report(self, report)
 
     def logged_command(self, cmd):
         return ['systemd-cat', '--level-prefix=false',

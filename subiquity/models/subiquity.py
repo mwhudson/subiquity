@@ -150,6 +150,11 @@ class SubiquityModel:
             return False
         return not self._events[model_name].is_set()
 
+    async def wait_configuration(self, model_name):
+        if model_name is None:
+            return
+        await self._events[model_name].wait()
+
     def confirm(self):
         self.confirmation.set()
 
