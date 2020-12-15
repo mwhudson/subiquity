@@ -396,8 +396,7 @@ class SubiquityServer(Application):
             self.update_state(ApplicationState.NON_INTERACTIVE)
             await asyncio.sleep(1)
         await super().start()
-        if self.autoinstall_config:
-            await self.apply_autoinstall_config()
+        await self.apply_autoinstall_config()
 
     def _network_change(self):
         self.signal.emit_signal('snapd-network-change')

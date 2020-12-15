@@ -115,6 +115,7 @@ class InstallController(SubiquityController):
         return self._install_state
 
     def update_state(self, state):
+        log.debug("install state set to %s", state)
         self._install_state_event.set()
         self._install_state_event.clear()
         self._install_state = state
