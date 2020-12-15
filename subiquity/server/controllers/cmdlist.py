@@ -21,7 +21,6 @@ from systemd import journal
 from subiquitycore.context import with_context
 from subiquitycore.utils import arun_command
 
-from subiquity.common.types import InstallState
 from subiquity.server.controller import NonInteractiveController
 
 

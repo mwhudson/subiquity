@@ -17,7 +17,6 @@ import asyncio
 import inspect
 import logging
 import os
-import signal
 import sys
 import traceback
 
@@ -46,6 +45,7 @@ from subiquity.common.types import (
     ApplicationState,
     ErrorReportKind,
     ErrorReportRef,
+    ErrorReportState,
     InstallState,
     )
 from subiquity.journald import journald_listen
@@ -224,19 +224,13 @@ class SubiquityClient(TuiApplication):
             elif confirm_task is not None:
                 confirm_task.cancel()
                 confirm_task = None
-
-    async def noninteractive_watch_app_state(self):
-        app_state = None
-        while True:
-            try:
-                app_status = await self.client.meta.status.GET(
-                    cur=app_state)
-                app_state = app_status.state
-            except aiohttp.ClientError:
-                await asyncio.sleep(1)
-                continue
-        if app_state == ApplicationState.AUTOINSTALL_ERROR:
-            print(app_status.error_msg)
+            if install_state == InstallState.ERROR:
+                print('install failed')
+                report = self.error_reporter.get_wait(install_status.error)
+                while report.state == ErrorReportState.LOADING:
+                    await asyncio.sleep(1.0)
+                print(report['Title'])
+                print(report['Traceback'])
 
     def subiquity_event_noninteractive(self, event):
         if event['SUBIQUITY_EVENT_TYPE'] == 'start':
@@ -318,8 +312,6 @@ class SubiquityClient(TuiApplication):
                 seek=True)
             self.aio_loop.create_task(
                 self.noninteractive_watch_install_state())
-            self.aio_loop.create_task(
-                self.noninteractive_watch_app_state())
 
     def _exception_handler(self, loop, context):
         exc = context.get('exception')

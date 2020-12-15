@@ -46,7 +46,6 @@ from subiquity.server.controller import (
     SubiquityController,
     )
 from subiquity.common.types import (
-    ApplicationState,
     InstallState,
     InstallStatus,
     )
@@ -136,7 +135,10 @@ class InstallController(SubiquityController):
             kw["Traceback"] = "\n".join(self.tb_extractor.traceback)
         report = self.app.make_apport_report(
             ErrorReportKind.INSTALL_FAIL, "install failed", **kw)
-        self.fail_with_report(report)
+        if self.app.interactive():
+            self.fail_with_report(report)
+        else:
+            raise
 
     def logged_command(self, cmd):
         return ['systemd-cat', '--level-prefix=false',
@@ -293,8 +295,6 @@ class InstallController(SubiquityController):
             self.update_state(InstallState.DONE)
         except Exception:
             self.curtin_error()
-            if not self.app.interactive():
-                raise
 
     async def drain_curtin_events(self, *, context):
         waited = 0.0
