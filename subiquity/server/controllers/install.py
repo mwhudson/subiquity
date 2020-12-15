@@ -136,7 +136,7 @@ class InstallController(SubiquityController):
             kw["Traceback"] = "\n".join(self.tb_extractor.traceback)
         report = self.app.make_apport_report(
             ErrorReportKind.INSTALL_FAIL, "install failed", **kw)
-        self.fail_with_report(self, report)
+        self.fail_with_report(report)
 
     def logged_command(self, cmd):
         return ['systemd-cat', '--level-prefix=false',
@@ -293,6 +293,8 @@ class InstallController(SubiquityController):
             self.update_state(InstallState.DONE)
         except Exception:
             self.curtin_error()
+            if not self.app.interactive():
+                raise
 
     async def drain_curtin_events(self, *, context):
         waited = 0.0

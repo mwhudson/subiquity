@@ -155,6 +155,7 @@ class SubiquityServer(Application):
         self._state = ApplicationState.STARTING
         self.state_event = asyncio.Event()
         self.confirming_tty = ''
+        self.running_error_cmds = False
 
         self.early_commands_syslog_id = 'subiquity_commands.{}'.format(
             os.getpid())
@@ -288,9 +289,11 @@ class SubiquityServer(Application):
     @with_context()
     async def apply_autoinstall_config(self, context):
         for controller in self.controllers.instances:
-            if controller.interactive():
+            if controller is self.controllers.Install:
+                await controller.install_task
+            elif controller.interactive():
                 log.debug(
-                    "apply_autoinstall_config: waiting for interfactive "
+                    "apply_autoinstall_config: waiting for interactive "
                     "configuration of %s", controller.name)
                 await self.base_model.wait_configuration(controller.model_name)
             else:
@@ -327,22 +330,24 @@ class SubiquityServer(Application):
         await runner.setup()
         site = web.UnixSite(runner, self.opts.socket)
         await site.start()
-            Error = getattr(self.controllers, "Error", None)
-            if Error is not None and Error.cmds:
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
-                new_loop.run_until_complete(Error.run())
-            if self.interactive:
 
     def _exception_handler(self, loop, context):
         exc = context.get('exception')
-        if self.restarting_server:
-            log.debug('ignoring %s %s during restart', exc, type(exc))
-            return
-        if isinstance(exc, Abort):
-            self.show_error_report(exc.error_report_ref)
-            return
-        super()._exception_handler(loop, context)
+        if not self.interactive():
+            if self.running_error_cmds:
+                return
+            report = self.error_reporter.report_for_exc(exc)
+            if not report:
+                report = self.make_apport_report(
+                    ErrorReportKind.UNKNOWN, "unknown error",
+                    exc=exc)
+            self.controllers.Install.fail_with_report(report)
+            Error = getattr(self.controllers, "Error", None)
+            if Error is not None and Error.cmds:
+                self.running_error_cmds = True
+                self.aio_loop.create_task(Error.run())
+        else:
+            super()._exception_handler(loop, context)
 
     async def start(self):
         self.controllers.load_all()
@@ -391,7 +396,8 @@ class SubiquityServer(Application):
             self.update_state(ApplicationState.NON_INTERACTIVE)
             await asyncio.sleep(1)
         await super().start()
-        await self.apply_autoinstall_config()
+        if self.autoinstall_config:
+            await self.apply_autoinstall_config()
 
     def _network_change(self):
         self.signal.emit_signal('snapd-network-change')

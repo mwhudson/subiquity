@@ -337,6 +337,7 @@ class ErrorReporter(object):
 
         self.reports = []
         self._reports_by_base = {}
+        self._reports_by_exception = {}
         self.crashdb_spec = {
             'impl': 'launchpad',
             'project': 'subiquity',
@@ -372,6 +373,9 @@ class ErrorReporter(object):
     def note_data_for_apport(self, key, value):
         self._apport_data.append((key, value))
 
+    def report_for_exc(self, exc):
+        return self._reports_by_exception.get(exc)
+
     def make_apport_report(self, kind, thing, *, wait=False, exc=None, **kw):
         if not self.dry_run and not os.path.exists('/cdrom/.disk/info'):
             return None
@@ -393,6 +397,7 @@ class ErrorReporter(object):
                 thing, type(exc).__name__)
             tb = traceback.TracebackException.from_exception(exc)
             report.pr['Traceback'] = "".join(tb.format())
+            self._reports_by_exception[exc] = report
         else:
             report.pr["Title"] = thing
 
