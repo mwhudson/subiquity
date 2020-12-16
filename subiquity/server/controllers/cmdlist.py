@@ -21,6 +21,7 @@ from systemd import journal
 from subiquitycore.context import with_context
 from subiquitycore.utils import arun_command
 
+from subiquity.common.types import InstallState
 from subiquity.server.controller import NonInteractiveController
 
 
@@ -36,11 +37,10 @@ class CmdListController(NonInteractiveController):
         }
     cmds = ()
     cmd_check = True
-    send_to_journal = False
+    syslog_id = None
 
     def __init__(self, app):
         super().__init__(app)
-        self.run_event = asyncio.Event()
 
     def load_autoinstall_data(self, data):
         self.cmds = data
@@ -59,30 +59,35 @@ class CmdListController(NonInteractiveController):
             with context.child("command_{}".format(i), desc):
                 if isinstance(cmd, str):
                     cmd = ['sh', '-c', cmd]
-                if self.send_to_journal:
+                if self.syslog_id is not None:
                     journal.send(
-                        "  running " + desc,
-                        SYSLOG_IDENTIFIER=self.app.early_commands_syslog_id)
+                        "  running " + desc, SYSLOG_IDENTIFIER=self.syslog_id)
                     cmd = [
                         'systemd-cat', '--level-prefix=false',
-                        '--identifier=' + self.app.early_commands_syslog_id,
+                        '--identifier=' + self.syslog_id,
                         ] + cmd
                 await arun_command(
                     cmd, env=env,
                     stdin=None, stdout=None, stderr=None,
                     check=self.cmd_check)
-        self.run_event.set()
 
 
 class EarlyController(CmdListController):
 
     autoinstall_key = 'early-commands'
-    send_to_journal = True
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.syslog_id = app.early_commands_syslog_id
 
 
 class LateController(CmdListController):
 
     autoinstall_key = 'late-commands'
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.syslog_id = app.log_syslog_id
 
     def env(self):
         env = super().env()
@@ -90,7 +95,8 @@ class LateController(CmdListController):
         return env
 
     async def apply_autoinstall_config(self):
-        await self.run()
+        if self.app.controllers.Install.install_state == InstallState.DONE:
+            await self.run()
 
 
 class ErrorController(CmdListController):
