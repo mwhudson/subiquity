@@ -16,17 +16,25 @@
 import asyncio
 import enum
 import logging
-import requests
+import os
+import subprocess
+import tempfile
 from typing import Optional
 from xml.etree import ElementTree
 
 from curtin.config import merge_config
+
+import apt_pkg
+
+import requests
 
 from subiquitycore.async_helpers import (
     run_in_thread,
     SingleInstanceTask,
     )
 from subiquitycore.context import with_context
+from subiquitycore.lsb_release import lsb_release
+from subiquitycore.utils import arun_command
 
 from subiquity.common.apidef import API
 from subiquity.server.controller import SubiquityController
@@ -65,6 +73,7 @@ class MirrorController(SubiquityController):
         self.geoip_enabled = True
         self.check_state = CheckState.NOT_STARTED
         self.lookup_task = SingleInstanceTask(self.lookup)
+        self._apt_options_for_checking = None
 
     def load_autoinstall_data(self, data):
         if data is None:
@@ -139,5 +148,30 @@ class MirrorController(SubiquityController):
         self.model.set_mirror(data)
         self.configured()
 
-    async def check_url_GET(self, data: str) -> Optional[str]:
-        pass
+    def apt_options_for_checking(self):
+        if self._apt_options_for_checking is None:
+            apt_pkg.init_config()
+            opts = []
+            for key in apt_pkg.config.keys('Acquire::IndexTargets'):
+                if key.endswith('::DefaultEnabled'):
+                    opts.append(f'-o{key}=false')
+            self._apt_options_for_checking = opts
+        return self._apt_options_for_checking
+
+    async def check_url_GET(self, url: str) -> Optional[str]:
+        with tempfile.TemporaryDirectory() as tdir:
+            sources_list = os.path.join(tdir, 'sources.list')
+            with open(sources_list, 'w') as fp:
+                fp.write("deb {} {} main\n".format(
+                    url, lsb_release()['codename']))
+            apt_cmd = [
+                'apt-get',
+                'update',
+                f'-oDir::Etc::sourcelist={sources_list}',
+                '-oDir::Etc::sourceparts=/dev/null',
+                ] + self.apt_options_for_checking()
+            cp = await arun_command(apt_cmd)
+            if cp.returncode == 0:
+                return None
+            else:
+                return cp.stderr

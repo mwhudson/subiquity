@@ -19,6 +19,7 @@ import os
 import shlex
 import sys
 import time
+import traceback
 from typing import List, Optional
 
 from aiohttp import web
@@ -318,6 +319,8 @@ class SubiquityServer(Application):
             return
         report = self.error_reporter.report_for_exc(exc)
         log.error("top level error", exc_info=exc)
+        tb = traceback.TracebackException.from_exception(exc)
+        print("".join(tb.format()))
         if not report:
             report = self.make_apport_report(
                 ErrorReportKind.UNKNOWN, "unknown error",
@@ -348,6 +351,8 @@ class SubiquityServer(Application):
             resp.headers['x-updated'] = 'no'
         if resp.get('exception'):
             exc = resp['exception']
+            tb = traceback.TracebackException.from_exception(exc)
+            print("".join(tb.format()))
             log.debug(
                 'request to {} crashed'.format(request.raw_path), exc_info=exc)
             report = self.make_apport_report(
