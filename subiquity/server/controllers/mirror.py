@@ -17,6 +17,7 @@ import asyncio
 import enum
 import logging
 import requests
+from typing import Optional
 from xml.etree import ElementTree
 
 from curtin.config import merge_config
@@ -137,3 +138,6 @@ class MirrorController(SubiquityController):
     async def POST(self, data: str):
         self.model.set_mirror(data)
         self.configured()
+
+    async def check_url_GET(self, data: str) -> Optional[str]:
+        pass

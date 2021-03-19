@@ -47,7 +47,6 @@ class API:
     """The API offered by the subiquity installer process."""
     locale = simple_endpoint(str)
     proxy = simple_endpoint(str)
-    mirror = simple_endpoint(str)
     identity = simple_endpoint(IdentityData)
     ssh = simple_endpoint(SSHData)
 
@@ -182,6 +181,13 @@ class API:
 
         class info:
             def GET(dev_name: str) -> str: ...
+
+    class mirror:
+        def GET() -> str: ...
+        def POST(data: Payload[str]): ...
+
+        class check_url:
+            def GET(url: str) -> Optional[str]: ...
 
     class storage:
         def GET(wait: bool = False) -> StorageResponse: ...
