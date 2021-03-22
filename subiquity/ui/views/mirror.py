@@ -21,13 +21,13 @@ from urwid import connect_signal, Text
 
 from subiquitycore.view import BaseView
 from subiquitycore.ui.buttons import other_btn
-from subiquitycore.ui.container import Columns
 from subiquitycore.ui.form import (
     Form,
     URLEditor,
     simple_field,
 )
 from subiquitycore.ui.spinner import Spinner
+from subiquitycore.ui.table import TablePile, TableRow
 
 
 log = logging.getLogger('subiquity.ui.mirror')
@@ -53,30 +53,25 @@ class MirrorURLEditor(URLEditor):
         self.bff.validating = False
         self.bff._table.base_widget.focus_position = 0
         if r:
-            self.bff.show_extra(Text([('info_error', r)]))
-            self.bff.form.screen.base_widget.focus_position = 2
+            self.bff.show_extra(Text([
+                _("Mirror could not be used: "),
+                ('info_error', r),
+                ]))
         else:
             self.bff.under_text._w = Text(self.bff.help)
             self.bff.in_error = False
             self.bff.form.validated()
+            self.bff.form.buttons.base_widget.focus_position = 0
 
     def _show_validating(self):
         self.bff.in_error = True
-        cancel_btn = other_btn(_("Cancel"))
         self.bff.show_extra(
-            Columns([
-                Text("checking mirror"),
-                (1, self.spinner),
-                cancel_btn,
-                ]))
+            TablePile([TableRow([
+                Text(_("Checking mirror")),
+                self.spinner,
+                ])]))
         self.bff._table.base_widget.focus_position = 1
-        self.bff.form.screen.base_widget.focus_position = 2
-        self.bff.form.screen.base_widget.focus.base_widget.body[0].focus_position = 0
-        log.debug("_show_validating %s", self.bff.form.screen.base_widget.get_focus_widgets())
         self.bff.form.validated()
-
-    def _hide_validating(self):
-        pass
 
     def lost_focus(self):
         try:
@@ -102,10 +97,6 @@ class MirrorForm(Form):
     cancel_label = _("Back")
 
     url = MirrorURLField(_("Mirror address:"), help=mirror_help)
-
-    #def validate_url(self):
-    #    if self.url.validating:
-    #        return self.url.under_text._w
 
 
 class MirrorView(BaseView):

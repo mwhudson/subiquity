@@ -183,7 +183,6 @@ class MirrorController(SubiquityController):
     async def check_url_GET(self, url: str) -> Optional[str]:
         if url in self._good_mirrors:
             return None
-        await asyncio.sleep(5)
         self.configure_apt()
         with tempfile.TemporaryDirectory() as tdir:
             tdir = pathlib.Path(tdir)
