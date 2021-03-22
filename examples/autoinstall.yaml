@@ -18,7 +18,7 @@ debconf-selections: eek
 apt:
   primary:
     - arches: [default]
-      uri: "http://mymirror.local/repository/Apt/ubuntu/"
+      uri: "http://de.archive.ubuntu.com/ubuntu"
 packages:
   - package1
   - package2

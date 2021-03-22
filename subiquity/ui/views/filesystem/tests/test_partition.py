@@ -99,7 +99,7 @@ class PartitionViewTests(unittest.TestCase):
         stretchy.form.size.widget.lost_focus()
         self.assertTrue(stretchy.form.size.showing_extra)
         self.assertIn(
-            "Capped partition size", stretchy.form.size.under_text.text)
+            "Capped partition size", stretchy.form.size.under_text._w.text)
 
     def test_edit_existing_partition(self):
         form_data = {
@@ -152,9 +152,9 @@ class PartitionViewTests(unittest.TestCase):
         stretchy.form.mount.validate()
         self.assertTrue(stretchy.form.mount.showing_extra)
         self.assertIn(
-            "bad idea", stretchy.form.mount.under_text.text)
+            "bad idea", stretchy.form.mount.under_text._w.text)
         self.assertIn(
-            "/boot", stretchy.form.mount.under_text.text)
+            "/boot", stretchy.form.mount.under_text._w.text)
 
         # Selecting to reformat the partition clears the message and
         # reenables the / option.
