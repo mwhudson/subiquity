@@ -51,12 +51,14 @@ class MirrorURLEditor(URLEditor):
             self.controller.check_url(url), self._show_validating)
         self.spinner.stop()
         self.bff.validating = False
-        self.bff._table.base_widget.focus_position = 0
         if r:
             self.bff.show_extra(Text([
                 _("Mirror could not be used: "),
                 ('info_error', r),
                 ]))
+            if not self.bff.in_error:
+                self.bff.in_error = True
+                self.bff.form.validated()
         else:
             self.bff.under_text._w = Text(self.bff.help)
             self.bff.in_error = False
@@ -70,7 +72,6 @@ class MirrorURLEditor(URLEditor):
                 Text(_("Checking mirror")),
                 self.spinner,
                 ])]))
-        self.bff._table.base_widget.focus_position = 1
         self.bff.form.validated()
 
     def lost_focus(self):

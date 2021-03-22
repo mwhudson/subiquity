@@ -143,7 +143,7 @@ class MirrorController(SubiquityController):
             return
         self.check_state = CheckState.DONE
         self.model.set_country(cc)
-        await self.check_url_GET(self.model.get_mirror())
+        await self.check_url(self.model.get_mirror())
 
     def serialize(self):
         return self.model.get_mirror()
@@ -206,11 +206,7 @@ class MirrorController(SubiquityController):
             self._good_mirrors.add(url)
             return None
 
-    async def check_url_GET(self, url: str) -> Optional[str]:
-        if url in self._good_mirrors:
-            return None
-        if not self.app.base_model.network.has_network:
-            return None
+    async def check_url(self, url):
         if url in self._cur_checks:
             return await self._cur_checks[url]
         else:
@@ -219,3 +215,10 @@ class MirrorController(SubiquityController):
             v = await task
             del self._cur_checks[url]
             return v
+
+    async def check_url_GET(self, url: str) -> Optional[str]:
+        if url in self._good_mirrors:
+            return None
+        if not self.app.base_model.network.has_network:
+            return None
+        return await self.check_url(url)
