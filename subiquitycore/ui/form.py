@@ -26,6 +26,7 @@ from urwid import (
     Padding as UrwidPadding,
     RadioButton,
     Text,
+    Widget,
     WidgetDecoration,
     )
 
@@ -166,9 +167,10 @@ class BoundFormField(object):
             widget = Color.string_input(widget)
 
         if self.help is not NO_HELP:
-            self.under_text = Text(self.help)
+            u = Text(self.help)
         else:
-            self.under_text = Text("")
+            u = Text("")
+        self.under_text = WidgetWrap(u)
         if self.field.caption is NO_CAPTION:
             first_row = [(2, _Validator(self, widget))]
             second_row = [(2, self.under_text)]
@@ -217,7 +219,7 @@ class BoundFormField(object):
                 return
             self.in_error = False
             if not self.showing_extra and self.help is not NO_HELP:
-                self.under_text.set_text(self.help)
+                self.under_text._w = Text(self.help)
             self.form.validated()
 
     def _validate(self):
@@ -241,16 +243,21 @@ class BoundFormField(object):
         if r is None:
             self.in_error = False
             if not self.showing_extra and self.help is not NO_HELP:
-                self.under_text.set_text(self.help)
+                self.under_text._w = Text(self.help)
         else:
             self.in_error = True
+            if isinstance(r, str):
+                r = Text(('info_error', r))
             if show_error:
-                self.show_extra(('info_error', r))
+                self.show_extra(r)
         self.form.validated()
 
     def show_extra(self, extra_markup):
         self.showing_extra = True
-        self.under_text.set_text(extra_markup)
+        if isinstance(extra_markup, Widget):
+            self.under_text._w = extra_markup
+        else:
+            self.under_text._w = Text(extra_markup)
 
     @property
     def value(self):
@@ -277,7 +284,7 @@ class BoundFormField(object):
         if val is None:
             val = ""
         self._help = val
-        self.under_text.set_text(val)
+        self.under_text._w = Text(val)
 
     @property
     def caption(self):
@@ -510,6 +517,7 @@ class Form(object, metaclass=MetaForm):
             if f.in_error:
                 in_error = True
                 break
+        log.debug('in_error %s', in_error)
         if in_error:
             self.buttons.base_widget.contents[0][0].enabled = False
             self.buttons.base_widget.focus_position = 1

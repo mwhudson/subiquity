@@ -17,13 +17,17 @@ Select the Ubuntu archive mirror.
 
 """
 import logging
-from urwid import connect_signal
+from urwid import connect_signal, Text
 
 from subiquitycore.view import BaseView
+from subiquitycore.ui.buttons import other_btn
+from subiquitycore.ui.container import Columns
 from subiquitycore.ui.form import (
     Form,
-    URLField,
+    URLEditor,
+    simple_field,
 )
+from subiquitycore.ui.spinner import Spinner
 
 
 log = logging.getLogger('subiquity.ui.mirror')
@@ -33,11 +37,75 @@ mirror_help = _(
     "of the default.")
 
 
+class MirrorURLEditor(URLEditor):
+
+    def set_bound_form_field(self, bff):
+        self.bff = bff
+        bff.validating = False
+        self.controller = bff.form.controller
+        self.spinner = Spinner(self.controller.app.aio_loop)
+
+    async def _check_url(self, url):
+        self.spinner.start()
+        r = await self.controller.app._wait_with_indication(
+            self.controller.check_url(url), self._show_validating)
+        self.spinner.stop()
+        self.bff.validating = False
+        self.bff._table.base_widget.focus_position = 0
+        if r:
+            self.bff.show_extra(Text([('info_error', r)]))
+            self.bff.form.screen.base_widget.focus_position = 2
+        else:
+            self.bff.under_text._w = Text(self.bff.help)
+            self.bff.in_error = False
+            self.bff.form.validated()
+
+    def _show_validating(self):
+        self.bff.in_error = True
+        cancel_btn = other_btn(_("Cancel"))
+        self.bff.show_extra(
+            Columns([
+                Text("checking mirror"),
+                (1, self.spinner),
+                cancel_btn,
+                ]))
+        self.bff._table.base_widget.focus_position = 1
+        self.bff.form.screen.base_widget.focus_position = 2
+        self.bff.form.screen.base_widget.focus.base_widget.body[0].focus_position = 0
+        log.debug("_show_validating %s", self.bff.form.screen.base_widget.get_focus_widgets())
+        self.bff.form.validated()
+
+    def _hide_validating(self):
+        pass
+
+    def lost_focus(self):
+        try:
+            url = self.bff.value
+        except ValueError:
+            return
+        self.bff.validating = True
+        self.controller.app.aio_loop.create_task(self._check_url(url))
+
+
+MirrorURLField = simple_field(MirrorURLEditor)
+
+
 class MirrorForm(Form):
+
+    inited = False
+
+    def __init__(self, controller, initial):
+        self.controller = controller
+        super().__init__(initial=initial)
+        self.inited = True
 
     cancel_label = _("Back")
 
-    url = URLField(_("Mirror address:"), help=mirror_help)
+    url = MirrorURLField(_("Mirror address:"), help=mirror_help)
+
+    #def validate_url(self):
+    #    if self.url.validating:
+    #        return self.url.under_text._w
 
 
 class MirrorView(BaseView):
@@ -49,12 +117,14 @@ class MirrorView(BaseView):
     def __init__(self, controller, mirror):
         self.controller = controller
 
-        self.form = MirrorForm(initial={'url': mirror})
+        self.form = MirrorForm(controller, initial={'url': mirror})
 
         connect_signal(self.form, 'submit', self.done)
         connect_signal(self.form, 'cancel', self.cancel)
 
-        super().__init__(self.form.as_screen(excerpt=_(self.excerpt)))
+        self.form.screen = self.form.as_screen(excerpt=_(self.excerpt))
+
+        super().__init__(self.form.screen)
 
     def done(self, result):
         log.debug("User input: {}".format(result.as_data()))

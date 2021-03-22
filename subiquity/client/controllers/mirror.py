@@ -42,3 +42,6 @@ class MirrorController(SubiquityTuiController):
     def done(self, mirror):
         log.debug("MirrorController.done next_screen mirror=%s", mirror)
         self.app.next_screen(self.endpoint.POST(mirror))
+
+    async def check_url(self, url):
+        return await self.endpoint.check_url.GET(url)

@@ -86,6 +86,7 @@ class MirrorController(SubiquityController):
         self.check_state = CheckState.NOT_STARTED
         self.lookup_task = SingleInstanceTask(self.lookup)
         self._configured_apt = False
+        self._good_mirrors = set()
 
     def load_autoinstall_data(self, data):
         if data is None:
@@ -141,6 +142,7 @@ class MirrorController(SubiquityController):
             return
         self.check_state = CheckState.DONE
         self.model.set_country(cc)
+        await self.check_url_GET(self.model.get_mirror())
 
     def serialize(self):
         return self.model.get_mirror()
@@ -179,6 +181,9 @@ class MirrorController(SubiquityController):
             pass
 
     async def check_url_GET(self, url: str) -> Optional[str]:
+        if url in self._good_mirrors:
+            return None
+        await asyncio.sleep(5)
         self.configure_apt()
         with tempfile.TemporaryDirectory() as tdir:
             tdir = pathlib.Path(tdir)
@@ -200,4 +205,5 @@ class MirrorController(SubiquityController):
                     msgs.append(msg)
             return "\n".join(msgs)
         else:
+            self._good_mirrors.add(url)
             return None
