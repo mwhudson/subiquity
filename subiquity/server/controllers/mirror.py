@@ -87,6 +87,7 @@ class MirrorController(SubiquityController):
         self.lookup_task = SingleInstanceTask(self.lookup)
         self._configured_apt = False
         self._good_mirrors = set()
+        self._cur_checks = {}
 
     def load_autoinstall_data(self, data):
         if data is None:
@@ -180,9 +181,7 @@ class MirrorController(SubiquityController):
         except apt.cache.FetchFailedException:
             pass
 
-    async def check_url_GET(self, url: str) -> Optional[str]:
-        if url in self._good_mirrors:
-            return None
+    async def _check_url(self, url):
         self.configure_apt()
         with tempfile.TemporaryDirectory() as tdir:
             tdir = pathlib.Path(tdir)
@@ -206,3 +205,17 @@ class MirrorController(SubiquityController):
         else:
             self._good_mirrors.add(url)
             return None
+
+    async def check_url_GET(self, url: str) -> Optional[str]:
+        if url in self._good_mirrors:
+            return None
+        if not self.app.base_model.network.has_network:
+            return None
+        if url in self._cur_checks:
+            return await self._cur_checks[url]
+        else:
+            task = self.app.aio_loop.create_task(self._check_url(url))
+            self._cur_checks[url] = task
+            v = await task
+            del self._cur_checks[url]
+            return v
