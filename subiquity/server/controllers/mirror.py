@@ -16,13 +16,15 @@
 import asyncio
 import enum
 import logging
-import os
-import subprocess
+import pathlib
 import tempfile
 from typing import Optional
 from xml.etree import ElementTree
 
 from curtin.config import merge_config
+
+import apt.progress.base
+import apt.cache
 
 import apt_pkg
 
@@ -34,7 +36,6 @@ from subiquitycore.async_helpers import (
     )
 from subiquitycore.context import with_context
 from subiquitycore.lsb_release import lsb_release
-from subiquitycore.utils import arun_command
 
 from subiquity.common.apidef import API
 from subiquity.server.controller import SubiquityController
@@ -47,6 +48,17 @@ class CheckState(enum.IntEnum):
     CHECKING = enum.auto()
     FAILED = enum.auto()
     DONE = enum.auto()
+
+
+class Progress(apt.progress.base.AcquireProgress):
+
+    def __init__(self):
+        super().__init__()
+        self.failures = []
+
+    def fail(self, item):
+        super().fail(item)
+        self.failures.append(item.owner.error_text)
 
 
 class MirrorController(SubiquityController):
@@ -73,7 +85,7 @@ class MirrorController(SubiquityController):
         self.geoip_enabled = True
         self.check_state = CheckState.NOT_STARTED
         self.lookup_task = SingleInstanceTask(self.lookup)
-        self._apt_options_for_checking = None
+        self._configured_apt = False
 
     def load_autoinstall_data(self, data):
         if data is None:
@@ -148,30 +160,44 @@ class MirrorController(SubiquityController):
         self.model.set_mirror(data)
         self.configured()
 
-    def apt_options_for_checking(self):
-        if self._apt_options_for_checking is None:
+    def configure_apt(self):
+        if not self._configured_apt:
             apt_pkg.init_config()
-            opts = []
             for key in apt_pkg.config.keys('Acquire::IndexTargets'):
-                if key.endswith('::DefaultEnabled'):
-                    opts.append(f'-o{key}=false')
-            self._apt_options_for_checking = opts
-        return self._apt_options_for_checking
+                if key.count('::') == 3:
+                    apt_pkg.config[f'{key}::DefaultEnabled'] = 'false'
+            apt_pkg.config['Dir::Etc::sourceparts'] = '/dev/null'
+            apt_pkg.config['Dir::Cache::pkgcache'] = ''
+            apt_pkg.config['Dir::Cache::srcpkgcache'] = ''
+            apt_pkg.init_system()
+            self._configured_apt = True
+
+    def _bg_update(self, cache, progress):
+        try:
+            cache.update(progress, raise_on_error=False)
+        except apt.cache.FetchFailedException:
+            pass
 
     async def check_url_GET(self, url: str) -> Optional[str]:
+        self.configure_apt()
         with tempfile.TemporaryDirectory() as tdir:
-            sources_list = os.path.join(tdir, 'sources.list')
+            tdir = pathlib.Path(tdir)
+            sources_list = tdir.joinpath('sources.list')
+            lists = tdir.joinpath('lists')
+            lists.joinpath('partial').mkdir(parents=True)
             with open(sources_list, 'w') as fp:
-                fp.write("deb {} {} main\n".format(
-                    url, lsb_release()['codename']))
-            apt_cmd = [
-                'apt-get',
-                'update',
-                f'-oDir::Etc::sourcelist={sources_list}',
-                '-oDir::Etc::sourceparts=/dev/null',
-                ] + self.apt_options_for_checking()
-            cp = await arun_command(apt_cmd)
-            if cp.returncode == 0:
-                return None
-            else:
-                return cp.stderr
+                fp.write("deb {url} {codename} main\n".format(
+                    url=url, codename=lsb_release()['codename']))
+            apt_pkg.config['Dir::Etc::sourcelist'] = str(sources_list)
+            apt_pkg.config['Dir::State::lists'] = str(lists)
+            cache = apt.cache.Cache()
+            progress = Progress()
+            await run_in_thread(self._bg_update, cache, progress)
+        if progress.failures:
+            msgs = []
+            for msg in progress.failures:
+                if msg not in msgs:
+                    msgs.append(msg)
+            return "\n".join(msgs)
+        else:
+            return None
