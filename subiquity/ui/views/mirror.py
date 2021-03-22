@@ -20,7 +20,6 @@ import logging
 from urwid import connect_signal, Text
 
 from subiquitycore.view import BaseView
-from subiquitycore.ui.buttons import other_btn
 from subiquitycore.ui.form import (
     Form,
     URLEditor,

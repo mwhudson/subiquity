@@ -98,15 +98,17 @@ class MirrorController(SubiquityController):
 
     @with_context()
     async def apply_autoinstall_config(self, context):
-        if not self.geoip_enabled:
-            return
-        if self.lookup_task.task is None:
-            return
-        try:
-            with context.child('waiting'):
-                await asyncio.wait_for(self.lookup_task.wait(), 10)
-        except asyncio.TimeoutError:
-            pass
+        if self.geoip_enabled:
+            if self.lookup_task.task is None:
+                return
+            try:
+                with context.child('waiting'):
+                    await asyncio.wait_for(self.lookup_task.wait(), 10)
+            except asyncio.TimeoutError:
+                pass
+        msg = await self.check_url(context=context, url=self.model.get_mirror())
+        if msg:
+            raise Exception("apt mirror could not be used: " + msg)
 
     def snapd_network_changed(self):
         if not self.geoip_enabled:
@@ -143,7 +145,8 @@ class MirrorController(SubiquityController):
             return
         self.check_state = CheckState.DONE
         self.model.set_country(cc)
-        await self.check_url(self.model.get_mirror())
+        if self.interactive():
+            await self.check_url(context=context, url=self.model.get_mirror())
 
     def serialize(self):
         return self.model.get_mirror()
@@ -206,7 +209,8 @@ class MirrorController(SubiquityController):
             self._good_mirrors.add(url)
             return None
 
-    async def check_url(self, url):
+    @with_context(name="check_url/{url}")
+    async def check_url(self, context, url):
         if url in self._cur_checks:
             return await self._cur_checks[url]
         else:
@@ -216,9 +220,9 @@ class MirrorController(SubiquityController):
             del self._cur_checks[url]
             return v
 
-    async def check_url_GET(self, url: str) -> Optional[str]:
+    async def check_url_GET(self, context, url: str) -> Optional[str]:
         if url in self._good_mirrors:
             return None
         if not self.app.base_model.network.has_network:
             return None
-        return await self.check_url(url)
+        return await self.check_url(context=context, url=url)
