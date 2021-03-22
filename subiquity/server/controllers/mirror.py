@@ -106,7 +106,8 @@ class MirrorController(SubiquityController):
                     await asyncio.wait_for(self.lookup_task.wait(), 10)
             except asyncio.TimeoutError:
                 pass
-        msg = await self.check_url(context=context, url=self.model.get_mirror())
+        msg = await self.check_url(
+            context=context, url=self.model.get_mirror())
         if msg:
             raise Exception("apt mirror could not be used: " + msg)
 
