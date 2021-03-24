@@ -134,7 +134,8 @@ class MirrorController(SubiquityController):
         self.check_state = CheckState.DONE
         self.model.set_country(cc)
         if self.interactive():
-            await self.check_url(context=context, url=self.model.get_mirror())
+            await self.check_url(
+                context=context, url=self.model.get_mirror(), force_new=True)
 
     def serialize(self):
         return self.model.get_mirror()
@@ -186,21 +187,27 @@ class MirrorController(SubiquityController):
                 ] + self.apt_options_for_checking()
             cp = await arun_command(apt_cmd)
         if cp.returncode == 0:
+            if cp.stdout.startswith('Err:'):
+                # Only for apt that does not understand
+                # APT::Update::Error-Mode=any yet.
+                return cp.stdout
             self._good_mirrors.add(url)
             return None
         else:
             return cp.stderr
 
     @with_context(name="check_url/{url}")
-    async def check_url(self, context, url):
+    async def check_url(self, context, url, force_new=False):
         if url in self._cur_checks:
-            return await self._cur_checks[url]
-        else:
-            task = self.app.aio_loop.create_task(self._check_url(url))
-            self._cur_checks[url] = task
-            v = await task
-            del self._cur_checks[url]
-            return v
+            if force_new:
+                self._cur_checks[url].cancel()
+            else:
+                return await self._cur_checks[url]
+        task = self.app.aio_loop.create_task(self._check_url(url))
+        self._cur_checks[url] = task
+        v = await task
+        del self._cur_checks[url]
+        return v
 
     async def check_url_GET(self, context, url: str) -> Optional[str]:
         if url in self._good_mirrors:
