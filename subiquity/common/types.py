@@ -195,6 +195,14 @@ class ZdevInfo:
         return self.type
 
 
+@attr.s(auto_attribs=True)
+class MirrorCheck:
+    id: str
+    in_progress: bool
+    success: bool
+    output: List[str]
+
+
 class ProbeStatus(enum.Enum):
     PROBING = enum.auto()
     FAILED = enum.auto()

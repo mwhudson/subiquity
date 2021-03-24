@@ -205,9 +205,10 @@ class MirrorController(SubiquityController):
                 return await self._cur_checks[url]
         task = self.app.aio_loop.create_task(self._check_url(url))
         self._cur_checks[url] = task
-        v = await task
-        del self._cur_checks[url]
-        return v
+        try:
+            return await task
+        finally:
+            del self._cur_checks[url]
 
     async def check_url_GET(self, context, url: str) -> Optional[str]:
         if url in self._good_mirrors:

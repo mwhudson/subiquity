@@ -31,6 +31,7 @@ from subiquity.common.types import (
     KeyboardSetting,
     KeyboardSetup,
     IdentityData,
+    MirrorCheck,
     RefreshStatus,
     SnapInfo,
     SnapListResponse,
@@ -187,7 +188,10 @@ class API:
         def POST(data: Payload[str]): ...
 
         class check_url:
-            def GET(url: str) -> Optional[str]: ...
+            def GET(url: str) -> MirrorCheck: ...
+
+            class get_status:
+                def GET(id: str) -> MirrorCheck: ...
 
     class storage:
         def GET(wait: bool = False) -> StorageResponse: ...

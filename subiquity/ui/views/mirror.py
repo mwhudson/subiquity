@@ -43,12 +43,17 @@ class MirrorURLEditor(URLEditor):
         bff.validating = False
         self.controller = bff.form.controller
         self.spinner = Spinner(self.controller.app.aio_loop)
+        self.checking = TablePile([
+            TableRow([Text(_("Checking mirror")), self.spinner]),
+            ])
 
     async def _check_url(self, url):
         self.spinner.start()
-        r = await self.controller.app._wait_with_indication(
-            self.controller.check_url(url), self._show_validating)
-        self.spinner.stop()
+        try:
+            r = await self.controller.app._wait_with_indication(
+                self.controller.check_url(url), self._show_validating)
+        finally:
+            self.spinner.stop()
         self.bff.validating = False
         if r:
             self.bff.show_extra(Text([
@@ -66,11 +71,7 @@ class MirrorURLEditor(URLEditor):
 
     def _show_validating(self):
         self.bff.in_error = True
-        self.bff.show_extra(
-            TablePile([TableRow([
-                Text(_("Checking mirror")),
-                self.spinner,
-                ])]))
+        self.bff.show_extra(self.checking)
         self.bff.form.validated()
 
     def lost_focus(self):
@@ -87,12 +88,9 @@ MirrorURLField = simple_field(MirrorURLEditor)
 
 class MirrorForm(Form):
 
-    inited = False
-
     def __init__(self, controller, initial):
         self.controller = controller
         super().__init__(initial=initial)
-        self.inited = True
 
     cancel_label = _("Back")
 
