@@ -198,9 +198,9 @@ class ZdevInfo:
 @attr.s(auto_attribs=True)
 class MirrorCheck:
     id: str
-    in_progress: bool
-    success: bool
-    output: List[str]
+    in_progress: bool = True
+    success: bool = False
+    output: List[str] = attr.Factory(list)
 
 
 class ProbeStatus(enum.Enum):

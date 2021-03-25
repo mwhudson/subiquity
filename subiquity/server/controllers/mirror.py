@@ -14,11 +14,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import attr
 import enum
 import logging
 import pathlib
+import shutil
+import subprocess
 import tempfile
-from typing import Optional
+from typing import Any
 from xml.etree import ElementTree
 
 from curtin.config import merge_config
@@ -33,9 +36,12 @@ from subiquitycore.async_helpers import (
     )
 from subiquitycore.context import with_context
 from subiquitycore.lsb_release import lsb_release
-from subiquitycore.utils import arun_command
+from subiquitycore.utils import (
+    astart_command,
+    )
 
 from subiquity.common.apidef import API
+from subiquity.common.types import MirrorCheck
 from subiquity.server.controller import SubiquityController
 
 log = logging.getLogger('subiquity.server.controllers.mirror')
@@ -73,8 +79,8 @@ class MirrorController(SubiquityController):
         self.check_state = CheckState.NOT_STARTED
         self.lookup_task = SingleInstanceTask(self.lookup)
         self._apt_options_for_checking = None
-        self._good_mirrors = set()
-        self._cur_checks = {}
+        self._checks = {}
+        self._check_id = 0
 
     def load_autoinstall_data(self, data):
         if data is None:
@@ -133,9 +139,9 @@ class MirrorController(SubiquityController):
             return
         self.check_state = CheckState.DONE
         self.model.set_country(cc)
-        if self.interactive():
-            await self.check_url(
-                context=context, url=self.model.get_mirror(), force_new=True)
+        #if self.interactive():
+        #    await self.check_url(
+        #        context=context, url=self.model.get_mirror(), force_new=True)
 
     def serialize(self):
         return self.model.get_mirror()
@@ -170,49 +176,57 @@ class MirrorController(SubiquityController):
             self._apt_options_for_checking = opts
         return self._apt_options_for_checking
 
-    async def _check_url(self, url):
-        with tempfile.TemporaryDirectory() as tdir:
-            tdir = pathlib.Path(tdir)
-            sources_list = tdir.joinpath('sources.list')
-            lists = tdir.joinpath('lists')
-            lists.joinpath('partial').mkdir(parents=True)
-            with open(sources_list, 'w') as fp:
-                fp.write("deb {url} {codename} main\n".format(
-                    url=url, codename=lsb_release()['codename']))
-            apt_cmd = [
-                'apt-get',
-                'update',
-                f'-oDir::Etc::sourcelist={sources_list}',
-                f'-oDir::State::lists={lists}',
-                ] + self.apt_options_for_checking()
-            cp = await arun_command(apt_cmd)
-        if cp.returncode == 0:
-            if cp.stdout.startswith('Err:'):
-                # Only for apt that does not understand
-                # APT::Update::Error-Mode=any yet.
-                return cp.stdout
-            self._good_mirrors.add(url)
-            return None
-        else:
-            return cp.stderr
+    async def _start_check(self, url):
+        id = str(self._check_id)
+        self._check_id += 1
 
-    @with_context(name="check_url/{url}")
-    async def check_url(self, context, url, force_new=False):
-        if url in self._cur_checks:
-            if force_new:
-                self._cur_checks[url].cancel()
-            else:
-                return await self._cur_checks[url]
-        task = self.app.aio_loop.create_task(self._check_url(url))
-        self._cur_checks[url] = task
-        try:
-            return await task
-        finally:
-            del self._cur_checks[url]
+        self._checks[id] = check = MirrorCheck(id=id)
 
-    async def check_url_GET(self, context, url: str) -> Optional[str]:
-        if url in self._good_mirrors:
-            return None
-        if not self.app.base_model.network.has_network:
-            return None
-        return await self.check_url(context=context, url=url)
+        tdir = tempfile.mkdtemp()
+        tdir = pathlib.Path(tdir)
+        sources_list = tdir.joinpath('sources.list')
+        lists = tdir.joinpath('lists')
+        lists.joinpath('partial').mkdir(parents=True)
+        with open(sources_list, 'w') as fp:
+            fp.write("deb {url} {codename} main\n".format(
+                url=url, codename=lsb_release()['codename']))
+        apt_cmd = [
+            'apt-get',
+            'update',
+            f'-oDir::Etc::sourcelist={sources_list}',
+            f'-oDir::State::lists={lists}',
+            ] + self.apt_options_for_checking()
+        proc = await astart_command(
+            apt_cmd, stderr=subprocess.STDOUT)
+
+        async def _reader():
+            while not proc.stdout.at_eof():
+                try:
+                    line = await proc.stdout.readuntil(b'\n')
+                except asyncio.IncompleteReadError as e:
+                    line = e.partial
+                    if not line:
+                        return
+                check.output.append(line.decode('utf-8'))
+
+        async def _waiter():
+            rc = await proc.wait()
+            shutil.rmtree(tdir)
+            await reader
+            if rc == 0:
+                for line in check.output:
+                    if line.startswith('Err:'):
+                        rc = 1
+            check.in_progress = False
+            check.success = rc == 0
+
+        reader = self.app.aio_loop.create_task(_reader())
+        self.app.aio_loop.create_task(_waiter())
+
+        return check
+
+    async def start_check_GET(self, url: str) -> MirrorCheck:
+        return await self._start_check(url)
+
+    async def get_check_status_GET(self, id: str) -> MirrorCheck:
+        return self._checks[id]
