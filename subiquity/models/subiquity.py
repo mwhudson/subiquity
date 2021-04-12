@@ -108,7 +108,7 @@ class SubiquityModel:
 
     target = '/target'
 
-    def __init__(self, root):
+    def __init__(self, hub, root):
         self.root = root
         if root != '/':
             self.target = root
@@ -131,20 +131,20 @@ class SubiquityModel:
 
         self._confirmation = asyncio.Event()
 
-        self._events = {
-            name: asyncio.Event() for name in ALL_MODEL_NAMES
-            }
-        self.install_events = {
-            self._events[name] for name in INSTALL_MODEL_NAMES
-            }
-        self.postinstall_events = {
-            self._events[name] for name in POSTINSTALL_MODEL_NAMES
-            }
+        self.install_events = set()
+        self.postinstall_events = set()
+        self._events = {}
 
-    def configured(self, model_name):
-        if model_name not in ALL_MODEL_NAMES:
-            return
-        self._events[model_name].set()
+        for name in ALL_MODEL_NAMES:
+            self._events[name] = event = asyncio.Event()
+            if name in INSTALL_MODEL_NAMES:
+                self.install_events.add(event)
+            elif name in POSTINSTALL_MODEL_NAMES:
+                self.postinstall_events.add(event)
+            hub.subscribe(('configured', name), self._configured, event, name)
+
+    def _configured(self, event, model_name):
+        event.set()
         if model_name in INSTALL_MODEL_NAMES:
             stage = 'install'
             unconfigured = {

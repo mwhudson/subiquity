@@ -18,6 +18,7 @@ import unittest
 import yaml
 
 from subiquity.models.subiquity import SubiquityModel
+from subiquitycore.pubsub import MessageHub
 
 
 class TestSubiquityModel(unittest.TestCase):
@@ -71,8 +72,11 @@ class TestSubiquityModel(unittest.TestCase):
             cur = cur[component]
         self.fail("config has value {} for {}".format(cur, path))
 
+    def make_model(self):
+        return SubiquityModel(MessageHub(), 'test')
+
     def test_proxy_set(self):
-        model = SubiquityModel('test')
+        model = self.make_model()
         proxy_val = 'http://my-proxy'
         model.proxy.proxy = proxy_val
         config = model.render('ident')
@@ -87,7 +91,7 @@ class TestSubiquityModel(unittest.TestCase):
         self.assertTrue(len(confs) > 0)
 
     def test_proxy_notset(self):
-        model = SubiquityModel('test')
+        model = self.make_model()
         config = model.render('ident')
         self.assertConfigDoesNotHaveVal(config, 'proxy.http_proxy')
         self.assertConfigDoesNotHaveVal(config, 'proxy.https_proxy')
@@ -100,13 +104,13 @@ class TestSubiquityModel(unittest.TestCase):
         self.assertTrue(len(confs) == 0)
 
     def test_keyboard(self):
-        model = SubiquityModel('test')
+        model = self.make_model()
         config = model.render('ident')
         self.assertConfigWritesFile(config, 'etc/default/keyboard')
 
     def test_writes_machine_id_media_info(self):
-        model_no_proxy = SubiquityModel('test')
-        model_proxy = SubiquityModel('test')
+        model_no_proxy = self.make_model()
+        model_proxy = self.make_model()
         model_proxy.proxy.proxy = 'http://something'
         for model in model_no_proxy, model_proxy:
             config = model.render('ident')
@@ -114,12 +118,12 @@ class TestSubiquityModel(unittest.TestCase):
             self.assertConfigWritesFile(config, 'var/log/installer/media-info')
 
     def test_storage_version(self):
-        model = SubiquityModel('test')
+        model = self.make_model()
         config = model.render('ident')
         self.assertConfigHasVal(config, 'storage.version', 1)
 
     def test_write_netplan(self):
-        model = SubiquityModel('test')
+        model = self.make_model()
         config = model.render('ident')
         netplan_content = None
         for fspec in config['write_files'].values():
@@ -132,12 +136,12 @@ class TestSubiquityModel(unittest.TestCase):
         self.assertConfigHasVal(netplan, 'network.version', 2)
 
     def test_has_sources(self):
-        model = SubiquityModel('test')
+        model = self.make_model()
         config = model.render('ident')
         self.assertIn('sources', config)
 
     def test_mirror(self):
-        model = SubiquityModel('test')
+        model = self.make_model()
         mirror_val = 'http://my-mirror'
         model.mirror.set_mirror(mirror_val)
         config = model.render('ident')

@@ -209,7 +209,7 @@ class SubiquityServer(Application):
         root = '/'
         if self.opts.dry_run:
             root = os.path.abspath('.subiquity')
-        return SubiquityModel(root)
+        return SubiquityModel(self.hub, root)
 
     def __init__(self, opts, block_log_dir):
         super().__init__(opts)
