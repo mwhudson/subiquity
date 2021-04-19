@@ -35,8 +35,6 @@ class ProxyController(SubiquityController):
         'format': 'uri',
         }
 
-    _set_task = None
-
     def load_autoinstall_data(self, data):
         if data is not None:
             self.model.proxy = data
