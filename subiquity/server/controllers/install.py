@@ -15,6 +15,7 @@
 
 import asyncio
 import datetime
+import functools
 import logging
 import os
 import re
@@ -31,6 +32,7 @@ import yaml
 
 from subiquitycore.async_helpers import (
     run_in_thread,
+    SingleInstanceTask,
     )
 from subiquitycore.context import Status, with_context
 from subiquitycore.utils import (
@@ -39,11 +41,14 @@ from subiquitycore.utils import (
     )
 
 from subiquity.common.errorreport import ErrorReportKind
+from subiquity.common.types import (
+    ApplicationState,
+    )
 from subiquity.server.controller import (
     SubiquityController,
     )
-from subiquity.common.types import (
-    ApplicationState,
+from subiquity.server.types import (
+    InstallerChannels,
     )
 from subiquity.journald import journald_subscriptions
 
@@ -80,6 +85,8 @@ class InstallController(SubiquityController):
         self._event_syslog_id = 'curtin_event.%s' % (os.getpid(),)
         self.tb_extractor = TracebackExtractor()
         self.curtin_event_contexts = {}
+        self.fetch_package_lists_task = SingleInstanceTask(
+            self.fetch_package_lists)
 
     def stop_uu(self):
         if self.app.state == ApplicationState.UU_RUNNING:
@@ -195,10 +202,25 @@ class InstallController(SubiquityController):
 
         log.debug('curtin_install completed: %s', cp.returncode)
 
+    @with_context(description="doing stuff")
+    async def fetch_package_lists_inner(self, *, context):
+        await asyncio.sleep(15)
+
+    @with_context(description="fetching package metadata")
+    async def fetch_package_lists(self, *, context):
+        await asyncio.sleep(15)
+        await self.fetch_package_lists_inner(context=context)
+
     @with_context()
     async def install(self, *, context):
         context.set('is-install-context', True)
         try:
+            self.app.hub.subscribe(
+                (InstallerChannels.CONFIGURED, 'mirror'),
+                functools.partial(
+                    self.fetch_package_lists_task.start_sync,
+                    context=context))
+
             while True:
                 self.app.update_state(ApplicationState.WAITING)
 
@@ -214,6 +236,8 @@ class InstallController(SubiquityController):
                     break
 
             self.app.update_state(ApplicationState.RUNNING)
+
+            await self.fetch_package_lists_task.wait()
 
             if os.path.exists(self.model.target):
                 await self.unmount_target(

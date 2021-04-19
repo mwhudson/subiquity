@@ -54,6 +54,7 @@ class SingleInstanceTask:
         self.func = func
         self.propagate_errors = propagate_errors
         self.task = None
+        self.started = asyncio.Event()
 
     async def _start(self, old):
         if old is not None:
@@ -75,9 +76,11 @@ class SingleInstanceTask:
             self.task = asyncio.Task(coro)
         else:
             self.task = coro
+        self.started.set()
         return schedule_task(self._start(old))
 
     async def wait(self):
+        await self.started.wait()
         while True:
             try:
                 return await self.task
