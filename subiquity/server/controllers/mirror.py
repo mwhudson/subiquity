@@ -21,6 +21,7 @@ from curtin.config import merge_config
 from subiquitycore.context import with_context
 
 from subiquity.common.apidef import API
+from subiquity.server.apt_fetcher import DryRunPackageListFetcher
 from subiquity.server.controller import SubiquityController
 from subiquity.server.types import InstallerChannels
 
@@ -81,6 +82,11 @@ class MirrorController(SubiquityController):
         r = self.model.render()['apt']
         r['geoip'] = self.geoip_enabled
         return r
+
+    def configured(self):
+        self.fetcher = DryRunPackageListFetcher(
+            self.context.child('fetcher'), '/', self.model.render(), True)
+        return super().configured()
 
     async def GET(self) -> str:
         return self.model.get_mirror()

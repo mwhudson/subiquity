@@ -87,6 +87,8 @@ class InstallController(SubiquityController):
         self.curtin_event_contexts = {}
         self.fetch_package_lists_task = SingleInstanceTask(
             self.fetch_package_lists)
+        app.hub.subscribe(
+            (InstallerChannels.CONFIGURED, 'mirror'), self.mirror_configured)
 
     def stop_uu(self):
         if self.app.state == ApplicationState.UU_RUNNING:
@@ -202,25 +204,19 @@ class InstallController(SubiquityController):
 
         log.debug('curtin_install completed: %s', cp.returncode)
 
-    @with_context(description="doing stuff")
-    async def fetch_package_lists_inner(self, *, context):
-        await asyncio.sleep(15)
-
     @with_context(description="fetching package metadata")
     async def fetch_package_lists(self, *, context):
-        await asyncio.sleep(15)
-        await self.fetch_package_lists_inner(context=context)
+        fetcher = self.app.controllers.Mirror.fetcher
+        await fetcher.check(context=context)
+
+    def mirror_configured(self):
+        self.fetch_package_lists_task.start_sync(context=self.install_context)
 
     @with_context()
     async def install(self, *, context):
+        self.install_context = context
         context.set('is-install-context', True)
         try:
-            self.app.hub.subscribe(
-                (InstallerChannels.CONFIGURED, 'mirror'),
-                functools.partial(
-                    self.fetch_package_lists_task.start_sync,
-                    context=context))
-
             while True:
                 self.app.update_state(ApplicationState.WAITING)
 
