@@ -173,6 +173,7 @@ raidlevels = [
     RaidLevel(_("5"),            "raid5",  3),
     RaidLevel(_("6"),            "raid6",  4),
     RaidLevel(_("10"),           "raid10", 4),
+    RaidLevel(_("Container"),    "container", 2),
     ]
 
 
@@ -315,7 +316,7 @@ def get_raid_size(level, devices):
     min_size = min(sizes)
     if min_size <= 0:
         return 0
-    if level == "raid0":
+    if level == "raid0" or level == "container":
         return sum(sizes)
     elif level == "raid1":
         return min_size
@@ -356,11 +357,11 @@ class attributes:
     # Just a namespace to hang our wrappers around attr.ib() off.
 
     @staticmethod
-    def ref(*, backlink=None):
+    def ref(*, backlink=None, default=attr.NOTHING):
         metadata = {'ref': True}
         if backlink:
             metadata['backlink'] = backlink
-        return attr.ib(metadata=metadata)
+        return attr.ib(metadata=metadata, default=default)
 
     @staticmethod
     def reflist(*, backlink=None, default=attr.NOTHING):
@@ -697,7 +698,8 @@ class Partition(_Formattable):
 class Raid(_Device):
     name = attr.ib()
     raidlevel = attr.ib(converter=lambda x: raidlevels_by_value[x].value)
-    devices = attributes.reflist(backlink="_constructed_device")
+    devices = attributes.reflist(
+        backlink="_constructed_device", default=attr.Factory(set))
 
     def serialize_devices(self):
         # Surprisingly, the order of devices passed to mdadm --create
@@ -712,10 +714,16 @@ class Raid(_Device):
     wipe = attr.ib(default=None)
     ptable = attributes.ptable()
     metadata = attr.ib(default=None)
+    container = attributes.ref(backlink="_subvolumes", default=None)  # Raid
+    _subvolumes = attributes.backlink(default=attr.Factory(list))
 
     @property
     def size(self):
-        return get_raid_size(self.raidlevel, self.devices)
+        if self.container:
+            devices = self.container.devices
+        else:
+            devices = self.devices
+        return get_raid_size(self.raidlevel, devices)
 
     @property
     def available_for_partitions(self):
