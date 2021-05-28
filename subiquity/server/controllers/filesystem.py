@@ -232,7 +232,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             if not boot.can_be_boot_device(disk, with_reformatting=True):
                 continue
             if isinstance(disk.constructed_device, Raid):
-                if disk.constructed_device._subvolumes:
+                if disk.constructed_device.container:
                     continue
             disks.append(disk)
         return GuidedStorageResponse(
