@@ -231,8 +231,8 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         for disk in self.model._all(type='disk'):
             if not boot.can_be_boot_device(disk, with_reformatting=True):
                 continue
-            if isinstance(disk.constructed_device, Raid):
-                if disk.constructed_device.metadata == 'imsm':
+            if isinstance(disk.constructed_device(), Raid):
+                if disk.constructed_device()._subvolumes:
                     continue
             disks.append(disk)
         return GuidedStorageResponse(
