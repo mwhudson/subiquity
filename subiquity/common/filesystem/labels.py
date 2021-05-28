@@ -239,6 +239,17 @@ def _usage_labels_partition(partition):
     return _usage_labels_generic(partition)
 
 
+@usage_labels.register(Raid)
+def _usage_labels_raid(raid):
+    p = []
+    if raid.metadata == 'imsm' and raid._subvolumes:
+        p = [
+            _('container for {devices}').format(
+                devices=', '.join([v.label for v in raid._subvolumes]))
+            ]
+    return p + _usage_labels_generic(raid)
+
+
 @functools.singledispatch
 def for_client(device, *, min_size=0):
     """Return an API-friendly description of `device`"""
