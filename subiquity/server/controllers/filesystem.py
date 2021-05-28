@@ -244,6 +244,8 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             -> StorageResponse:
         if choice is not None:
             disk = self.model._one(type='disk', id=choice.disk_id)
+            if disk is None:
+                disk = self.model._one(type='raid', id=choice.disk_id)
             if choice.use_lvm:
                 lvm_options = None
                 if choice.password is not None:

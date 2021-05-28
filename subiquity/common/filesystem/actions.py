@@ -105,7 +105,7 @@ def _part_actions(part):
 
 @_supported_actions.register(Raid)
 def _raid_actions(raid):
-    return [
+    actions = [
         DeviceAction.EDIT,
         DeviceAction.PARTITION,
         DeviceAction.FORMAT,
@@ -113,6 +113,10 @@ def _raid_actions(raid):
         DeviceAction.DELETE,
         DeviceAction.REFORMAT,
         ]
+    if raid._m.bootloader != Bootloader.NONE:
+        if raid.container and raid.container.metadata == 'imsm':
+            actions.append(DeviceAction.TOGGLE_BOOT)
+    return actions
 
 
 @_supported_actions.register(LVM_VolGroup)
