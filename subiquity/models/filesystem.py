@@ -727,10 +727,12 @@ class Raid(_Device):
 
     @property
     def available_for_partitions(self):
-        # For some reason, the overhead on RAID devices seems to be
-        # higher (may be related to alignment of underlying
-        # partitions)
         return self.size - 2*GPT_OVERHEAD
+
+    def available(self):
+        if self._subvolumes:
+            return False
+        return super().available()
 
     @property
     def ok_for_raid(self):
