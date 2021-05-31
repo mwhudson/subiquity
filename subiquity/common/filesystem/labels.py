@@ -241,13 +241,12 @@ def _usage_labels_partition(partition):
 
 @usage_labels.register(Raid)
 def _usage_labels_raid(raid):
-    p = []
     if raid.metadata == 'imsm' and raid._subvolumes:
-        p = [
+        return [
             _('container for {devices}').format(
                 devices=', '.join([v.label for v in raid._subvolumes]))
             ]
-    return p + _usage_labels_generic(raid)
+    return _usage_labels_generic(raid)
 
 
 @functools.singledispatch
