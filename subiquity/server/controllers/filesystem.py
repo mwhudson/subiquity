@@ -238,7 +238,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         return GuidedStorageResponse(
             status=ProbeStatus.DONE,
             error_report=self.full_probe_error(),
-            disks=[labels.for_client(disk, min_size=min_size) for d in disks])
+            disks=[labels.for_client(d, min_size=min_size) for d in disks])
 
     async def guided_POST(self, choice: Optional[GuidedChoice]) \
             -> StorageResponse:

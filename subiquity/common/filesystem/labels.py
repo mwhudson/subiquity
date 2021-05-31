@@ -244,7 +244,7 @@ def _usage_labels_raid(raid):
     if raid.metadata == 'imsm' and raid._subvolumes:
         return [
             _('container for {devices}').format(
-                devices=', '.join([v.label for v in raid._subvolumes]))
+                devices=', '.join([label(v) for v in raid._subvolumes]))
             ]
     return _usage_labels_generic(raid)
 
@@ -256,6 +256,7 @@ def for_client(device, *, min_size=0):
 
 
 @for_client.register(Disk)
+@for_client.register(Raid)
 def _for_client_disk(disk, *, min_size=0):
     return types.Disk(
         id=disk.id,
