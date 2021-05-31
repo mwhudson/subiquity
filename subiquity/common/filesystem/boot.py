@@ -17,6 +17,7 @@ import functools
 
 from subiquity.models.filesystem import (
     Disk,
+    Raid,
     Bootloader,
     Partition,
     )
@@ -37,6 +38,16 @@ def _is_boot_device_disk(disk):
         return disk.grub_device
     elif bl in [Bootloader.PREP, Bootloader.UEFI]:
         return any(p.grub_device for p in disk._partitions)
+
+
+@is_boot_device.register(Raid)
+def is_boot_device_raid(raid):
+    bl = raid._m.bootloader
+    if bl != Bootloader.UEFI:
+        return False
+    if not raid.container or raid.container.metadata != 'imsm':
+        return False
+    return any(p.grub_device for p in raid._partitions)
 
 
 @functools.singledispatch
@@ -62,6 +73,19 @@ def _can_be_boot_device_disk(disk, *, with_reformatting=False):
             return any(is_esp(p) for p in disk._partitions)
         elif bl == Bootloader.PREP:
             return any(p.flag == "prep" for p in disk._partitions)
+    else:
+        return True
+
+
+@can_be_boot_device.register(Raid)
+def can_be_boot_device_raid(raid):
+    bl = raid._m.bootloader
+    if bl != Bootloader.UEFI:
+        return False
+    if not raid.container or raid.container.metadata != 'imsm':
+        return False
+    if raid._has_preexisting_partition():
+        return any(p.is_esp for p in raid._partitions)
     else:
         return True
 
@@ -95,7 +119,8 @@ def _is_esp_partition(partition):
 
 def all_boot_devices(model):
     """Return all current boot devices for `model`."""
-    return [disk for disk in model.all_disks() if is_boot_device(disk)]
+    candidates = model.all_disks() + model.all_raids()
+    return [cand for cand in candidates if is_boot_device(cand)]
 
 
 def is_bootloader_partition(partition):
