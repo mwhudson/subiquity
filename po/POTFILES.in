@@ -34,8 +34,13 @@ subiquity/common/api/tests/test_server.py
 subiquity/common/errorreport.py
 subiquity/common/filesystem/actions.py
 subiquity/common/filesystem/boot.py
+subiquity/common/filesystem/fsops.py
 subiquity/common/filesystem/__init__.py
 subiquity/common/filesystem/labels.py
+subiquity/common/filesystem/labels.py
+subiquity/common/filesystem/labels.py
+subiquity/common/filesystem/manipulator.py
+subiquity/common/filesystem/manipulator.py
 subiquity/common/filesystem/manipulator.py
 subiquity/common/filesystem/tests/__init__.py
 subiquity/common/filesystem/tests/test_actions.py
@@ -72,8 +77,11 @@ subiquitycore/ssh.py
 subiquitycore/testing/__init__.py
 subiquitycore/testing/view_helpers.py
 subiquitycore/tests/__init__.py
+subiquitycore/tests/mocks.py
 subiquitycore/tests/test_netplan.py
+subiquitycore/tests/test_pubsub.py
 subiquitycore/tests/test_view.py
+subiquitycore/tests/util.py
 subiquitycore/tuicontroller.py
 subiquitycore/tui.py
 subiquitycore/ui/actionmenu.py
@@ -125,6 +133,8 @@ subiquity/server/controller.py
 subiquity/server/controllers/cmdlist.py
 subiquity/server/controllers/debconf.py
 subiquity/server/controllers/filesystem.py
+subiquity/server/controllers/filesystem.py
+subiquity/server/controllers/filesystem.py
 subiquity/server/controllers/identity.py
 subiquity/server/controllers/__init__.py
 subiquity/server/controllers/install.py
@@ -146,8 +156,11 @@ subiquity/server/controllers/userdata.py
 subiquity/server/controllers/zdev.py
 subiquity/server/dryrun.py
 subiquity/server/errors.py
+subiquity/server/geoip.py
 subiquity/server/__init__.py
 subiquity/server/server.py
+subiquity/server/tests/__init__.py
+subiquity/server/tests/test_geoip.py
 subiquity/tests/fakes.py
 subiquity/tests/__init__.py
 subiquity/ui/frame.py
@@ -157,6 +170,8 @@ subiquity/ui/views/error.py
 subiquity/ui/views/filesystem/compound.py
 subiquity/ui/views/filesystem/delete.py
 subiquity/ui/views/filesystem/disk_info.py
+subiquity/ui/views/filesystem/filesystem.py
+subiquity/ui/views/filesystem/filesystem.py
 subiquity/ui/views/filesystem/filesystem.py
 subiquity/ui/views/filesystem/guided.py
 subiquity/ui/views/filesystem/helpers.py

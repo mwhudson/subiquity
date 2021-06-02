@@ -63,7 +63,7 @@ from subiquitycore.view import BaseView
 from subiquity.common.filesystem.actions import (
     DeviceAction,
     )
-from subiquity.common.filesystem import boot, labels
+from subiquity.common.filesystem import boot, fsops, labels
 from subiquity.models.filesystem import (
     humanize_size,
     )
@@ -92,7 +92,7 @@ class MountInfo:
 
     @property
     def size(self):
-        return humanize_size(self.mount.device.volume.size)
+        return humanize_size(fsops.size(self.mount.device.volume))
 
     @property
     def fstype(self):

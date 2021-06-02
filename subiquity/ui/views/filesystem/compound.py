@@ -42,7 +42,7 @@ from subiquitycore.ui.utils import (
     Color,
     )
 
-from subiquity.common.filesystem import labels
+from subiquity.common.filesystem import fsops, labels
 from subiquity.models.filesystem import (
     humanize_size,
     )
@@ -144,7 +144,7 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
             if kind == LABEL:
                 self.all_rows.append(TableRow([
                     Text("    " + labels.label(device)),
-                    Text(humanize_size(device.size), align='right')
+                    Text(humanize_size(fsops.size(device)), align='right')
                 ]))
                 self.no_selector_rows.append(self.all_rows[-1])
                 self.all_rows.append(TableRow([
@@ -165,7 +165,7 @@ class MultiDeviceChooser(WidgetWrap, WantsToKnowFormField):
                     on_state_change=self._state_change_device,
                     user_data=device)
                 self.device_to_checkbox[device] = box
-                size = Text(humanize_size(device.size), align='right')
+                size = Text(humanize_size(fsops.size(device)), align='right')
                 self.all_rows.append(Color.menu_button(TableRow([box, size])))
                 self.no_selector_rows.append(self.all_rows[-1])
                 selector = Selector(['active', 'spare'])

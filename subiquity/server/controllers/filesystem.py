@@ -23,7 +23,6 @@ from typing import Optional
 
 import pyudev
 
-
 from subiquitycore.async_helpers import (
     run_in_thread,
     schedule_task,
@@ -40,7 +39,7 @@ from subiquity.common.errorreport import ErrorReportKind
 from subiquity.common.filesystem.actions import (
     DeviceAction,
     )
-from subiquity.common.filesystem import boot, labels
+from subiquity.common.filesystem import boot, fsops, labels
 from subiquity.common.filesystem.manipulator import FilesystemManipulator
 from subiquity.common.types import (
     Bootloader,
@@ -158,15 +157,16 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         # VG with a single LV, but we should use more of a smaller
         # disk to avoid the user running into out of space errors
         # earlier than they probably expect to.
-        if vg.size < 10 * (2 << 30):
+        vg_size = fsops.size(vg)
+        if vg_size < 10 * (2 << 30):
             # Use all of a small (<10G) disk.
-            lv_size = vg.size
-        elif vg.size < 20 * (2 << 30):
+            lv_size = vg_size
+        elif vg_size < 20 * (2 << 30):
             # Use 10G of a smallish (<20G) disk.
             lv_size = 10 * (2 << 30)
-        elif vg.size < 200 * (2 << 30):
+        elif vg_size < 200 * (2 << 30):
             # Use half of a larger (<200G) disk.
-            lv_size = vg.size // 2
+            lv_size = vg_size // 2
         else:
             # Use at most 100G of a large disk.
             lv_size = 100 * (2 << 30)

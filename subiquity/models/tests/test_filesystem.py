@@ -108,19 +108,15 @@ class TestDehumanizeSize(unittest.TestCase):
                 self.assertEqual(expected_error, actual_error)
 
 
-@attr.s
-class FakeDev:
-
-    size = attr.ib()
-    id = attr.ib(default="id")
-
-
 class TestRoundRaidSize(unittest.TestCase):
 
     def test_lp1816777(self):
+        model = make_model()
+        disk1 = make_disk(model, size=500107862016)
+        disk2 = make_disk(model, size=500107862016)
 
         self.assertLessEqual(
-            get_raid_size("raid1", [FakeDev(500107862016)]*2),
+            get_raid_size("raid1", [disk1, disk2]),
             499972571136)
 
 
@@ -296,7 +292,7 @@ def fake_up_blockdata_disk(disk, **kw):
         'ID_SERIAL': disk.serial,
         'ID_MODEL': disk.model,
         'attrs': {
-            'size': disk.size,
+            'size': disk._info.size,
             },
         }
     d.update(kw)

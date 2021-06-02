@@ -307,11 +307,12 @@ def raid_device_sort(devices):
 
 
 def get_raid_size(level, devices):
+    from subiquity.common.filesystem import fsops
     if len(devices) == 0:
         return 0
     devices = raid_device_sort(devices)
-    data_offset = calculate_data_offset_bytes(devices[0].size)
-    sizes = [align_down(dev.size - data_offset) for dev in devices]
+    data_offset = calculate_data_offset_bytes(fsops.size(devices[0]))
+    sizes = [align_down(fsops.size(dev) - data_offset) for dev in devices]
     min_size = min(sizes)
     if min_size <= 0:
         return 0
@@ -336,10 +337,11 @@ LVM_CHUNK_SIZE = 4 * (1 << 20)
 
 
 def get_lvm_size(devices, size_overrides={}):
+    from subiquity.common.filesystem import fsops
     r = 0
     for d in devices:
         r += align_down(
-            size_overrides.get(d, d.size) - LVM_OVERHEAD,
+            size_overrides.get(d, fsops.size(d)) - LVM_OVERHEAD,
             LVM_CHUNK_SIZE)
     return r
 
@@ -473,11 +475,6 @@ GPT_OVERHEAD = 2 * (1 << 20)
 class _Device(_Formattable, ABC):
     # Anything that can have partitions, e.g. a disk or a RAID.
 
-    @property
-    @abstractmethod
-    def size(self):
-        pass
-
     # [Partition]
     _partitions = attributes.backlink(default=attr.Factory(list))
 
@@ -494,8 +491,9 @@ class _Device(_Formattable, ABC):
 
     @property
     def used(self):
+        from subiquity.common.filesystem import fsops
         if self._is_entirely_used():
-            return self.size
+            return fsops.size(self)
         r = 0
         for p in self._partitions:
             if p.flag == "extended":
@@ -509,7 +507,8 @@ class _Device(_Formattable, ABC):
 
     @property
     def available_for_partitions(self):
-        return self.size - GPT_OVERHEAD
+        from subiquity.common.filesystem import fsops
+        return fsops.size(self) - GPT_OVERHEAD
 
     @property
     def free_for_partitions(self):
@@ -590,8 +589,8 @@ class Disk(_Device):
             'serial': self.serial or 'unknown',
             'wwn': self.wwn or 'unknown',
             'multipath': self.multipath or 'unknown',
-            'size': self.size,
-            'humansize': humanize_size(self.size),
+            'size': self._info.size,
+            'humansize': humanize_size(self._info.size),
             'vendor': self._info.vendor or 'unknown',
             'rotational': 'true' if rotational == '1' else 'false',
         }
@@ -607,10 +606,6 @@ class Disk(_Device):
             else:
                 return 'vtoc'
         return 'gpt'
-
-    @property
-    def size(self):
-        return align_down(self._info.size)
 
     def dasd(self):
         return self._m._one(type='dasd', device_id=self.device_id)
@@ -628,18 +623,6 @@ class Disk(_Device):
         return True
 
     ok_for_lvm_vg = ok_for_raid
-
-    def for_client(self, min_size):
-        from subiquity.common.filesystem import labels
-        from subiquity.common.types import Disk
-        return Disk(
-            id=self.id,
-            label=labels.label(self),
-            type=labels.desc(self),
-            size=self.size,
-            usage_labels=labels.usage_labels(self),
-            partitions=[p.for_client() for p in self._partitions],
-            ok_for_guided=self.size >= min_size)
 
 
 @fsobj("partition")
@@ -714,15 +697,9 @@ class Raid(_Device):
     metadata = attr.ib(default=None)
 
     @property
-    def size(self):
-        return get_raid_size(self.raidlevel, self.devices)
-
-    @property
     def available_for_partitions(self):
-        # For some reason, the overhead on RAID devices seems to be
-        # higher (may be related to alignment of underlying
-        # partitions)
-        return self.size - 2*GPT_OVERHEAD
+        from subiquity.common.filesystem import fsops
+        return fsops.size(self) - 2*GPT_OVERHEAD
 
     @property
     def ok_for_raid(self):
@@ -750,13 +727,9 @@ class LVM_VolGroup(_Device):
     preserve = attr.ib(default=False)
 
     @property
-    def size(self):
-        # Should probably query actual size somehow for an existing VG!
-        return get_lvm_size(self.devices)
-
-    @property
     def available_for_partitions(self):
-        return self.size
+        from subiquity.common.filesystem import fsops
+        return fsops.size(self)
 
     ok_for_raid = False
     ok_for_lvm_vg = False
@@ -818,10 +791,6 @@ class DM_Crypt:
 
     def constructed_device(self):
         return self._constructed_device
-
-    @property
-    def size(self):
-        return self.volume.size - LUKS_OVERHEAD
 
 
 @fsobj("format")
@@ -979,6 +948,7 @@ class FilesystemModel(object):
         return matchers
 
     def disk_for_match(self, disks, match):
+        from subiquity.common.filesystem import fsops
         matchers = self._make_matchers(match)
         candidates = []
         for candidate in disks:
@@ -988,9 +958,9 @@ class FilesystemModel(object):
             else:
                 candidates.append(candidate)
         if match.get('size') == 'smallest':
-            candidates.sort(key=lambda d: d.size)
+            candidates.sort(key=fsops.size)
         if match.get('size') == 'largest':
-            candidates.sort(key=lambda d: d.size, reverse=True)
+            candidates.sort(key=fsops.size, reverse=True)
         if candidates:
             return candidates[0]
         return None
@@ -1127,6 +1097,7 @@ class FilesystemModel(object):
         return objs
 
     def _render_actions(self, include_all=False):
+        from subiquity.common.filesystem import fsops
         # The curtin storage config has the constraint that an action must be
         # preceded by all the things that it depends on.  We handle this by
         # repeatedly iterating over all actions and checking if we can emit
@@ -1141,7 +1112,7 @@ class FilesystemModel(object):
             if isinstance(obj, Raid):
                 log.debug(
                     "FilesystemModel: estimated size of %s %s is %s",
-                    obj.raidlevel, obj.name, obj.size)
+                    obj.raidlevel, obj.name, fsops.size(obj))
             r.append(asdict(obj))
             emitted_ids.add(obj.id)
 

@@ -15,7 +15,7 @@
 
 import logging
 
-from subiquity.common.filesystem import boot
+from subiquity.common.filesystem import boot, fsops
 from subiquity.common.types import Bootloader
 from subiquity.models.filesystem import (
     align_up,
@@ -95,8 +95,8 @@ class FilesystemManipulator:
         bootloader = self.model.bootloader
         if bootloader == Bootloader.UEFI:
             part_size = UEFI_GRUB_SIZE_BYTES
-            if UEFI_GRUB_SIZE_BYTES*2 >= disk.size:
-                part_size = disk.size // 2
+            if UEFI_GRUB_SIZE_BYTES*2 >= fsops.size(disk):
+                part_size = fsops.size(disk) // 2
             log.debug('_create_boot_partition - adding EFI partition')
             spec = dict(size=part_size, fstype='fat32')
             if self.model._mount_for_path("/boot/efi") is None:
@@ -222,7 +222,7 @@ class FilesystemManipulator:
             if spec['size'] > disk.free_for_partitions:
                 log.debug(
                     "Adjusting request down: %s - %s = %s",
-                    spec['size'], part.size, disk.free_for_partitions)
+                    spec['size'], fsops.size(part), disk.free_for_partitions)
                 spec['size'] = disk.free_for_partitions
 
         self.create_partition(disk, spec)
@@ -319,13 +319,13 @@ class FilesystemManipulator:
             full = boot_disk.free_for_partitions == 0
             tot_size = 0
             for p in partitions:
-                tot_size += p.size
+                tot_size += fsops.size(p)
                 if p.fs() and p.fs().mount():
                     remount = True
                 self.delete_partition(p)
             if full:
                 largest_part = max(
-                    boot_disk.partitions(), key=lambda p: p.size)
+                    boot_disk.partitions(), key=lambda p: fsops.size(p))
                 largest_part.size += tot_size
         if self.model.bootloader == Bootloader.UEFI and remount:
             part = self.model._one(type='partition', grub_device=True)
@@ -357,8 +357,8 @@ class FilesystemManipulator:
             new_boot_disk.preserve = False
             if bootloader == Bootloader.UEFI:
                 part_size = UEFI_GRUB_SIZE_BYTES
-                if UEFI_GRUB_SIZE_BYTES*2 >= new_boot_disk.size:
-                    part_size = new_boot_disk.size // 2
+                if UEFI_GRUB_SIZE_BYTES*2 >= fsops.size(new_boot_disk):
+                    part_size = fsops.size(new_boot_disk) // 2
             elif bootloader == Bootloader.PREP:
                 part_size = PREP_GRUB_SIZE_BYTES
             elif bootloader == Bootloader.BIOS:
@@ -366,7 +366,7 @@ class FilesystemManipulator:
             log.debug("bootloader %s", bootloader)
             if part_size > new_boot_disk.free_for_partitions:
                 largest_part = max(
-                    new_boot_disk.partitions(), key=lambda p: p.size)
+                    new_boot_disk.partitions(), key=lambda p: fsops.size(p))
                 largest_part.size -= (
                     part_size - new_boot_disk.free_for_partitions)
             self._create_boot_partition(new_boot_disk)

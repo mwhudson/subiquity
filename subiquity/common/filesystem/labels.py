@@ -16,7 +16,7 @@
 import functools
 
 from subiquity.common import types
-from subiquity.common.filesystem import boot
+from subiquity.common.filesystem import boot, fsops
 from subiquity.models.filesystem import (
     Disk,
     LVM_LogicalVolume,
@@ -241,15 +241,15 @@ def _for_client_disk(disk, *, min_size=0):
         id=disk.id,
         label=label(disk),
         type=desc(disk),
-        size=disk.size,
+        size=fsops.size(disk),
         usage_labels=usage_labels(disk),
         partitions=[for_client(p) for p in disk._partitions],
-        ok_for_guided=disk.size >= min_size)
+        ok_for_guided=fsops.size(disk) >= min_size)
 
 
 @for_client.register(Partition)
 def _for_client_partition(partition, *, min_size=0):
     return types.Partition(
-        size=partition.size,
+        size=fsops.size(partition),
         number=partition._number,
         annotations=annotations(partition) + usage_labels(partition))
