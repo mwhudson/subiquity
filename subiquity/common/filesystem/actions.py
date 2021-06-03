@@ -204,7 +204,7 @@ _can_partition = make_checker(DeviceAction.PARTITION)
 @_can_partition.register(Disk)
 @_can_partition.register(Raid)
 def _can_partition_device(device):
-    if device._has_preexisting_partition():
+    if fsops.has_preexisting_partition(device):
         return False
     if fsops.free_for_partitions(device) <= 0:
         return False
@@ -289,7 +289,7 @@ def _can_delete_generic(device):
 
 @_can_delete.register(Partition)
 def _can_delete_partition(partition):
-    if partition.device._has_preexisting_partition():
+    if fsops.has_preexisting_partition(partition.device):
         return _("Cannot delete a single partition from a device that "
                  "already has partitions.")
     if boot.is_bootloader_partition(partition):
@@ -330,7 +330,7 @@ def _can_delete_raid_vg(device):
 
 @_can_delete.register(LVM_LogicalVolume)
 def _can_delete_lv(lv):
-    if lv.volgroup._has_preexisting_partition():
+    if fsops.has_preexisting_partition(lv.volgroup):
         return _("Cannot delete a single logical volume from a volume "
                  "group that already has logical volumes.")
     return True

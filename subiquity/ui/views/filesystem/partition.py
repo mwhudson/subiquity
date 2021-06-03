@@ -514,7 +514,7 @@ class PartitionStretchy(Stretchy):
                     vgname=labels.label(disk))
             else:
                 title = _("Adding {ptype} partition to {device}").format(
-                    ptype=disk.ptable_for_new_partition().upper(),
+                    ptype=fsops.ptable_for_new_partition(disk).upper(),
                     device=labels.label(disk))
         else:
             if isinstance(disk, LVM_VolGroup):

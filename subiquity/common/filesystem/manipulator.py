@@ -339,7 +339,7 @@ class FilesystemManipulator:
         if not self.supports_resilient_boot:
             for disk in boot.all_boot_devices(self.model):
                 self.remove_boot_disk(disk)
-        if new_boot_disk._has_preexisting_partition():
+        if fsops.has_preexisting_partition(new_boot_disk):
             if bootloader == Bootloader.BIOS:
                 new_boot_disk.grub_device = True
             elif bootloader == Bootloader.UEFI:

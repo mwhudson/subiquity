@@ -90,3 +90,77 @@ def _available_for_partitions_vg(vg):
 
 def free_for_partitions(device):
     return available_for_partitions(device) - used(device)
+
+
+@functools.singledispatch
+def ptable_for_new_partition(device):
+    if device.ptable is not None:
+        return device.ptable
+    return 'gpt'
+
+
+@ptable_for_new_partition.register(Disk)
+def _ptable_for_new_partition_disk(disk):
+    if disk.ptable is not None:
+        return disk.ptable
+    dasd_config = disk._m._probe_data.get('dasd', {}).get(disk.path)
+    if dasd_config is not None:
+        if dasd_config['type'] == "FBA":
+            return 'msdos'
+        else:
+            return 'vtoc'
+    return 'gpt'
+
+
+@functools.singledispatch
+def available(device):
+    raise NotImplementedError(repr(device))
+
+
+@available.register(Disk)
+@available.register(Raid)
+@available.register(LVM_VolGroup)
+def _available_partitionable(device):
+    # A _Device is available if:
+    # 1) it is not part of a device like a RAID or LVM or zpool or ...
+    # 2) if it is formatted, it is available if it is formatted with fs
+    #    that needs to be mounted and is not mounted
+    # 3) if it is not formatted, it is available if it has free
+    #    space OR at least one partition is not formatted or is formatted
+    #    with a fs that needs to be mounted and is not mounted
+    if device._constructed_device is not None:
+        return False
+    if device._fs is not None:
+        return device._fs._available()
+    if free_for_partitions(device) > 0:
+        if not has_preexisting_partition(device):
+            return True
+    return any(available(p) for p in device._partitions)
+
+
+@available.register(Partition)
+def _available_partition(partition):
+    if partition.flag in ['bios_grub', 'prep'] or partition.grub_device:
+        return False
+    if partition._constructed_device is not None:
+        return False
+    if partition._fs is None:
+        return True
+    return partition._fs._available()
+
+
+@available.register(LVM_LogicalVolume)
+def _available_lv(lv):
+    if lv._constructed_device is not None:
+        return False
+    if lv._fs is None:
+        return True
+    return lv._fs._available()
+
+
+def has_preexisting_partition(device):
+    return any(p.preserve for p in device._partitions)
+
+
+def has_unavailable_partition(device):
+    return any(not available(p) for p in device._partitions)

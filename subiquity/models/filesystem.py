@@ -478,37 +478,8 @@ class _Device(_Formattable, ABC):
     def dasd(self):
         return None
 
-    def ptable_for_new_partition(self):
-        if self.ptable is not None:
-            return self.ptable
-        return 'gpt'
-
     def partitions(self):
         return self._partitions
-
-    def available(self):
-        from subiquity.common.filesystem import fsops
-        # A _Device is available if:
-        # 1) it is not part of a device like a RAID or LVM or zpool or ...
-        # 2) if it is formatted, it is available if it is formatted with fs
-        #    that needs to be mounted and is not mounted
-        # 3) if it is not formatted, it is available if it has free
-        #    space OR at least one partition is not formatted or is formatted
-        #    with a fs that needs to be mounted and is not mounted
-        if self._constructed_device is not None:
-            return False
-        if self._fs is not None:
-            return self._fs._available()
-        if fsops.free_for_partitions(self) > 0:
-            if not self._has_preexisting_partition():
-                return True
-        return any(p.available() for p in self._partitions)
-
-    def has_unavailable_partition(self):
-        return any(not p.available() for p in self._partitions)
-
-    def _has_preexisting_partition(self):
-        return any(p.preserve for p in self._partitions)
 
 
 @fsobj("dasd")
@@ -569,17 +540,6 @@ class Disk(_Device):
         }
         return dinfo
 
-    def ptable_for_new_partition(self):
-        if self.ptable is not None:
-            return self.ptable
-        dasd_config = self._m._probe_data.get('dasd', {}).get(self.path)
-        if dasd_config is not None:
-            if dasd_config['type'] == "FBA":
-                return 'msdos'
-            else:
-                return 'vtoc'
-        return 'gpt'
-
     def dasd(self):
         return self._m._one(type='dasd', device_id=self.device_id)
 
@@ -610,15 +570,6 @@ class Partition(_Formattable):
     grub_device = attr.ib(default=False)
     name = attr.ib(default=None)
     multipath = attr.ib(default=None)
-
-    def available(self):
-        if self.flag in ['bios_grub', 'prep'] or self.grub_device:
-            return False
-        if self._constructed_device is not None:
-            return False
-        if self._fs is None:
-            return True
-        return self._fs._available()
 
     def serialize_number(self):
         return {'number': self._number}
@@ -1239,7 +1190,7 @@ class FilesystemModel(object):
             grub_device=grub_device)
         if boot.is_bootloader_partition(p):
             device._partitions.insert(0, device._partitions.pop())
-        device.ptable = device.ptable_for_new_partition()
+        device.ptable = fsops.ptable_for_new_partition(device)
         dasd = device.dasd()
         if dasd is not None:
             dasd.disk_layout = 'cdl'
@@ -1291,7 +1242,8 @@ class FilesystemModel(object):
         self._remove(lv)
 
     def add_dm_crypt(self, volume, key):
-        if not volume.available:
+        from subiquity.common.filesystem import fsops
+        if not fsops.available(volume):
             raise Exception("{} is not available".format(volume))
         dm_crypt = DM_Crypt(m=self, volume=volume, key=key)
         self._actions.append(dm_crypt)
@@ -1301,8 +1253,9 @@ class FilesystemModel(object):
         self._remove(dm_crypt)
 
     def add_filesystem(self, volume, fstype, preserve=False):
+        from subiquity.common.filesystem import fsops
         log.debug("adding %s to %s", fstype, volume)
-        if not volume.available:
+        if not fsops.available(volume):
             if not isinstance(volume, Partition):
                 if (volume.flag == 'prep' or (
                         volume.flag == 'bios_grub' and fstype == 'fat32')):

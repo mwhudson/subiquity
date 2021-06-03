@@ -15,6 +15,7 @@
 
 import functools
 
+from subiquity.common.filesystem import fsops
 from subiquity.models.filesystem import (
     Disk,
     Bootloader,
@@ -52,7 +53,7 @@ def can_be_boot_device(device, *, with_reformatting=False):
 @can_be_boot_device.register(Disk)
 def _can_be_boot_device_disk(disk, *, with_reformatting=False):
     bl = disk._m.bootloader
-    if disk._has_preexisting_partition() and not with_reformatting:
+    if fsops.has_preexisting_partition(disk) and not with_reformatting:
         if bl == Bootloader.BIOS:
             if disk.ptable == "msdos":
                 return True

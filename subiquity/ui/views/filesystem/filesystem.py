@@ -326,7 +326,7 @@ class DeviceList(WidgetWrap):
 
     def _label_PARTITION(self, action, device):
         return _("Add {ptype} Partition").format(
-            ptype=device.ptable_for_new_partition().upper())
+            ptype=fsops.ptable_for_new_partition(device).upper())
 
     def _label_TOGGLE_BOOT(self, action, device):
         if boot.is_boot_device(device):
@@ -367,8 +367,9 @@ class DeviceList(WidgetWrap):
     def refresh_model_inputs(self):
         devices = [
             d for d in self.parent.model.all_devices()
-            if (d.available() == self.show_available
-                or (not self.show_available and d.has_unavailable_partition()))
+            if (fsops.available(d) == self.show_available
+                or (not self.show_available and
+                    fsops.has_unavailable_partition(d)))
         ]
         if len(devices) == 0:
             self._w = Padding.push_2(self._no_devices_content)
@@ -388,7 +389,7 @@ class DeviceList(WidgetWrap):
         for device in devices:
             for obj, cells in summarize_device(
                     device,
-                    lambda part: part.available() == self.show_available):
+                    lambda part: fsops.available(part) == self.show_available):
                 if obj is not None:
                     menu = self._action_menu_for_device(obj)
                 else:
