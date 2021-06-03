@@ -152,7 +152,7 @@ class PartitionForm(Form):
         self.device = device
         self.existing_fs_type = None
         if device:
-            ofstype = device.original_fstype()
+            ofstype = fsops.original_fstype(device)
             if ofstype:
                 self.existing_fs_type = ofstype
         initial_path = initial.get('mount')
@@ -423,7 +423,7 @@ class PartitionStretchy(Stretchy):
 
         if partition is not None:
             if boot.is_esp(partition):
-                if partition.original_fstype():
+                if fsops.original_fstype(partition):
                     opts = [
                         Option((
                             _("Use existing fat32 filesystem"),
@@ -537,7 +537,7 @@ class PartitionStretchy(Stretchy):
         log.debug("Add Partition Result: {}".format(form.as_data()))
         data = form.as_data()
         if self.partition is not None and boot.is_esp(self.partition):
-            if self.partition.original_fstype() is None:
+            if fsops.original_fstype(self.partition) is None:
                 data['fstype'] = self.partition.fs().fstype
             if self.partition.fs().mount() is not None:
                 data['mount'] = self.partition.fs().mount().path

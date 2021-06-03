@@ -52,7 +52,7 @@ class FilesystemManipulator:
             # prep partitions are always wiped (and never have a filesystem)
             if getattr(volume, 'flag', None) != 'prep':
                 volume.wipe = None
-            fstype = volume.original_fstype()
+            fstype = fsops.original_fstype(volume)
             if fstype is None:
                 return None
             preserve = True
@@ -313,10 +313,10 @@ class FilesystemManipulator:
                         if p.fs().mount():
                             self.delete_mount(p.fs().mount())
                             remount = True
-                        if not p.fs().preserve and p.original_fstype():
+                        if not p.fs().preserve and fsops.original_fstype(p):
                             self.delete_filesystem(p.fs())
                             self.model.add_filesystem(
-                                p, p.original_fstype(), preserve=True)
+                                p, fsops.original_fstype(p), preserve=True)
         else:
             full = fsops.free_for_partitions(boot_disk) == 0
             tot_size = 0

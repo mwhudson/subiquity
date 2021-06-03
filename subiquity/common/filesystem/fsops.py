@@ -206,3 +206,13 @@ def _ok_for_raid_no(device):
 
 
 ok_for_lvm_vg = ok_for_raid
+
+
+def original_fstype(device):
+    for action in device._m._orig_config:
+        if action['type'] == 'format' and action['volume'] == device.id:
+            return action['fstype']
+    for action in device._m._orig_config:
+        if action['id'] == device.id and action.get('flag') == 'swap':
+            return 'swap'
+    return None

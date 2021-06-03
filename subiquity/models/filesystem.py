@@ -433,15 +433,6 @@ class _Formattable:
     def fs(self):
         return self._fs
 
-    def original_fstype(self):
-        for action in self._m._orig_config:
-            if action['type'] == 'format' and action['volume'] == self.id:
-                return action['fstype']
-        for action in self._m._orig_config:
-            if action['id'] == self.id and action.get('flag') == 'swap':
-                return 'swap'
-        return None
-
     def constructed_device(self, skip_dm_crypt=True):
         cd = self._constructed_device
         if cd is None:

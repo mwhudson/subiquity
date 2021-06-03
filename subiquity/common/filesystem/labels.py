@@ -185,7 +185,7 @@ def _usage_labels_generic(device):
     if fs is not None:
         if fs.preserve:
             format_desc = _("already formatted as {fstype}")
-        elif device.original_fstype() is not None:
+        elif fsops.original_fstype(device) is not None:
             format_desc = _("to be reformatted as {fstype}")
         else:
             format_desc = _("to be formatted as {fstype}")
