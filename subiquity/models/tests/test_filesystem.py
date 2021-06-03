@@ -210,77 +210,81 @@ def make_model_and_lv(bootloader=None):
 
 class TestFilesystemModel(unittest.TestCase):
 
-    def _test_ok_for_xxx(self, model, make_new_device, attr,
+    def _test_ok_for_xxx(self, model, make_new_device, ok_for_xxx,
                          test_partitions=True):
         # Newly formatted devs are ok_for_raid
         dev1 = make_new_device()
-        self.assertTrue(getattr(dev1, attr))
+        self.assertTrue(ok_for_xxx(dev1))
         # A freshly formatted dev is not ok_for_raid
         dev2 = make_new_device()
         model.add_filesystem(dev2, 'ext4')
-        self.assertFalse(getattr(dev2, attr))
+        self.assertFalse(ok_for_xxx(dev2))
         if test_partitions:
             # A device with a partition is not ok_for_raid
             dev3 = make_new_device()
             make_partition(model, dev3)
-            self.assertFalse(getattr(dev3, attr))
+            self.assertFalse(ok_for_xxx(dev3))
         # Empty existing devices are ok
         dev4 = make_new_device()
         dev4.preserve = True
-        self.assertTrue(getattr(dev4, attr))
+        self.assertTrue(ok_for_xxx(dev4))
         # A dev with an existing filesystem is ok (there is no
         # way to remove the format)
         dev5 = make_new_device()
         dev5.preserve = True
         fs = model.add_filesystem(dev5, 'ext4')
         fs.preserve = True
-        self.assertTrue(dev5.ok_for_raid)
+        self.assertTrue(fsops.ok_for_raid(dev5))
         # But a existing, *mounted* filesystem is not.
         model.add_mount(fs, '/')
-        self.assertFalse(dev5.ok_for_raid)
+        self.assertFalse(fsops.ok_for_raid(dev5))
 
     def test_disk_ok_for_xxx(self):
         model = make_model()
         self._test_ok_for_xxx(
-            model, lambda: make_disk(model), "ok_for_raid")
+            model, lambda: make_disk(model), fsops.ok_for_raid)
         self._test_ok_for_xxx(
-            model, lambda: make_disk(model), "ok_for_lvm_vg")
+            model, lambda: make_disk(model), fsops.ok_for_lvm_vg)
 
     def test_partition_ok_for_xxx(self):
         model = make_model()
 
         def make_new_device():
             return make_partition(model)
-        self._test_ok_for_xxx(model, make_new_device, "ok_for_raid", False)
-        self._test_ok_for_xxx(model, make_new_device, "ok_for_lvm_vg", False)
+        self._test_ok_for_xxx(
+            model, make_new_device, fsops.ok_for_raid, False)
+        self._test_ok_for_xxx(
+            model, make_new_device, fsops.ok_for_lvm_vg, False)
 
         part = make_partition(make_model(Bootloader.BIOS), flag='bios_grub')
-        self.assertFalse(part.ok_for_raid)
-        self.assertFalse(part.ok_for_lvm_vg)
+        self.assertFalse(fsops.ok_for_raid(part))
+        self.assertFalse(fsops.ok_for_lvm_vg(part))
         part = make_partition(make_model(Bootloader.UEFI), flag='boot')
-        self.assertFalse(part.ok_for_raid)
-        self.assertFalse(part.ok_for_lvm_vg)
+        self.assertFalse(fsops.ok_for_raid(part))
+        self.assertFalse(fsops.ok_for_lvm_vg(part))
         part = make_partition(make_model(Bootloader.PREP), flag='prep')
-        self.assertFalse(part.ok_for_raid)
-        self.assertFalse(part.ok_for_lvm_vg)
+        self.assertFalse(fsops.ok_for_raid(part))
+        self.assertFalse(fsops.ok_for_lvm_vg(part))
 
     def test_raid_ok_for_xxx(self):
         model = make_model()
 
         def make_new_device():
             return make_raid(model)
-        self._test_ok_for_xxx(model, make_new_device, "ok_for_raid", False)
-        self._test_ok_for_xxx(model, make_new_device, "ok_for_lvm_vg", False)
+        self._test_ok_for_xxx(
+            model, make_new_device, fsops.ok_for_raid, False)
+        self._test_ok_for_xxx(
+            model, make_new_device, fsops.ok_for_lvm_vg, False)
 
     def test_vg_ok_for_xxx(self):
         model, vg = make_model_and_vg()
-        self.assertFalse(vg.ok_for_raid)
-        self.assertFalse(vg.ok_for_lvm_vg)
+        self.assertFalse(fsops.ok_for_raid(vg))
+        self.assertFalse(fsops.ok_for_lvm_vg(vg))
 
     def test_lv_ok_for_xxx(self):
         model, lv = make_model_and_lv()
-        self.assertFalse(lv.ok_for_raid)
-        self.assertFalse(lv.ok_for_lvm_vg)
+        self.assertFalse(fsops.ok_for_raid(lv))
+        self.assertFalse(fsops.ok_for_lvm_vg(lv))
 
 
 def fake_up_blockdata_disk(disk, **kw):

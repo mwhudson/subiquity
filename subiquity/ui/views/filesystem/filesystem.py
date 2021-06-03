@@ -503,14 +503,14 @@ class FilesystemView(BaseView):
         lvm_devices = set()
         raid_devices = set()
         for d in self.model.all_devices():
-            if d.ok_for_raid:
+            if fsops.ok_for_raid(d):
                 raid_devices.add(d)
-            if d.ok_for_lvm_vg:
+            if fsops.ok_for_lvm_vg(d):
                 lvm_devices.add(d)
             for p in d.partitions():
-                if p.ok_for_raid:
+                if fsops.ok_for_raid(p):
                     raid_devices.add(p)
-                if p.ok_for_lvm_vg:
+                if fsops.ok_for_lvm_vg(p):
                     lvm_devices.add(p)
             self._create_raid_btn.enabled = len(raid_devices) > 1
             self._create_vg_btn.enabled = len(lvm_devices) > 0

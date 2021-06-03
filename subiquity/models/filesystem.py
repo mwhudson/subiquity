@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from abc import ABC, abstractmethod
 import attr
 import collections
 import fnmatch
@@ -422,7 +421,7 @@ def asdict(inst):
 
 
 @attr.s(cmp=False)
-class _Formattable(ABC):
+class _Formattable:
     # Base class for anything that can be formatted and mounted,
     # e.g. a disk or a RAID or a partition.
 
@@ -452,16 +451,6 @@ class _Formattable(ABC):
         else:
             return cd
 
-    @property
-    @abstractmethod
-    def ok_for_raid(self):
-        pass
-
-    @property
-    @abstractmethod
-    def ok_for_lvm_vg(self):
-        pass
-
 
 # Nothing is put in the first and last megabytes of the disk to allow
 # space for the GPT data.
@@ -469,7 +458,7 @@ GPT_OVERHEAD = 2 * (1 << 20)
 
 
 @attr.s(cmp=False)
-class _Device(_Formattable, ABC):
+class _Device(_Formattable):
     # Anything that can have partitions, e.g. a disk or a RAID.
 
     # [Partition]
@@ -543,20 +532,6 @@ class Disk(_Device):
     def dasd(self):
         return self._m._one(type='dasd', device_id=self.device_id)
 
-    @property
-    def ok_for_raid(self):
-        if self._fs is not None:
-            if self._fs.preserve:
-                return self._fs._mount is None
-            return False
-        if self._constructed_device is not None:
-            return False
-        if len(self._partitions) > 0:
-            return False
-        return True
-
-    ok_for_lvm_vg = ok_for_raid
-
 
 @fsobj("partition")
 class Partition(_Formattable):
@@ -584,21 +559,6 @@ class Partition(_Formattable):
     def _path(self):
         return partition_kname(self.device.path, self._number)
 
-    @property
-    def ok_for_raid(self):
-        from subiquity.common.filesystem import boot
-        if boot.is_bootloader_partition(self):
-            return False
-        if self._fs is not None:
-            if self._fs.preserve:
-                return self._fs._mount is None
-            return False
-        if self._constructed_device is not None:
-            return False
-        return True
-
-    ok_for_lvm_vg = ok_for_raid
-
 
 @fsobj("raid")
 class Raid(_Device):
@@ -620,20 +580,6 @@ class Raid(_Device):
     ptable = attributes.ptable()
     metadata = attr.ib(default=None)
 
-    @property
-    def ok_for_raid(self):
-        if self._fs is not None:
-            if self._fs.preserve:
-                return self._fs._mount is None
-            return False
-        if self._constructed_device is not None:
-            return False
-        if len(self._partitions) > 0:
-            return False
-        return True
-
-    ok_for_lvm_vg = ok_for_raid
-
     # What is a device that makes up this device referred to as?
     component_name = "component"
 
@@ -644,9 +590,6 @@ class LVM_VolGroup(_Device):
     devices = attributes.reflist(backlink="_constructed_device")
 
     preserve = attr.ib(default=False)
-
-    ok_for_raid = False
-    ok_for_lvm_vg = False
 
     # What is a device that makes up this device referred to as?
     component_name = "PV"
@@ -674,9 +617,6 @@ class LVM_LogicalVolume(_Formattable):
     @property
     def flag(self):
         return None  # hack!
-
-    ok_for_raid = False
-    ok_for_lvm_vg = False
 
 
 LUKS_OVERHEAD = 16*(2**20)

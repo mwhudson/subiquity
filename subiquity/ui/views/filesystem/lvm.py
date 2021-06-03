@@ -39,6 +39,7 @@ from subiquitycore.ui.stretchy import (
     Stretchy,
     )
 
+from subiquity.common.filesystem import fsops
 from subiquity.models.filesystem import (
     get_lvm_size,
     humanize_size,
@@ -173,7 +174,7 @@ class VolGroupStretchy(Stretchy):
 
         possible_components = get_possible_components(
             self.parent.model, existing, initial['devices'],
-            lambda dev: dev.ok_for_lvm_vg)
+            fsops.ok_for_lvm_vg)
 
         deleted_vg_names = orig_vg_names - vg_names
         form = self.form = VolGroupForm(

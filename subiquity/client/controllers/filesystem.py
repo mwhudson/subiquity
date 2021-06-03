@@ -19,6 +19,7 @@ import logging
 from subiquitycore.lsb_release import lsb_release
 
 from subiquity.client.controller import SubiquityTuiController
+from subiquity.common.filesystem import fsops
 from subiquity.common.filesystem.manipulator import FilesystemManipulator
 from subiquity.common.types import ProbeStatus
 from subiquity.models.filesystem import (
@@ -137,13 +138,13 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
             for d, v in zip(devices[::2], devices[1::2])
             }
         for d in r:
-            assert d.ok_for_raid
+            assert fsops.ok_for_raid(d)
         return r
 
     def _action_clean_devices_vg(self, devices):
         r = {self._action_get(d): 'active' for d in devices}
         for d in r:
-            assert d.ok_for_lvm_vg
+            assert fsops.ok_for_lvm_vg(d)
         return r
 
     def _action_clean_level(self, level):

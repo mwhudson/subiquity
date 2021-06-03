@@ -40,6 +40,7 @@ from subiquitycore.ui.stretchy import (
     Stretchy,
     )
 
+from subiquity.common.filesystem import fsops
 from subiquity.models.filesystem import (
     get_raid_size,
     humanize_size,
@@ -158,7 +159,7 @@ class RaidStretchy(Stretchy):
 
         possible_components = get_possible_components(
             self.parent.model, existing, initial['devices'],
-            lambda dev: dev.ok_for_raid)
+            fsops.ok_for_raid)
 
         form = self.form = RaidForm(
             self.parent.model, possible_components, initial, raid_names)

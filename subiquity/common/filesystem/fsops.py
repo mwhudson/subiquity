@@ -164,3 +164,45 @@ def has_preexisting_partition(device):
 
 def has_unavailable_partition(device):
     return any(not available(p) for p in device._partitions)
+
+
+@functools.singledispatch
+def ok_for_raid(device):
+    raise NotImplementedError(repr(device))
+
+
+@ok_for_raid.register(Disk)
+@ok_for_raid.register(Raid)
+def _ok_for_raid_disk_raid(device):
+    if device._fs is not None:
+        if device._fs.preserve:
+            return device._fs._mount is None
+        return False
+    if device._constructed_device is not None:
+        return False
+    if len(device._partitions) > 0:
+        return False
+    return True
+
+
+@ok_for_raid.register(Partition)
+def _ok_for_raid_partition(partition):
+    from subiquity.common.filesystem import boot
+    if boot.is_bootloader_partition(partition):
+        return False
+    if partition._fs is not None:
+        if partition._fs.preserve:
+            return partition._fs._mount is None
+        return False
+    if partition._constructed_device is not None:
+        return False
+    return True
+
+
+@ok_for_raid.register(LVM_VolGroup)
+@ok_for_raid.register(LVM_LogicalVolume)
+def _ok_for_raid_no(device):
+    return False
+
+
+ok_for_lvm_vg = ok_for_raid
