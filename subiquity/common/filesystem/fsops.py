@@ -61,15 +61,29 @@ def _crypt_size(crypt):
     return size(crypt.volume) - LUKS_OVERHEAD
 
 
-def used(device):
-    if device._fs is not None or device._constructed_device is not None:
-        return size(device)
+def _used_generic(device):
     r = 0
     for p in device._partitions:
         if p.flag == "extended":
             continue
         r += p.size
     return r
+
+
+@functools.singledispatch
+def used(device):
+    raise NotImplementedError(repr(device))
+
+
+@used.register(Disk)
+@used.register(Raid)
+def _used_formattable(device):
+    if device._fs is not None or device._constructed_device is not None:
+        return size(device)
+    return _used_generic(device)
+
+
+used.register(LVM_VolGroup, _used_generic)
 
 
 @functools.singledispatch

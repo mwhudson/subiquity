@@ -181,7 +181,7 @@ def _can_edit_vg(vg):
             "volumes.").format(
                 vglabel=labels.label(vg))
     else:
-        return _can_edit_generic(vg)
+        return True
 
 
 _can_reformat = make_checker(DeviceAction.REFORMAT)
@@ -324,8 +324,10 @@ def _can_delete_raid_vg(device):
         return _(
             "Cannot delete {devicelabel} because it has 1 mounted partition."
             ).format(devicelabel=labels.label(device))
-    else:
+    elif isinstance(device, Raid):
         return _can_delete_generic(device)
+    else:
+        return True
 
 
 @_can_delete.register(LVM_LogicalVolume)

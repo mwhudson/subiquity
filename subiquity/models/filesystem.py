@@ -89,7 +89,7 @@ def _remove_backlinks(obj):
 _type_to_cls = {}
 
 
-def fsobj__repr(obj):
+def _fsobj__repr(obj):
     args = []
     for f in attr.fields(type(obj)):
         if f.name.startswith("_"):
@@ -113,14 +113,29 @@ def fsobj__repr(obj):
     return "{}({})".format(type(obj).__name__, ", ".join(args))
 
 
-def fsobj(typ):
+def _fsobj_constructed_device(self, skip_dm_crypt=True):
+    cd = self._constructed_device
+    if cd is None:
+        return None
+    elif cd.type == "dm_crypt" and skip_dm_crypt:
+        return cd._constructed_device
+    else:
+        return cd
+
+
+def fsobj(typ, *, formattable=False):
     def wrapper(c):
         c.__attrs_post_init__ = _set_backlinks
         c.type = attributes.const(typ)
         c.id = attr.ib(default=None)
         c._m = attr.ib(repr=None, default=None)
+        if formattable:
+            c._fs = attributes.backlink()
+            c.fs = lambda self: self._fs
+            c._constructed_device = attributes.backlink()
+            c.constructed_device = _fsobj_constructed_device
         c = attr.s(cmp=False, repr=False)(c)
-        c.__repr__ = fsobj__repr
+        c.__repr__ = _fsobj__repr
         _type_to_cls[typ] = c
         return c
     return wrapper
@@ -420,36 +435,13 @@ def asdict(inst):
 # in the FilesystemModel or FilesystemController classes.
 
 
-@attr.s(cmp=False)
-class _Formattable:
-    # Base class for anything that can be formatted and mounted,
-    # e.g. a disk or a RAID or a partition.
-
-    # Filesystem
-    _fs = attributes.backlink()
-    # Raid or LVM_VolGroup for now, but one day ZPool, BCache...
-    _constructed_device = attributes.backlink()
-
-    def fs(self):
-        return self._fs
-
-    def constructed_device(self, skip_dm_crypt=True):
-        cd = self._constructed_device
-        if cd is None:
-            return None
-        elif cd.type == "dm_crypt" and skip_dm_crypt:
-            return cd._constructed_device
-        else:
-            return cd
-
-
 # Nothing is put in the first and last megabytes of the disk to allow
 # space for the GPT data.
 GPT_OVERHEAD = 2 * (1 << 20)
 
 
 @attr.s(cmp=False)
-class _Device(_Formattable):
+class _Device:
     # Anything that can have partitions, e.g. a disk or a RAID.
 
     # [Partition]
@@ -472,7 +464,7 @@ class Dasd:
     preserve = attr.ib(default=False)
 
 
-@fsobj("disk")
+@fsobj("disk", formattable=True)
 class Disk(_Device):
     ptable = attributes.ptable()
     serial = attr.ib(default=None)
@@ -524,8 +516,8 @@ class Disk(_Device):
         return self._m._one(type='dasd', device_id=self.device_id)
 
 
-@fsobj("partition")
-class Partition(_Formattable):
+@fsobj("partition", formattable=True)
+class Partition:
     device = attributes.ref(backlink="_partitions")  # Disk
     size = attributes.size()
 
@@ -551,7 +543,7 @@ class Partition(_Formattable):
         return partition_kname(self.device.path, self._number)
 
 
-@fsobj("raid")
+@fsobj("raid", formattable=True)
 class Raid(_Device):
     name = attr.ib()
     raidlevel = attr.ib(converter=lambda x: raidlevels_by_value[x].value)
@@ -586,8 +578,8 @@ class LVM_VolGroup(_Device):
     component_name = "PV"
 
 
-@fsobj("lvm_partition")
-class LVM_LogicalVolume(_Formattable):
+@fsobj("lvm_partition", formattable=True)
+class LVM_LogicalVolume:
     name = attr.ib()
     volgroup = attributes.ref(backlink="_partitions")  # LVM_VolGroup
     size = attributes.size()
@@ -615,7 +607,7 @@ LUKS_OVERHEAD = 16*(2**20)
 
 @fsobj("dm_crypt")
 class DM_Crypt:
-    volume = attributes.ref(backlink="_constructed_device")  # _Formattable
+    volume = attributes.ref(backlink="_constructed_device")
     key = attr.ib(metadata={'redact': True}, default=None)
     keyfile = attr.ib(default=None)
 
@@ -641,7 +633,7 @@ class DM_Crypt:
 @fsobj("format")
 class Filesystem:
     fstype = attr.ib()
-    volume = attributes.ref(backlink="_fs")  # _Formattable
+    volume = attributes.ref(backlink="_fs")
 
     label = attr.ib(default=None)
     uuid = attr.ib(default=None)
