@@ -123,7 +123,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
     def guided_direct(self, disk):
         self.reformat(disk)
         result = {
-            "size": disk.free_for_partitions,
+            "size": fsops.free_for_partitions(disk),
             "fstype": "ext4",
             "mount": "/",
             }
@@ -141,7 +141,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 ))
         part = self.create_partition(
             device=disk, spec=dict(
-                size=disk.free_for_partitions,
+                size=fsops.free_for_partitions(disk),
                 fstype=None,
                 ))
         vg_name = 'ubuntu-vg'

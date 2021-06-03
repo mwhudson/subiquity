@@ -21,6 +21,7 @@ from subiquity.models.filesystem import (
     get_lvm_size,
     get_raid_size,
     DM_Crypt,
+    GPT_OVERHEAD,
     LUKS_OVERHEAD,
     LVM_LogicalVolume,
     LVM_VolGroup,
@@ -69,3 +70,23 @@ def used(device):
             continue
         r += p.size
     return r
+
+
+@functools.singledispatch
+def available_for_partitions(device):
+    raise NotImplementedError(repr(device))
+
+
+@available_for_partitions.register(Disk)
+@available_for_partitions.register(Raid)
+def _available_for_partitions_gpt(device):
+    return size(device) - GPT_OVERHEAD
+
+
+@available_for_partitions.register(LVM_VolGroup)
+def _available_for_partitions_vg(vg):
+    return size(vg)
+
+
+def free_for_partitions(device):
+    return available_for_partitions(device) - used(device)

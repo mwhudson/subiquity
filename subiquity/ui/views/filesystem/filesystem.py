@@ -404,8 +404,8 @@ class DeviceList(WidgetWrap):
                     rows.append(TableRow(cells))
             if (self.show_available
                     and fsops.used(device) > 0
-                    and device.free_for_partitions > 0):
-                free = humanize_size(device.free_for_partitions)
+                    and fsops.free_for_partitions(device) > 0):
+                free = humanize_size(fsops.free_for_partitions(device))
                 rows.append(TableRow([
                     Text(""),
                     (3, Color.info_minor(Text(_("free space")))),

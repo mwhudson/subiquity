@@ -18,7 +18,7 @@ import functools
 
 from subiquitycore.gettext38 import pgettext
 
-from subiquity.common.filesystem import boot, labels
+from subiquity.common.filesystem import boot, fsops, labels
 from subiquity.models.filesystem import (
     Bootloader,
     Disk,
@@ -206,7 +206,7 @@ _can_partition = make_checker(DeviceAction.PARTITION)
 def _can_partition_device(device):
     if device._has_preexisting_partition():
         return False
-    if device.free_for_partitions <= 0:
+    if fsops.free_for_partitions(device) <= 0:
         return False
     # We only create msdos partition tables with FBA dasds, which
     # only support 3 partitions. As and when we support editing
@@ -221,7 +221,7 @@ _can_create_lv = make_checker(DeviceAction.CREATE_LV)
 
 @_can_create_lv.register(LVM_VolGroup)
 def _can_create_lv_vg(vg):
-    return not vg.preserve and vg.free_for_partitions > 0
+    return not vg.preserve and fsops.free_for_partitions(vg) > 0
 
 
 _can_format = make_checker(DeviceAction.FORMAT)

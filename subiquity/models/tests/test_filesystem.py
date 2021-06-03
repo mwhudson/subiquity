@@ -17,6 +17,7 @@ import unittest
 
 import attr
 
+from subiquity.common.filesystem import fsops
 from subiquity.models.filesystem import (
     Bootloader,
     dehumanize_size,
@@ -160,7 +161,7 @@ def make_partition(model, device=None, *, preserve=False, size=None, **kw):
     if device is None:
         device = make_disk(model)
     if size is None:
-        size = device.free_for_partitions//2
+        size = fsops.free_for_partitions(device)//2
     partition = Partition(
         m=model, device=device, size=size, preserve=preserve, **kw)
     if preserve:
@@ -199,7 +200,7 @@ def make_model_and_vg(bootloader=None):
 def make_lv(model):
     vg = make_vg(model)
     name = 'lv%s' % len(model._actions)
-    return model.add_logical_volume(vg, name, vg.free_for_partitions//2)
+    return model.add_logical_volume(vg, name, fsops.free_for_partitions(vg)//2)
 
 
 def make_model_and_lv(bootloader=None):
@@ -477,7 +478,7 @@ class TestAutoInstallConfig(unittest.TestCase):
             }])
         disk = model._one(type="disk")
         part = model._one(type="partition")
-        self.assertEqual(part.size, disk.available_for_partitions//2)
+        self.assertEqual(part.size, fsops.available_for_partitions(disk)//2)
 
     def test_partition_remaining(self):
         model = make_model()
@@ -504,7 +505,8 @@ class TestAutoInstallConfig(unittest.TestCase):
         disk = model._one(type="disk")
         part1 = model._one(type="partition", id="part1")
         self.assertEqual(
-            part1.size, disk.available_for_partitions - dehumanize_size('50M'))
+            part1.size,
+            fsops.available_for_partitions(disk) - dehumanize_size('50M'))
 
     def test_lv_percent(self):
         model = make_model()
@@ -531,7 +533,7 @@ class TestAutoInstallConfig(unittest.TestCase):
             ])
         vg = model._one(type="lvm_volgroup")
         lv1 = model._one(type="lvm_partition")
-        self.assertEqual(lv1.size, vg.available_for_partitions//2)
+        self.assertEqual(lv1.size, fsops.available_for_partitions(vg)//2)
 
     def test_lv_remaining(self):
         model = make_model()
@@ -567,7 +569,7 @@ class TestAutoInstallConfig(unittest.TestCase):
         lv2 = model._one(type="lvm_partition", id='lv2')
         self.assertEqual(
             lv2.size, align_down(
-                vg.available_for_partitions - dehumanize_size("50M"),
+                fsops.available_for_partitions(vg) - dehumanize_size("50M"),
                 LVM_CHUNK_SIZE))
 
     def test_render_does_not_include_unreferenced(self):

@@ -37,7 +37,7 @@ from subiquitycore.ui.container import Pile
 from subiquitycore.ui.stretchy import Stretchy
 from subiquitycore.ui.utils import rewrap
 
-from subiquity.common.filesystem import boot, labels
+from subiquity.common.filesystem import boot, fsops, labels
 from subiquity.models.filesystem import (
     align_up,
     Disk,
@@ -369,7 +369,7 @@ class PartitionStretchy(Stretchy):
         self.model = parent.model
         self.controller = parent.controller
         self.parent = parent
-        max_size = disk.free_for_partitions
+        max_size = fsops.free_for_partitions(disk)
 
         initial = {}
         label = _("Create")

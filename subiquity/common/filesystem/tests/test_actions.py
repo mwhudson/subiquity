@@ -15,6 +15,7 @@
 
 import unittest
 
+from subiquity.common.filesystem import fsops
 from subiquity.common.filesystem.actions import (
     DeviceAction,
     )
@@ -111,9 +112,9 @@ class TestActions(unittest.TestCase):
     def test_disk_action_PARTITION(self):
         model, disk = make_model_and_disk()
         self.assertActionPossible(disk, DeviceAction.PARTITION)
-        make_partition(model, disk, size=disk.free_for_partitions//2)
+        make_partition(model, disk, size=fsops.free_for_partitions(disk)//2)
         self.assertActionPossible(disk, DeviceAction.PARTITION)
-        make_partition(model, disk, size=disk.free_for_partitions)
+        make_partition(model, disk, size=fsops.free_for_partitions(disk))
         self.assertActionNotPossible(disk, DeviceAction.PARTITION)
 
         # Can partition a disk with .preserve=True
@@ -157,7 +158,8 @@ class TestActions(unittest.TestCase):
         self.assertActionPossible(dos_disk, DeviceAction.TOGGLE_BOOT)
         # Even if they have existing partitions
         make_partition(
-            model, dos_disk, size=dos_disk.free_for_partitions, preserve=True)
+            model, dos_disk, size=fsops.free_for_partitions(dos_disk),
+            preserve=True)
         self.assertActionPossible(dos_disk, DeviceAction.TOGGLE_BOOT)
         # (we never create dos partition tables so no need to test
         # preserve=False case).
@@ -166,7 +168,8 @@ class TestActions(unittest.TestCase):
         gpt_disk = make_disk(model, ptable='gpt', preserve=False)
         self.assertActionPossible(gpt_disk, DeviceAction.TOGGLE_BOOT)
         # Even if they are filled with partitions (we resize partitions to fit)
-        make_partition(model, gpt_disk, size=dos_disk.free_for_partitions)
+        make_partition(
+            model, gpt_disk, size=fsops.free_for_partitions(dos_disk))
         self.assertActionPossible(gpt_disk, DeviceAction.TOGGLE_BOOT)
 
         # GPT disks with existing partition tables but no partitions can be the
@@ -202,7 +205,8 @@ class TestActions(unittest.TestCase):
         new_disk = make_disk(model, preserve=False)
         self.assertActionPossible(new_disk, DeviceAction.TOGGLE_BOOT)
         # Even if they are filled with partitions (we resize partitions to fit)
-        make_partition(model, new_disk, size=new_disk.free_for_partitions)
+        make_partition(
+            model, new_disk, size=fsops.free_for_partitions(new_disk))
         self.assertActionPossible(new_disk, DeviceAction.TOGGLE_BOOT)
 
         # A disk with an existing but empty partitions can also be the
@@ -333,9 +337,9 @@ class TestActions(unittest.TestCase):
     def test_raid_action_PARTITION(self):
         model, raid = make_model_and_raid()
         self.assertActionPossible(raid, DeviceAction.PARTITION)
-        make_partition(model, raid, size=raid.free_for_partitions//2)
+        make_partition(model, raid, size=fsops.free_for_partitions(raid)//2)
         self.assertActionPossible(raid, DeviceAction.PARTITION)
-        make_partition(model, raid, size=raid.free_for_partitions)
+        make_partition(model, raid, size=fsops.free_for_partitions(raid))
         self.assertActionNotPossible(raid, DeviceAction.PARTITION)
 
         # Can partition a raid with .preserve=True
@@ -398,7 +402,8 @@ class TestActions(unittest.TestCase):
     def test_vg_action_EDIT(self):
         model, vg = make_model_and_vg()
         self.assertActionPossible(vg, DeviceAction.EDIT)
-        model.add_logical_volume(vg, 'lv1', size=vg.free_for_partitions//2)
+        model.add_logical_volume(
+            vg, 'lv1', size=fsops.free_for_partitions(vg)//2)
         self.assertActionNotPossible(vg, DeviceAction.EDIT)
 
         vg2 = make_vg(model)
@@ -416,9 +421,10 @@ class TestActions(unittest.TestCase):
     def test_vg_action_CREATE_LV(self):
         model, vg = make_model_and_vg()
         self.assertActionPossible(vg, DeviceAction.CREATE_LV)
-        model.add_logical_volume(vg, 'lv1', size=vg.free_for_partitions//2)
+        model.add_logical_volume(
+            vg, 'lv1', size=fsops.free_for_partitions(vg)//2)
         self.assertActionPossible(vg, DeviceAction.CREATE_LV)
-        model.add_logical_volume(vg, 'lv2', size=vg.free_for_partitions)
+        model.add_logical_volume(vg, 'lv2', size=fsops.free_for_partitions(vg))
         self.assertActionNotPossible(vg, DeviceAction.CREATE_LV)
         vg2 = make_vg(model)
         vg2.preserve = True
@@ -437,7 +443,7 @@ class TestActions(unittest.TestCase):
         self.assertActionPossible(vg, DeviceAction.DELETE)
         self.assertActionPossible(vg, DeviceAction.DELETE)
         lv = model.add_logical_volume(
-            vg, 'lv0', size=vg.free_for_partitions//2)
+            vg, 'lv0', size=fsops.free_for_partitions(vg)//2)
         self.assertActionPossible(vg, DeviceAction.DELETE)
         fs = model.add_filesystem(lv, 'ext4')
         self.assertActionPossible(vg, DeviceAction.DELETE)

@@ -486,17 +486,8 @@ class _Device(_Formattable, ABC):
     def partitions(self):
         return self._partitions
 
-    @property
-    def available_for_partitions(self):
-        from subiquity.common.filesystem import fsops
-        return fsops.size(self) - GPT_OVERHEAD
-
-    @property
-    def free_for_partitions(self):
-        from subiquity.common.filesystem import fsops
-        return self.available_for_partitions - fsops.used(self)
-
     def available(self):
+        from subiquity.common.filesystem import fsops
         # A _Device is available if:
         # 1) it is not part of a device like a RAID or LVM or zpool or ...
         # 2) if it is formatted, it is available if it is formatted with fs
@@ -508,7 +499,7 @@ class _Device(_Formattable, ABC):
             return False
         if self._fs is not None:
             return self._fs._available()
-        if self.free_for_partitions > 0:
+        if fsops.free_for_partitions(self) > 0:
             if not self._has_preexisting_partition():
                 return True
         return any(p.available() for p in self._partitions)
@@ -679,11 +670,6 @@ class Raid(_Device):
     metadata = attr.ib(default=None)
 
     @property
-    def available_for_partitions(self):
-        from subiquity.common.filesystem import fsops
-        return fsops.size(self) - 2*GPT_OVERHEAD
-
-    @property
     def ok_for_raid(self):
         if self._fs is not None:
             if self._fs.preserve:
@@ -707,11 +693,6 @@ class LVM_VolGroup(_Device):
     devices = attributes.reflist(backlink="_constructed_device")
 
     preserve = attr.ib(default=False)
-
-    @property
-    def available_for_partitions(self):
-        from subiquity.common.filesystem import fsops
-        return fsops.size(self)
 
     ok_for_raid = False
     ok_for_lvm_vg = False
@@ -948,6 +929,7 @@ class FilesystemModel(object):
         return None
 
     def apply_autoinstall_config(self, ai_config):
+        from subiquity.common.filesystem import fsops
         disks = self.all_disks()
         for action in ai_config:
             if action['type'] == 'disk':
@@ -981,14 +963,14 @@ class FilesystemModel(object):
                             "{} has negative size but is not final partition "
                             "of {}".format(p, parent))
                     p.size = 0
-                    p.size = parent.free_for_partitions
+                    p.size = fsops.free_for_partitions(parent)
                     if p.type == 'lvm_partition':
                         p.size = align_down(p.size, LVM_CHUNK_SIZE)
             elif isinstance(p.size, str):
                 if p.size.endswith("%"):
                     percentage = int(p.size[:-1])
                     p.size = align_down(
-                        parent.available_for_partitions*percentage//100)
+                        fsops.available_for_partitions(parent)*percentage//100)
                 else:
                     p.size = dehumanize_size(p.size)
 
@@ -1245,9 +1227,9 @@ class FilesystemModel(object):
 
     def add_partition(self, device, size, flag="", wipe=None,
                       grub_device=None):
-        from subiquity.common.filesystem import boot
-        if size > device.free_for_partitions:
-            raise Exception("%s > %s", size, device.free_for_partitions)
+        from subiquity.common.filesystem import boot, fsops
+        if size > fsops.free_for_partitions(device):
+            raise Exception("%s > %s", size, fsops.free_for_partitions(device))
         real_size = align_up(size)
         log.debug("add_partition: rounded size from %s to %s", size, real_size)
         if device._fs is not None:

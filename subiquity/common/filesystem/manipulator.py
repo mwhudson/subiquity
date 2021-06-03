@@ -195,12 +195,12 @@ class FilesystemManipulator:
 
     def partition_disk_handler(self, disk, partition, spec):
         log.debug('partition_disk_handler: %s %s %s', disk, partition, spec)
-        log.debug('disk.freespace: {}'.format(disk.free_for_partitions))
+        log.debug('disk.freespace: {}'.format(fsops.free_for_partitions(disk)))
 
         if partition is not None:
             if 'size' in spec:
                 partition.size = align_up(spec['size'])
-                if disk.free_for_partitions < 0:
+                if fsops.free_for_partitions(disk) < 0:
                     raise Exception("partition size too large")
             self.delete_filesystem(partition.fs())
             self.create_filesystem(partition, spec)
@@ -219,11 +219,13 @@ class FilesystemManipulator:
 
             # adjust downward the partition size (if necessary) to accommodate
             # bios/grub partition
-            if spec['size'] > disk.free_for_partitions:
+            if spec['size'] > fsops.free_for_partitions(disk):
                 log.debug(
                     "Adjusting request down: %s - %s = %s",
-                    spec['size'], fsops.size(part), disk.free_for_partitions)
-                spec['size'] = disk.free_for_partitions
+                    spec['size'],
+                    fsops.size(part),
+                    fsops.free_for_partitions(disk))
+                spec['size'] = fsops.free_for_partitions(disk)
 
         self.create_partition(disk, spec)
 
@@ -231,14 +233,14 @@ class FilesystemManipulator:
 
     def logical_volume_handler(self, vg, lv, spec):
         log.debug('logical_volume_handler: %s %s %s', vg, lv, spec)
-        log.debug('vg.freespace: {}'.format(vg.free_for_partitions))
+        log.debug('vg.freespace: {}'.format(fsops.free_for_partitions(vg)))
 
         if lv is not None:
             if 'name' in spec:
                 lv.name = spec['name']
             if 'size' in spec:
                 lv.size = align_up(spec['size'])
-                if vg.free_for_partitions < 0:
+                if fsops.free_for_partitions(vg) < 0:
                     raise Exception("lv size too large")
             self.delete_filesystem(lv.fs())
             self.create_filesystem(lv, spec)
@@ -316,7 +318,7 @@ class FilesystemManipulator:
                             self.model.add_filesystem(
                                 p, p.original_fstype(), preserve=True)
         else:
-            full = boot_disk.free_for_partitions == 0
+            full = fsops.free_for_partitions(boot_disk) == 0
             tot_size = 0
             for p in partitions:
                 tot_size += fsops.size(p)
@@ -364,9 +366,9 @@ class FilesystemManipulator:
             elif bootloader == Bootloader.BIOS:
                 part_size = BIOS_GRUB_SIZE_BYTES
             log.debug("bootloader %s", bootloader)
-            if part_size > new_boot_disk.free_for_partitions:
+            if part_size > fsops.free_for_partitions(new_boot_disk):
                 largest_part = max(
                     new_boot_disk.partitions(), key=lambda p: fsops.size(p))
                 largest_part.size -= (
-                    part_size - new_boot_disk.free_for_partitions)
+                    part_size - fsops.free_for_partitions(new_boot_disk))
             self._create_boot_partition(new_boot_disk)
