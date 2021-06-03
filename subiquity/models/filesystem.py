@@ -431,9 +431,6 @@ class _Formattable(ABC):
     # Raid or LVM_VolGroup for now, but one day ZPool, BCache...
     _constructed_device = attributes.backlink()
 
-    def _is_entirely_used(self):
-        return self._fs is not None or self._constructed_device is not None
-
     def fs(self):
         return self._fs
 
@@ -490,29 +487,14 @@ class _Device(_Formattable, ABC):
         return self._partitions
 
     @property
-    def used(self):
-        from subiquity.common.filesystem import fsops
-        if self._is_entirely_used():
-            return fsops.size(self)
-        r = 0
-        for p in self._partitions:
-            if p.flag == "extended":
-                continue
-            r += p.size
-        return r
-
-    @property
-    def empty(self):
-        return self.used == 0
-
-    @property
     def available_for_partitions(self):
         from subiquity.common.filesystem import fsops
         return fsops.size(self) - GPT_OVERHEAD
 
     @property
     def free_for_partitions(self):
-        return self.available_for_partitions - self.used
+        from subiquity.common.filesystem import fsops
+        return self.available_for_partitions - fsops.used(self)
 
     def available(self):
         # A _Device is available if:

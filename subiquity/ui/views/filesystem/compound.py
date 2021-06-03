@@ -204,7 +204,7 @@ class CompoundDiskForm(Form):
             mdc = self.devices.widget
             potential_boot_disks = set()
             for d in self.model.all_disks():
-                if d.used == 0:
+                if fsops.used(d) == 0:
                     # An empty disk can always have a boot partition added.
                     potential_boot_disks.add(d)
                 elif d.preserve:

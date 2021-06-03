@@ -403,7 +403,7 @@ class DeviceList(WidgetWrap):
                 else:
                     rows.append(TableRow(cells))
             if (self.show_available
-                    and device.used > 0
+                    and fsops.used(device) > 0
                     and device.free_for_partitions > 0):
                 free = humanize_size(device.free_for_partitions)
                 rows.append(TableRow([
