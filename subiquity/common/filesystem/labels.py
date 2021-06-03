@@ -222,6 +222,11 @@ def usage_labels(device):
     return _usage_labels_generic(device)
 
 
+@usage_labels.register(LVM_VolGroup)
+def _usage_labels_vg(vg):
+    return [_("unused")]
+
+
 @usage_labels.register(Partition)
 def _usage_labels_partition(partition):
     if partition.flag == "prep" or partition.flag == "bios_grub":

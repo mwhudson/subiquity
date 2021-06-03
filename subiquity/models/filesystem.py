@@ -123,7 +123,7 @@ def _fsobj_constructed_device(self, skip_dm_crypt=True):
         return cd
 
 
-def fsobj(typ, *, formattable=False):
+def fsobj(typ, *, formattable=False, has_partitions=False):
     def wrapper(c):
         c.__attrs_post_init__ = _set_backlinks
         c.type = attributes.const(typ)
@@ -134,6 +134,9 @@ def fsobj(typ, *, formattable=False):
             c.fs = lambda self: self._fs
             c._constructed_device = attributes.backlink()
             c.constructed_device = _fsobj_constructed_device
+        if has_partitions:
+            c._partitions = attributes.backlink(default=attr.Factory(list))
+            c.partitions = lambda self: self._partitions
         c = attr.s(cmp=False, repr=False)(c)
         c.__repr__ = _fsobj__repr
         _type_to_cls[typ] = c
@@ -440,20 +443,6 @@ def asdict(inst):
 GPT_OVERHEAD = 2 * (1 << 20)
 
 
-@attr.s(cmp=False)
-class _Device:
-    # Anything that can have partitions, e.g. a disk or a RAID.
-
-    # [Partition]
-    _partitions = attributes.backlink(default=attr.Factory(list))
-
-    def dasd(self):
-        return None
-
-    def partitions(self):
-        return self._partitions
-
-
 @fsobj("dasd")
 class Dasd:
     device_id = attr.ib()
@@ -464,8 +453,8 @@ class Dasd:
     preserve = attr.ib(default=False)
 
 
-@fsobj("disk", formattable=True)
-class Disk(_Device):
+@fsobj("disk", formattable=True, has_partitions=True)
+class Disk:
     ptable = attributes.ptable()
     serial = attr.ib(default=None)
     wwn = attr.ib(default=None)
@@ -543,8 +532,8 @@ class Partition:
         return partition_kname(self.device.path, self._number)
 
 
-@fsobj("raid", formattable=True)
-class Raid(_Device):
+@fsobj("raid", formattable=True, has_partitions=True)
+class Raid:
     name = attr.ib()
     raidlevel = attr.ib(converter=lambda x: raidlevels_by_value[x].value)
     devices = attributes.reflist(backlink="_constructed_device")
@@ -567,8 +556,8 @@ class Raid(_Device):
     component_name = "component"
 
 
-@fsobj("lvm_volgroup")
-class LVM_VolGroup(_Device):
+@fsobj("lvm_volgroup", has_partitions=True)
+class LVM_VolGroup:
     name = attr.ib()
     devices = attributes.reflist(backlink="_constructed_device")
 
@@ -1078,7 +1067,7 @@ class FilesystemModel(object):
         for a in self._actions:
             if a.type == 'disk':
                 disks.append(a)
-            elif isinstance(a, _Device):
+            elif hasattr(a, '_partitions'):  # bit of a hack
                 compounds.append(a)
         compounds.reverse()
         from subiquity.common.filesystem import labels
@@ -1114,11 +1103,12 @@ class FilesystemModel(object):
         if boot.is_bootloader_partition(p):
             device._partitions.insert(0, device._partitions.pop())
         device.ptable = fsops.ptable_for_new_partition(device)
-        dasd = device.dasd()
-        if dasd is not None:
-            dasd.disk_layout = 'cdl'
-            dasd.blocksize = 4096
-            dasd.preserve = False
+        if device.type == 'disk':
+            dasd = device.dasd()
+            if dasd is not None:
+                dasd.disk_layout = 'cdl'
+                dasd.blocksize = 4096
+                dasd.preserve = False
         self._actions.append(p)
         return p
 

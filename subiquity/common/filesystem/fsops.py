@@ -128,13 +128,17 @@ def _ptable_for_new_partition_disk(disk):
 
 @functools.singledispatch
 def available(device):
+    # A _Device is available if:
+    # 1) it is not part of a device like a RAID or LVM or zpool or ...
+    # 2) if it is formatted, it is available if it is formatted with fs
+    #    that needs to be mounted and is not mounted
+    # 3) if it is not formatted, it is available if it has free
+    #    space OR at least one partition is not formatted or is formatted
+    #    with a fs that needs to be mounted and is not mounted
     raise NotImplementedError(repr(device))
 
 
-@available.register(Disk)
-@available.register(Raid)
-@available.register(LVM_VolGroup)
-def _available_partitionable(device):
+def _available_formattable(device):
     # A _Device is available if:
     # 1) it is not part of a device like a RAID or LVM or zpool or ...
     # 2) if it is formatted, it is available if it is formatted with fs
@@ -146,30 +150,38 @@ def _available_partitionable(device):
         return False
     if device._fs is not None:
         return device._fs._available()
+    return True
+
+
+def _available_partitionable(device):
     if free_for_partitions(device) > 0:
         if not has_preexisting_partition(device):
             return True
     return any(available(p) for p in device._partitions)
 
 
+available.register(LVM_VolGroup, _available_partitionable)
+available.register(LVM_LogicalVolume, _available_formattable)
+
+
 @available.register(Partition)
 def _available_partition(partition):
     if partition.flag in ['bios_grub', 'prep'] or partition.grub_device:
         return False
-    if partition._constructed_device is not None:
-        return False
-    if partition._fs is None:
-        return True
-    return partition._fs._available()
+    return _available_formattable(partition)
 
 
-@available.register(LVM_LogicalVolume)
-def _available_lv(lv):
-    if lv._constructed_device is not None:
+@available.register(Disk)
+@available.register(Raid)
+def _available_formattable_partitionable(device):
+    if device._constructed_device is not None:
         return False
-    if lv._fs is None:
-        return True
-    return lv._fs._available()
+    if device._fs is not None:
+        return device._fs._available()
+    if free_for_partitions(device) > 0:
+        if not has_preexisting_partition(device):
+            return True
+    return any(available(p) for p in device._partitions)
 
 
 def has_preexisting_partition(device):
