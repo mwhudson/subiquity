@@ -225,6 +225,7 @@ Wifi support packages will be installed in the target system.
 """),
     }
 
+
 class NetworkView(BaseView):
     title = _("Network connections")
     excerpt = _("Configure at least one interface this server can use to talk "
@@ -280,7 +281,6 @@ class NetworkView(BaseView):
         self.error_showing = False
 
         self.update_for_wlan_support_install_state(wlan_support_install_state)
-
 
         super().__init__(screen(
             rows=rows,

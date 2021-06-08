@@ -27,7 +27,6 @@ from subiquitycore.context import with_context
 from subiquitycore.controllers.network import BaseNetworkController
 from subiquitycore.models.network import (
     BondConfig,
-    NetDevInfo,
     StaticConfig,
     WLANConfig,
     )
@@ -130,43 +129,44 @@ class NetworkController(BaseNetworkController, SubiquityController):
         else:
             return WLANSupportInstallState.INSTALLING
 
-    async def _start_install_wpasupplicant(self):
+    async def _install_wpasupplicant(self):
         if self.opts.dry_run:
             await asyncio.sleep(10/self.app.scale_factor)
             a = 'DONE'
             for k in self.app.debug_flags:
-                if k.startswith('WLAN_INSTALL_STATE='):
+                if k.startswith('wlan_install='):
                     a = k.split('=', 2)[1]
             r = getattr(WLANSupportInstallState, a)
         else:
-            r = await self._start_install_wpasupplicant()
+            r = await self._really_install_wpasupplicant()
         log.debug("wlan_support_install_finished %s", r)
         self._call_clients("wlan_support_install_finished", r)
         if r == WLANSupportInstallState.DONE:
             for dev in self.pending_wlan_devices:
                 self._send_update(LinkAction.NEW, dev)
-            self.pending_wlan_devices = set()
+        self.pending_wlan_devices = set()
         return r
 
-    async def _install_wpasupplicant(self):
+    async def _really_install_wpasupplicant(self):
         log.debug('checking if wpasupplicant is available')
-        c = apt.Cache()
-        p = c.get('wpasupplicant')
-        if not p:
+        cache = apt.Cache()
+        binpkg = cache.get('wpasupplicant')
+        if not binpkg:
             log.debug('wpasupplicant not found')
             return WLANSupportInstallState.NOT_AVAILABLE
-        if p.installed:
+        if binpkg.installed:
             log.debug('wpasupplicant already installed')
             return WLANSupportInstallState.DONE
-        cand = p.candidate
-        if not cand.uri.startswith('cdrom:'):
+        if not binpkg.candidate.uri.startswith('cdrom:'):
             log.debug(
-                'wpasupplicant not available from cdrom (rather %s)', cand.uri)
+                'wpasupplicant not available from cdrom (rather %s)',
+                binpkg.candidate.uri)
             return WLANSupportInstallState.NOT_AVAILABLE
         env = os.environ.copy()
+        env['DEBIAN_FRONTEND'] = 'noninteractive'
         apt_opts = [
             '--quiet', '--assume-yes',
-            '--option=Dpkg::options::=--force-unsafe-io',
+            '--option=Dpkg::Options::=--force-unsafe-io',
             '--option=Dpkg::Options::=--force-confold',
             ]
         cp = await arun_command(
@@ -268,9 +268,8 @@ class NetworkController(BaseNetworkController, SubiquityController):
         if not self.view_shown:
             self.apply_config(silent=True)
             self.view_shown = True
-        if self.wlan_support_install_state() in [
-                WLANSupportInstallState.DONE,
-                WLANSupportInstallState.NOT_NEEDED]:
+        if self.wlan_support_install_state() == \
+           WLANSupportInstallState.DONE:
             devices = self.model.get_all_netdevs()
         else:
             devices = [
@@ -284,6 +283,8 @@ class NetworkController(BaseNetworkController, SubiquityController):
     def configured(self):
         self.model.has_network = bool(
             self.network_event_receiver.default_routes)
+        self.model.needs_wpasupplicant = (
+            self.wlan_support_install_state() == WLANSupportInstallState.DONE)
         super().configured()
 
     async def POST(self) -> None:
@@ -365,6 +366,7 @@ class NetworkController(BaseNetworkController, SubiquityController):
             elif state in [WLANSupportInstallState.FAILED.
                            WLANSupportInstallState.NOT_AVAILABLE]:
                 return
+            # WLANSupportInstallState.DONE falls through
         self._send_update(LinkAction.NEW, dev)
 
     def update_link(self, dev):
