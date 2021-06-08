@@ -131,7 +131,16 @@ class NetworkController(BaseNetworkController, SubiquityController):
             return WLANSupportInstallState.INSTALLING
 
     async def _start_install_wpasupplicant(self):
-        r = await self._start_install_wpasupplicant()
+        if self.opts.dry_run:
+            await asyncio.sleep(10/self.app.scale_factor)
+            a = 'DONE'
+            for k in self.app.debug_flags:
+                if k.startswith('WLAN_INSTALL_STATE='):
+                    a = k.split('=', 2)[1]
+            r = getattr(WLANSupportInstallState, a)
+        else:
+            r = await self._start_install_wpasupplicant()
+        log.debug("wlan_support_install_finished %s", r)
         self._call_clients("wlan_support_install_finished", r)
         if r == WLANSupportInstallState.DONE:
             for dev in self.pending_wlan_devices:
@@ -259,10 +268,17 @@ class NetworkController(BaseNetworkController, SubiquityController):
         if not self.view_shown:
             self.apply_config(silent=True)
             self.view_shown = True
+        if self.wlan_support_install_state() in [
+                WLANSupportInstallState.DONE,
+                WLANSupportInstallState.NOT_NEEDED]:
+            devices = self.model.get_all_netdevs()
+        else:
+            devices = [
+                dev for dev in self.model.get_all_netdevs()
+                if dev.type != 'wlan'
+                ]
         return NetworkStatus(
-            devices=[
-                netdev.netdev_info() for netdev in self.model.get_all_netdevs()
-                ],
+            devices=[dev.netdev_info() for dev in devices],
             wlan_support_install_state=self.wlan_support_install_state())
 
     def configured(self):
