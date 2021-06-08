@@ -214,7 +214,7 @@ class NetworkView(BaseView):
                 "to other machines, and which preferably provides sufficient "
                 "access for updates.")
 
-    def __init__(self, controller, netdev_infos):
+    def __init__(self, controller, netdev_infos, wlan_support_install_state):
         self.controller = controller
         self.dev_name_to_table = {}
         self.cur_netdev_names = []
@@ -257,6 +257,8 @@ class NetworkView(BaseView):
         self.bottom = Pile([
             ('pack', self.buttons),
         ])
+
+        self.update_for_wlan_support_install_state(wlan_support_install_state)
 
         self.error_showing = False
 
@@ -408,6 +410,12 @@ class NetworkView(BaseView):
             self, None, self.get_candidate_bond_member_names())
         stretchy.attach_context(self.controller.context.child("add_bond"))
         self.show_stretchy_overlay(stretchy)
+
+    def update_for_wlan_support_install_state(self, state):
+        self.bottom.contents[0:0] = [
+            (Text(str(state)), self.bottom.options()),
+            (Text(""), self.bottom.options()),
+            ]
 
     def show_network_error(self, action, info=None):
         self.error_showing = True
