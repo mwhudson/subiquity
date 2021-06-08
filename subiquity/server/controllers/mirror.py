@@ -62,7 +62,11 @@ class MirrorController(SubiquityController):
         self.check_state = CheckState.NOT_STARTED
         self.lookup_task = SingleInstanceTask(self.lookup)
         self.app.hub.subscribe('network-up', self.maybe_start_check)
-        self.app.hub.subscribe('network-proxy-set', self.maybe_start_check)
+
+    async def _proxy_check(self):
+        with self.app.controllers.Proxy.set_channel.subscription() as sub:
+            async for value in sub:
+                self.maybe_start_check()
 
     def load_autoinstall_data(self, data):
         if data is None:

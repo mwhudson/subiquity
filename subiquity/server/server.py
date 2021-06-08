@@ -505,6 +505,7 @@ class SubiquityServer(Application):
 
     async def start(self):
         self.controllers.load_all()
+        self.aio_loop.create_task(self._proxy_set())
         await self.start_api_server()
         self.update_state(ApplicationState.CLOUD_INIT_WAIT)
         await self.wait_for_cloudinit()
@@ -537,9 +538,12 @@ class SubiquityServer(Application):
         self.hub.broadcast('snapd-network-change')
 
     async def _proxy_set(self):
-        await run_in_thread(
-            self.snapd.connection.configure_proxy, self.base_model.proxy)
-        self.hub.broadcast('snapd-network-change')
+        with self.controllers.Proxy.set_channel.subscription() as sub:
+            for value in sub:
+                await run_in_thread(
+                    self.snapd.connection.configure_proxy,
+                    self.base_model.proxy)
+                self.hub.broadcast('snapd-network-change')
 
     def restart(self):
         cmdline = ['snap', 'run', 'subiquity.subiquity-server']

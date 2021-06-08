@@ -89,7 +89,6 @@ class _AsyncChannelIter:
 
     def __init__(self):
         self._queue = asyncio.Queue()
-        self._next_event = None
         self._events = set()
 
     def _send(self, e, v):
@@ -171,6 +170,7 @@ if __name__ == '__main__':
         with c.subscription() as i:
             async for v in i:
                 print('c1', v)
+                break
         print('c1 done')
 
     async def c2(c):
