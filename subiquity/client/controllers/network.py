@@ -92,7 +92,7 @@ class NetworkController(SubiquityTuiController, NetworkAnswersMixin):
     async def wlan_support_install_finished_POST(
             self, state: WLANSupportInstallState) -> None:
         if self.view:
-            self.view.update_for_wlan_support_install_state(state)
+            self.view.update_for_wlan_support_install_state(state.name)
 
     async def subscribe(self):
         self.tdir = tempfile.mkdtemp()
@@ -110,7 +110,7 @@ class NetworkController(SubiquityTuiController, NetworkAnswersMixin):
         network_status = await self.endpoint.GET()
         self.view = NetworkView(
             self, network_status.devices,
-            network_status.wlan_support_install_state)
+            network_status.wlan_support_install_state.name)
         await self.subscribe()
         return self.view
 
