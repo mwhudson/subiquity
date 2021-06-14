@@ -41,7 +41,7 @@ def _is_boot_device_disk(disk):
 
 
 @is_boot_device.register(Raid)
-def is_boot_device_raid(raid):
+def _is_boot_device_raid(raid):
     bl = raid._m.bootloader
     if bl != Bootloader.UEFI:
         return False
@@ -78,7 +78,7 @@ def _can_be_boot_device_disk(disk, *, with_reformatting=False):
 
 
 @can_be_boot_device.register(Raid)
-def can_be_boot_device_raid(raid):
+def _can_be_boot_device_raid(raid):
     bl = raid._m.bootloader
     if bl != Bootloader.UEFI:
         return False
