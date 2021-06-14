@@ -344,6 +344,7 @@ _can_toggle_boot = make_checker(DeviceAction.TOGGLE_BOOT)
 
 
 @_can_toggle_boot.register(Disk)
+@_can_toggle_boot.register(Raid)
 def _can_toggle_boot_disk(disk):
     if boot.is_boot_device(disk):
         for disk2 in boot.all_boot_devices(disk._m):

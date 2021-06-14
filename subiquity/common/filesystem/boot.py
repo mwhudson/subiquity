@@ -78,13 +78,13 @@ def _can_be_boot_device_disk(disk, *, with_reformatting=False):
 
 
 @can_be_boot_device.register(Raid)
-def _can_be_boot_device_raid(raid):
+def _can_be_boot_device_raid(raid, *, with_reformatting=False):
     bl = raid._m.bootloader
     if bl != Bootloader.UEFI:
         return False
     if not raid.container or raid.container.metadata != 'imsm':
         return False
-    if raid._has_preexisting_partition():
+    if raid._has_preexisting_partition() and not with_reformatting:
         return any(p.is_esp for p in raid._partitions)
     else:
         return True
@@ -102,7 +102,7 @@ def _is_esp_partition(partition):
         return False
     if partition.device.ptable == "gpt":
         return partition.flag == "boot"
-    else:
+    elif isinstance(partition.device, Disk):
         blockdev_raw = partition._m._probe_data['blockdev'].get(
             partition._path())
         if blockdev_raw is None:
@@ -115,6 +115,8 @@ def _is_esp_partition(partition):
         except ValueError:
             # In case there was garbage in the udev entry...
             return False
+    else:
+        return False
 
 
 def all_boot_devices(model):

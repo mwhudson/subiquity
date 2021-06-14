@@ -231,8 +231,13 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         for disk in self.model._all(type='disk'):
             if not boot.can_be_boot_device(disk, with_reformatting=True):
                 continue
-            if isinstance(disk.constructed_device(), Raid):
-                if disk.constructed_device()._subvolumes:
+            cd = disk.constructed_device()
+            if isinstance(cd, Raid):
+                can_be_boot = False
+                for v in cd._subvolumes:
+                    if boot.can_be_boot_device(v, with_reformatting=True):
+                        can_be_boot = True
+                if can_be_boot:
                     continue
             disks.append(disk)
         return GuidedStorageResponse(
