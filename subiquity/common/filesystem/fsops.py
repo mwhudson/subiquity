@@ -35,7 +35,8 @@ def size(device):
 
 @size.register(Disk)
 def _disk_size(disk):
-    return fsutils.align_down(disk._info.size)
+    udev_data = disk._m._probe_data['blockdev'][disk.path]
+    return fsutils.align_down(int(udev_data['attrs']['size']))
 
 
 @size.register(Partition)

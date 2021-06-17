@@ -14,9 +14,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import functools
+import logging
+import os
+
+from probert.storage import StorageInfo
 
 from subiquity.common import types
-from subiquity.common.filesystem import boot, fsops
+from subiquity.common.filesystem import boot, fsops, fsutils
 from subiquity.models.filesystem import (
     Disk,
     LVM_LogicalVolume,
@@ -24,6 +28,8 @@ from subiquity.models.filesystem import (
     Partition,
     Raid,
     )
+
+log = logging.getLogger('subiquity.common.filesystem.labels')
 
 
 def _annotations_generic(device):
@@ -258,3 +264,40 @@ def _for_client_partition(partition, *, min_size=0):
         size=fsops.size(partition),
         number=partition._number,
         annotations=annotations(partition) + usage_labels(partition))
+
+
+def info_for_display(disk):
+    udev_data = disk._m._probe_data['blockdev'][disk.path]
+    info = StorageInfo({disk.path: udev_data})
+    bus = udev_data.get('ID_BUS', None)
+    major = udev_data.get('MAJOR', None)
+    if bus is None and major == '253':
+        bus = 'virtio'
+
+    devpath = udev_data.get('DEVPATH', disk.path)
+    # XXX probert should be doing this!!
+    rotational = '1'
+    try:
+        dev = os.path.basename(devpath)
+        rfile = '/sys/class/block/{}/queue/rotational'.format(dev)
+        rotational = open(rfile, 'r').read().strip()
+    except (PermissionError, FileNotFoundError, IOError):
+        log.exception('WARNING: Failed to read file {}'.format(rfile))
+        pass
+
+    size = info.size
+
+    dinfo = {
+        'bus': bus,
+        'devname': disk.path,
+        'devpath': devpath,
+        'model': disk.model or 'unknown',
+        'serial': disk.serial or 'unknown',
+        'wwn': disk.wwn or 'unknown',
+        'multipath': disk.multipath or 'unknown',
+        'size': size,
+        'humansize': fsutils.humanize_size(size),
+        'vendor': disk.vendor or 'unknown',
+        'rotational': 'true' if rotational == '1' else 'false',
+    }
+    return dinfo

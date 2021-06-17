@@ -26,8 +26,6 @@ import tempfile
 from curtin import storage_config
 from curtin.block import partition_kname
 
-from probert.storage import StorageInfo
-
 from subiquity.common.filesystem import fsattr, fsutils
 from subiquity.common.types import Bootloader
 
@@ -228,40 +226,6 @@ class Disk:
     name = attr.ib(default="")
     grub_device = attr.ib(default=False)
     device_id = attr.ib(default=None)
-
-    _info = attr.ib(default=None)
-
-    def info_for_display(self):
-        bus = self._info.raw.get('ID_BUS', None)
-        major = self._info.raw.get('MAJOR', None)
-        if bus is None and major == '253':
-            bus = 'virtio'
-
-        devpath = self._info.raw.get('DEVPATH', self.path)
-        # XXX probert should be doing this!!
-        rotational = '1'
-        try:
-            dev = os.path.basename(devpath)
-            rfile = '/sys/class/block/{}/queue/rotational'.format(dev)
-            rotational = open(rfile, 'r').read().strip()
-        except (PermissionError, FileNotFoundError, IOError):
-            log.exception('WARNING: Failed to read file {}'.format(rfile))
-            pass
-
-        dinfo = {
-            'bus': bus,
-            'devname': self.path,
-            'devpath': devpath,
-            'model': self.model or 'unknown',
-            'serial': self.serial or 'unknown',
-            'wwn': self.wwn or 'unknown',
-            'multipath': self.multipath or 'unknown',
-            'size': self._info.size,
-            'humansize': fsutils.humanize_size(self._info.size),
-            'vendor': self._info.vendor or 'unknown',
-            'rotational': 'true' if rotational == '1' else 'false',
-        }
-        return dinfo
 
     def dasd(self):
         return self._m._one(type='dasd', device_id=self.device_id)
@@ -651,9 +615,6 @@ class FilesystemModel(object):
                     # ignored, we need to ignore the current action too
                     # (e.g. a bcache's filesystem).
                     continue
-            if kw['type'] == 'disk':
-                path = kw['path']
-                kw['info'] = StorageInfo({path: blockdevs[path]})
             if is_probe_data:
                 kw['preserve'] = True
             obj = byid[action['id']] = c(m=self, **kw)

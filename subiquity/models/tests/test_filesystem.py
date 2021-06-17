@@ -15,8 +15,6 @@
 
 import unittest
 
-import attr
-
 from subiquity.common.filesystem import fsops, fsutils
 from subiquity.models.filesystem import (
     Bootloader,
@@ -117,16 +115,6 @@ class TestRoundRaidSize(unittest.TestCase):
             499972571136)
 
 
-@attr.s
-class FakeStorageInfo:
-    name = attr.ib(default=None)
-    size = attr.ib(default=None)
-    free = attr.ib(default=None)
-    serial = attr.ib(default=None)
-    model = attr.ib(default=None)
-    raw = attr.ib(default=attr.Factory(dict))
-
-
 def make_model(bootloader=None):
     model = FilesystemModel()
     if bootloader is not None:
@@ -142,8 +130,23 @@ def make_disk(fs_model, **kw):
     if 'ptable' not in kw:
         kw['ptable'] = 'gpt'
     size = kw.pop('size', 100*(2**30))
-    fs_model._actions.append(Disk(
-        m=fs_model, info=FakeStorageInfo(size=size), **kw))
+    if fs_model._probe_data is None:
+        fs_model._probe_data = {}
+    blockdev = fs_model._probe_data.setdefault('blockdev', {})
+    udev_data = blockdev[kw['path']] = {
+        'DEVTYPE': 'disk',
+        'ID_SERIAL': kw['serial'],
+        'attrs': {
+            'size': size,
+            },
+        }
+    kw2 = {}
+    for k, v in kw.items():
+        if k == k.upper():
+            udev_data[k] = v
+        else:
+            kw2[k] = v
+    fs_model._actions.append(Disk(m=fs_model, **kw2))
     disk = fs_model._actions[-1]
     return disk
 
@@ -283,32 +286,10 @@ class TestFilesystemModel(unittest.TestCase):
         self.assertFalse(fsops.ok_for_lvm_vg(lv))
 
 
-def fake_up_blockdata_disk(disk, **kw):
-    model = disk._m
-    if model._probe_data is None:
-        model._probe_data = {}
-    blockdev = model._probe_data.setdefault('blockdev', {})
-    d = blockdev[disk.path] = {
-        'DEVTYPE': 'disk',
-        'ID_SERIAL': disk.serial,
-        'ID_MODEL': disk.model,
-        'attrs': {
-            'size': disk._info.size,
-            },
-        }
-    d.update(kw)
-
-
-def fake_up_blockdata(model):
-    for disk in model.all_disks():
-        fake_up_blockdata_disk(disk)
-
-
 class TestAutoInstallConfig(unittest.TestCase):
 
     def test_basic(self):
         model, disk = make_model_and_disk()
-        fake_up_blockdata(model)
         model.apply_autoinstall_config([{'type': 'disk', 'id': 'disk0'}])
         [new_disk] = model.all_disks()
         self.assertIsNot(new_disk, disk)
@@ -318,7 +299,6 @@ class TestAutoInstallConfig(unittest.TestCase):
         model = make_model()
         make_disk(model, serial='smaller', size=10*(2**30))
         make_disk(model, serial='larger', size=11*(2**30))
-        fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
                 'type': 'disk',
@@ -335,7 +315,6 @@ class TestAutoInstallConfig(unittest.TestCase):
         model = make_model()
         make_disk(model, serial='aaaa', path='/dev/aaa')
         make_disk(model, serial='bbbb', path='/dev/bbb')
-        fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
                 'type': 'disk',
@@ -350,7 +329,6 @@ class TestAutoInstallConfig(unittest.TestCase):
         model = make_model()
         make_disk(model, serial='aaaa', path='/dev/aaa')
         make_disk(model, serial='bbbb', path='/dev/bbb')
-        fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
                 'type': 'disk',
@@ -367,7 +345,6 @@ class TestAutoInstallConfig(unittest.TestCase):
         model = make_model()
         make_disk(model, serial='aaaa', path='/dev/aaa')
         make_disk(model, serial='bbbb', path='/dev/bbb')
-        fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
                 'type': 'disk',
@@ -381,9 +358,7 @@ class TestAutoInstallConfig(unittest.TestCase):
     def test_path_glob(self):
         model = make_model()
         d1 = make_disk(model, serial='aaaa', path='/dev/aaa')
-        d2 = make_disk(model, serial='bbbb', path='/dev/bbb')
-        fake_up_blockdata_disk(d1)
-        fake_up_blockdata_disk(d2)
+        make_disk(model, serial='bbbb', path='/dev/bbb')
         model.apply_autoinstall_config([
             {
                 'type': 'disk',
@@ -398,10 +373,8 @@ class TestAutoInstallConfig(unittest.TestCase):
 
     def test_model_glob(self):
         model = make_model()
-        d1 = make_disk(model, serial='aaaa')
-        d2 = make_disk(model, serial='bbbb')
-        fake_up_blockdata_disk(d1, ID_MODEL='aaa')
-        fake_up_blockdata_disk(d2, ID_MODEL='bbb')
+        d1 = make_disk(model, serial='aaaa', ID_MODEL='aaaa')
+        make_disk(model, serial='bbbb', ID_MODEL='bbbb')
         model.apply_autoinstall_config([
             {
                 'type': 'disk',
@@ -416,10 +389,8 @@ class TestAutoInstallConfig(unittest.TestCase):
 
     def test_vendor_glob(self):
         model = make_model()
-        d1 = make_disk(model, serial='aaaa')
-        d2 = make_disk(model, serial='bbbb')
-        fake_up_blockdata_disk(d1, ID_VENDOR='aaa')
-        fake_up_blockdata_disk(d2, ID_VENDOR='bbb')
+        d1 = make_disk(model, serial='aaaa', ID_VENDOR='aaaa')
+        make_disk(model, serial='bbbb', ID_VENDOR='bbbb')
         model.apply_autoinstall_config([
             {
                 'type': 'disk',
@@ -435,7 +406,6 @@ class TestAutoInstallConfig(unittest.TestCase):
     def test_no_matching_disk(self):
         model = make_model()
         make_disk(model, serial='bbbb')
-        fake_up_blockdata(model)
         with self.assertRaises(Exception) as cm:
             model.apply_autoinstall_config([{
                     'type': 'disk',
@@ -447,7 +417,6 @@ class TestAutoInstallConfig(unittest.TestCase):
     def test_reuse_disk(self):
         model = make_model()
         make_disk(model, serial='aaaa')
-        fake_up_blockdata(model)
         with self.assertRaises(Exception) as cm:
             model.apply_autoinstall_config([{
                     'type': 'disk',
@@ -464,7 +433,6 @@ class TestAutoInstallConfig(unittest.TestCase):
     def test_partition_percent(self):
         model = make_model()
         make_disk(model, serial='aaaa', size=fsutils.dehumanize_size("100M"))
-        fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
                 'type': 'disk',
@@ -483,7 +451,6 @@ class TestAutoInstallConfig(unittest.TestCase):
     def test_partition_remaining(self):
         model = make_model()
         make_disk(model, serial='aaaa', size=fsutils.dehumanize_size("100M"))
-        fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
                 'type': 'disk',
@@ -512,7 +479,6 @@ class TestAutoInstallConfig(unittest.TestCase):
     def test_lv_percent(self):
         model = make_model()
         make_disk(model, serial='aaaa', size=fsutils.dehumanize_size("100M"))
-        fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
                 'type': 'disk',
@@ -539,7 +505,6 @@ class TestAutoInstallConfig(unittest.TestCase):
     def test_lv_remaining(self):
         model = make_model()
         make_disk(model, serial='aaaa', size=fsutils.dehumanize_size("100M"))
-        fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
                 'type': 'disk',

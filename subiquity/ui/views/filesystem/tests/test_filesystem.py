@@ -8,11 +8,10 @@ from subiquitycore.testing import view_helpers
 from subiquity.client.controllers.filesystem import FilesystemController
 from subiquity.models.filesystem import (
     Bootloader,
-    Disk,
     FilesystemModel,
     )
 from subiquity.models.tests.test_filesystem import (
-    FakeStorageInfo,
+    make_disk,
     )
 from subiquity.ui.views.filesystem.filesystem import FilesystemView
 
@@ -34,9 +33,7 @@ class FilesystemViewTests(unittest.TestCase):
         model._probe_data = {}
         model._actions = []
         model._all_ids = set()
-        disk = Disk(
-            m=model, serial="DISK-SERIAL", path='/dev/thing',
-            info=FakeStorageInfo(size=100*(2**20), free=50*(2**20)))
+        disk = make_disk(model, serial="DISK-SERIAL")
         view = self.make_view(model, [disk])
         w = view_helpers.find_with_pred(
             view,
