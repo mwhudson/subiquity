@@ -37,13 +37,9 @@ from subiquitycore.ui.container import Pile
 from subiquitycore.ui.stretchy import Stretchy
 from subiquitycore.ui.utils import rewrap
 
-from subiquity.common.filesystem import boot, fsops, labels
+from subiquity.common.filesystem import boot, fsops, fsutils, labels
 from subiquity.models.filesystem import (
-    align_up,
     Disk,
-    HUMAN_UNITS,
-    dehumanize_size,
-    humanize_size,
     LVM_VolGroup,
 )
 from subiquity.ui.mount import (
@@ -96,7 +92,8 @@ class SizeWidget(StringEditor):
         val = self.value
         if not val:
             return
-        suffixes = ''.join(HUMAN_UNITS) + ''.join(HUMAN_UNITS).lower()
+        suffixes = ''.join(fsutils.HUMAN_UNITS) + \
+                   ''.join(fsutils.HUMAN_UNITS).lower()
         if val[-1] not in suffixes:
             unit = self.form.size_str[-1]
             val += unit
@@ -111,9 +108,10 @@ class SizeWidget(StringEditor):
                 ('info_minor',
                  _("Capped partition size at {size}").format(
                      size=self.form.size_str)))
-        elif (align_up(sz) != sz and
-              humanize_size(align_up(sz)) != self.form.size.value):
-            sz_str = humanize_size(align_up(sz))
+        elif (fsutils.align_up(sz) != sz and
+              fsutils.humanize_size(fsutils.align_up(sz))
+              != self.form.size.value):
+            sz_str = fsutils.humanize_size(fsutils.align_up(sz))
             self.value = sz_str
             self.form.size.show_extra(
                 ('info_minor', _("Rounded size up to {size}").format(
@@ -161,7 +159,7 @@ class PartitionForm(Form):
             if m.path != initial_path}
         self.max_size = max_size
         if max_size is not None:
-            self.size_str = humanize_size(max_size)
+            self.size_str = fsutils.humanize_size(max_size)
             self.size.caption = _("Size (max {size}):").format(
                 size=self.size_str)
         self.lvm_names = lvm_names
@@ -210,13 +208,14 @@ class PartitionForm(Form):
     def clean_size(self, val):
         if not val:
             return self.max_size
-        suffixes = ''.join(HUMAN_UNITS) + ''.join(HUMAN_UNITS).lower()
+        suffixes = ''.join(fsutils.HUMAN_UNITS) + \
+                   ''.join(fsutils.HUMAN_UNITS).lower()
         if val[-1] not in suffixes:
             val += self.size_str[-1]
         if val == self.size_str:
             return self.max_size
         else:
-            return dehumanize_size(val)
+            return fsutils.dehumanize_size(val)
 
     def clean_mount(self, val):
         if self.model.is_mounted_filesystem(self.fstype):
@@ -385,7 +384,7 @@ class PartitionStretchy(Stretchy):
                 label = None
             else:
                 label = _("Save")
-            initial['size'] = humanize_size(self.partition.size)
+            initial['size'] = fsutils.humanize_size(self.partition.size)
             max_size += self.partition.size
 
             if not boot.is_esp(partition):

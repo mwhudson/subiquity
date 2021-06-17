@@ -63,10 +63,7 @@ from subiquitycore.view import BaseView
 from subiquity.common.filesystem.actions import (
     DeviceAction,
     )
-from subiquity.common.filesystem import boot, fsops, labels
-from subiquity.models.filesystem import (
-    humanize_size,
-    )
+from subiquity.common.filesystem import boot, fsops, fsutils, labels
 
 from .delete import ConfirmDeleteStretchy, ConfirmReformatStretchy
 from .disk_info import DiskInfoStretchy
@@ -92,7 +89,7 @@ class MountInfo:
 
     @property
     def size(self):
-        return humanize_size(fsops.size(self.mount.device.volume))
+        return fsutils.humanize_size(fsops.size(self.mount.device.volume))
 
     @property
     def fstype(self):
@@ -406,7 +403,7 @@ class DeviceList(WidgetWrap):
             if (self.show_available
                     and fsops.used(device) > 0
                     and fsops.free_for_partitions(device) > 0):
-                free = humanize_size(fsops.free_for_partitions(device))
+                free = fsutils.humanize_size(fsops.free_for_partitions(device))
                 rows.append(TableRow([
                     Text(""),
                     (3, Color.info_minor(Text(_("free space")))),

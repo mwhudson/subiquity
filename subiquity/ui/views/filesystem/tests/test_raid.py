@@ -7,9 +7,7 @@ from subiquitycore.testing import view_helpers
 from subiquitycore.view import BaseView
 
 from subiquity.client.controllers.filesystem import FilesystemController
-from subiquity.models.filesystem import (
-    raidlevels_by_value,
-    )
+from subiquity.common.filesystem import fsutils
 from subiquity.ui.views.filesystem.raid import RaidStretchy
 from subiquity.ui.views.filesystem.tests.test_partition import (
     make_model_and_disk,
@@ -43,7 +41,7 @@ class RaidViewTests(unittest.TestCase):
             'name': 'md0',
             'devices': {part1, part2},
             'spare_devices': {part3},
-            'level': raidlevels_by_value["raid1"],
+            'level': fsutils.raidlevels_by_value["raid1"],
             }
         view_helpers.enter_data(stretchy.form, form_data)
         view_helpers.click(stretchy.form.done_btn.base_widget)
@@ -58,13 +56,13 @@ class RaidViewTests(unittest.TestCase):
         view, stretchy = make_view(model, raid)
         form_data = {
             'name': 'md1',
-            'level': raidlevels_by_value["raid0"],
+            'level': fsutils.raidlevels_by_value["raid0"],
             }
         expected_data = {
             'name': 'md1',
             'devices': {part1, part2},
             'spare_devices': set(),
-            'level': raidlevels_by_value["raid0"],
+            'level': fsutils.raidlevels_by_value["raid0"],
             }
         view_helpers.enter_data(stretchy.form, form_data)
         view_helpers.click(stretchy.form.done_btn.base_widget)

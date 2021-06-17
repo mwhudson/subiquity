@@ -15,11 +15,9 @@
 
 import functools
 
+from subiquity.common.filesystem import fsutils
 from subiquity.models.filesystem import (
-    align_down,
     Disk,
-    get_lvm_size,
-    get_raid_size,
     DM_Crypt,
     GPT_OVERHEAD,
     LUKS_OVERHEAD,
@@ -37,7 +35,7 @@ def size(device):
 
 @size.register(Disk)
 def _disk_size(disk):
-    return align_down(disk._info.size)
+    return fsutils.align_down(disk._info.size)
 
 
 @size.register(Partition)
@@ -48,12 +46,12 @@ def _attr_size(device):
 
 @size.register(Raid)
 def _raid_size(raid):
-    return get_raid_size(raid.raidlevel, raid.devices)
+    return fsutils.get_raid_size(raid.raidlevel, raid.devices)
 
 
 @size.register(LVM_VolGroup)
 def _vg_size(vg):
-    return get_lvm_size(vg.devices)
+    return fsutils.get_lvm_size(vg.devices)
 
 
 @size.register(DM_Crypt)

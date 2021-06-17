@@ -19,13 +19,12 @@ import logging
 from subiquitycore.lsb_release import lsb_release
 
 from subiquity.client.controller import SubiquityTuiController
-from subiquity.common.filesystem import fsops
+from subiquity.common.filesystem import fsops, fsutils
 from subiquity.common.filesystem.manipulator import FilesystemManipulator
 from subiquity.common.types import ProbeStatus
 from subiquity.models.filesystem import (
     Bootloader,
     FilesystemModel,
-    raidlevels_by_value,
     )
 from subiquity.ui.views import (
     FilesystemView,
@@ -148,7 +147,7 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
         return r
 
     def _action_clean_level(self, level):
-        return raidlevels_by_value[level]
+        return fsutils.raidlevels_by_value[level]
 
     async def _answers_action(self, action):
         from subiquitycore.ui.stretchy import StretchyOverlay

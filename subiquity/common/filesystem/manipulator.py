@@ -15,10 +15,9 @@
 
 import logging
 
-from subiquity.common.filesystem import boot, fsops
+from subiquity.common.filesystem import boot, fsops, fsutils
 from subiquity.common.types import Bootloader
 from subiquity.models.filesystem import (
-    align_up,
     Partition,
     )
 
@@ -199,7 +198,7 @@ class FilesystemManipulator:
 
         if partition is not None:
             if 'size' in spec:
-                partition.size = align_up(spec['size'])
+                partition.size = fsutils.align_up(spec['size'])
                 if fsops.free_for_partitions(disk) < 0:
                     raise Exception("partition size too large")
             self.delete_filesystem(partition.fs())
@@ -239,7 +238,7 @@ class FilesystemManipulator:
             if 'name' in spec:
                 lv.name = spec['name']
             if 'size' in spec:
-                lv.size = align_up(spec['size'])
+                lv.size = fsutils.align_up(spec['size'])
                 if fsops.free_for_partitions(vg) < 0:
                     raise Exception("lv size too large")
             self.delete_filesystem(lv.fs())

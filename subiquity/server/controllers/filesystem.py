@@ -39,7 +39,7 @@ from subiquity.common.errorreport import ErrorReportKind
 from subiquity.common.filesystem.actions import (
     DeviceAction,
     )
-from subiquity.common.filesystem import boot, fsops, labels
+from subiquity.common.filesystem import boot, fsops, fsutils, labels
 from subiquity.common.filesystem.manipulator import FilesystemManipulator
 from subiquity.common.types import (
     Bootloader,
@@ -47,9 +47,6 @@ from subiquity.common.types import (
     GuidedStorageResponse,
     ProbeStatus,
     StorageResponse,
-    )
-from subiquity.models.filesystem import (
-    dehumanize_size,
     )
 from subiquity.server.controller import (
     SubiquityController,
@@ -135,7 +132,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             self.add_boot_disk(disk)
         self.create_partition(
             device=disk, spec=dict(
-                size=dehumanize_size('1G'),
+                size=fsutils.dehumanize_size('1G'),
                 fstype="ext4",
                 mount='/boot'
                 ))

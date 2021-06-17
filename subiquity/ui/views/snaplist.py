@@ -54,11 +54,11 @@ from subiquitycore.ui.utils import (
     )
 from subiquitycore.view import BaseView
 
+from subiquity.common.filesystem import fsutils
 from subiquity.common.types import (
     SnapCheckState,
     SnapSelection,
     )
-from subiquity.models.filesystem import humanize_size
 
 log = logging.getLogger("subiquity.views.snaplist")
 
@@ -139,7 +139,7 @@ class SnapInfoView(WidgetWrap):
                 btn,
                 Text(csi.version),
                 Text("(" + csi.revision + ")"),
-                Text(humanize_size(csi.size)),
+                Text(fsutils.humanize_size(csi.size)),
                 Text(format_datetime(csi.released_at)),
                 Text(csi.confinement),
             ])))

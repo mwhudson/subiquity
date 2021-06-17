@@ -7,9 +7,7 @@ from subiquitycore.testing import view_helpers
 from subiquitycore.view import BaseView
 
 from subiquity.client.controllers.filesystem import FilesystemController
-from subiquity.models.filesystem import (
-    dehumanize_size,
-    )
+from subiquity.common.filesystem import fsutils
 from subiquity.models.tests.test_filesystem import (
     make_model_and_disk,
     )
@@ -63,7 +61,7 @@ class PartitionViewTests(unittest.TestCase):
         view_helpers.enter_data(stretchy.form, valid_data)
         view_helpers.click(stretchy.form.done_btn.base_widget)
         valid_data['mount'] = '/'
-        valid_data['size'] = dehumanize_size(valid_data['size'])
+        valid_data['size'] = fsutils.dehumanize_size(valid_data['size'])
         valid_data['use_swap'] = False
         view.controller.partition_disk_handler.assert_called_once_with(
             stretchy.disk, None, valid_data)
@@ -81,7 +79,7 @@ class PartitionViewTests(unittest.TestCase):
         view_helpers.enter_data(stretchy.form, form_data)
         view_helpers.click(stretchy.form.done_btn.base_widget)
         expected_data = {
-            'size': dehumanize_size(form_data['size']),
+            'size': fsutils.dehumanize_size(form_data['size']),
             'fstype': 'xfs',
             'mount': None,
             'use_swap': False,
@@ -180,7 +178,7 @@ class PartitionViewTests(unittest.TestCase):
         view_helpers.enter_data(stretchy.form, form_data)
         view_helpers.click(stretchy.form.done_btn.base_widget)
         expected_data = {
-            'size': dehumanize_size(form_data['size']),
+            'size': fsutils.dehumanize_size(form_data['size']),
             'fstype': "fat32",
             'mount': '/boot/efi',
             'use_swap': False,

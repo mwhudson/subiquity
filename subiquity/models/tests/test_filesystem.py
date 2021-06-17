@@ -17,17 +17,12 @@ import unittest
 
 import attr
 
-from subiquity.common.filesystem import fsops
+from subiquity.common.filesystem import fsops, fsutils
 from subiquity.models.filesystem import (
     Bootloader,
-    dehumanize_size,
     Disk,
     FilesystemModel,
-    get_raid_size,
-    humanize_size,
     Partition,
-    align_down,
-    LVM_CHUNK_SIZE,
     )
 
 
@@ -44,7 +39,7 @@ class TestHumanizeSize(unittest.TestCase):
     def test_basics(self):
         for string, integer in self.basics:
             with self.subTest(input=string):
-                self.assertEqual(string, humanize_size(integer))
+                self.assertEqual(string, fsutils.humanize_size(integer))
 
 
 class TestDehumanizeSize(unittest.TestCase):
@@ -85,7 +80,8 @@ class TestDehumanizeSize(unittest.TestCase):
     def test_basics(self):
         for input, expected_output in self.basics:
             with self.subTest(input=input):
-                self.assertEqual(expected_output, dehumanize_size(input))
+                self.assertEqual(
+                    expected_output, fsutils.dehumanize_size(input))
 
     errors = [
         ('', "input cannot be empty"),
@@ -100,7 +96,7 @@ class TestDehumanizeSize(unittest.TestCase):
         for input, expected_error in self.errors:
             with self.subTest(input=input):
                 try:
-                    dehumanize_size(input)
+                    fsutils.dehumanize_size(input)
                 except ValueError as e:
                     actual_error = str(e)
                 else:
@@ -117,7 +113,7 @@ class TestRoundRaidSize(unittest.TestCase):
         disk2 = make_disk(model, size=500107862016)
 
         self.assertLessEqual(
-            get_raid_size("raid1", [disk1, disk2]),
+            fsutils.get_raid_size("raid1", [disk1, disk2]),
             499972571136)
 
 
@@ -467,7 +463,7 @@ class TestAutoInstallConfig(unittest.TestCase):
 
     def test_partition_percent(self):
         model = make_model()
-        make_disk(model, serial='aaaa', size=dehumanize_size("100M"))
+        make_disk(model, serial='aaaa', size=fsutils.dehumanize_size("100M"))
         fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
@@ -486,7 +482,7 @@ class TestAutoInstallConfig(unittest.TestCase):
 
     def test_partition_remaining(self):
         model = make_model()
-        make_disk(model, serial='aaaa', size=dehumanize_size("100M"))
+        make_disk(model, serial='aaaa', size=fsutils.dehumanize_size("100M"))
         fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
@@ -497,7 +493,7 @@ class TestAutoInstallConfig(unittest.TestCase):
                 'type': 'partition',
                 'id': 'part0',
                 'device': 'disk0',
-                'size': dehumanize_size('50M'),
+                'size': fsutils.dehumanize_size('50M'),
             },
             {
                 'type': 'partition',
@@ -510,11 +506,12 @@ class TestAutoInstallConfig(unittest.TestCase):
         part1 = model._one(type="partition", id="part1")
         self.assertEqual(
             part1.size,
-            fsops.available_for_partitions(disk) - dehumanize_size('50M'))
+            fsops.available_for_partitions(disk) -
+            fsutils.dehumanize_size('50M'))
 
     def test_lv_percent(self):
         model = make_model()
-        make_disk(model, serial='aaaa', size=dehumanize_size("100M"))
+        make_disk(model, serial='aaaa', size=fsutils.dehumanize_size("100M"))
         fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
@@ -541,7 +538,7 @@ class TestAutoInstallConfig(unittest.TestCase):
 
     def test_lv_remaining(self):
         model = make_model()
-        make_disk(model, serial='aaaa', size=dehumanize_size("100M"))
+        make_disk(model, serial='aaaa', size=fsutils.dehumanize_size("100M"))
         fake_up_blockdata(model)
         model.apply_autoinstall_config([
             {
@@ -559,7 +556,7 @@ class TestAutoInstallConfig(unittest.TestCase):
                 'id': 'lv1',
                 'name': 'lv1',
                 'volgroup': 'vg0',
-                'size': dehumanize_size("50M"),
+                'size': fsutils.dehumanize_size("50M"),
             },
             {
                 'type': 'lvm_partition',
@@ -572,9 +569,10 @@ class TestAutoInstallConfig(unittest.TestCase):
         vg = model._one(type="lvm_volgroup")
         lv2 = model._one(type="lvm_partition", id='lv2')
         self.assertEqual(
-            lv2.size, align_down(
-                fsops.available_for_partitions(vg) - dehumanize_size("50M"),
-                LVM_CHUNK_SIZE))
+            lv2.size, fsutils.align_down(
+                fsops.available_for_partitions(vg)
+                - fsutils.dehumanize_size("50M"),
+                fsutils.LVM_CHUNK_SIZE))
 
     def test_render_does_not_include_unreferenced(self):
         model = make_model(Bootloader.NONE)

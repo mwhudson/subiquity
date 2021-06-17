@@ -19,10 +19,7 @@ from subiquitycore.ui.utils import (
     Color,
     )
 
-from subiquity.common.filesystem import fsops, labels
-from subiquity.models.filesystem import (
-    humanize_size,
-    )
+from subiquity.common.filesystem import fsops, fsutils, labels
 
 
 def summarize_device(device, part_filter=lambda p: True):
@@ -41,7 +38,7 @@ def summarize_device(device, part_filter=lambda p: True):
     rows = [(device, [
         (2, Text(label)),
         Text(labels.desc(device)),
-        Text(humanize_size(fsops.size(device)), align="right"),
+        Text(fsutils.humanize_size(fsops.size(device)), align="right"),
         ])]
     partitions = device.partitions()
     if partitions:
@@ -53,7 +50,7 @@ def summarize_device(device, part_filter=lambda p: True):
             rows.append((part, [
                 Text(labels.label(part, short=True)),
                 (2, Text(details)),
-                Text(humanize_size(part.size), align="right"),
+                Text(fsutils.humanize_size(part.size), align="right"),
                 ]))
     else:
         rows.append((None, [

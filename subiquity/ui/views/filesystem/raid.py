@@ -40,13 +40,7 @@ from subiquitycore.ui.stretchy import (
     Stretchy,
     )
 
-from subiquity.common.filesystem import fsops
-from subiquity.models.filesystem import (
-    get_raid_size,
-    humanize_size,
-    raidlevels,
-    raidlevels_by_value,
-    )
+from subiquity.common.filesystem import fsops, fsutils
 from subiquity.ui.views.filesystem.compound import (
     CompoundDiskForm,
     get_possible_components,
@@ -57,7 +51,7 @@ log = logging.getLogger('subiquity.ui.raid')
 
 
 raidlevel_choices = [
-    Option((_(level.name), True, level)) for level in raidlevels]
+    Option((_(level.name), True, level)) for level in fsutils.raidlevels]
 
 
 class RaidnameEditor(StringEditor, WantsToKnowFormField):
@@ -135,7 +129,7 @@ class RaidStretchy(Stretchy):
             initial = {
                 'devices': {},
                 'name': name,
-                'level': raidlevels_by_value["raid1"],
+                'level': fsutils.raidlevels_by_value["raid1"],
                 'size': '-',
                 }
         else:
@@ -154,7 +148,7 @@ class RaidStretchy(Stretchy):
             initial = {
                 'devices': devices,
                 'name': name,
-                'level': raidlevels_by_value[existing.raidlevel]
+                'level': fsutils.raidlevels_by_value[existing.raidlevel]
                 }
 
         possible_components = get_possible_components(
@@ -183,8 +177,9 @@ class RaidStretchy(Stretchy):
     def _select_level(self, sender, new_level):
         active_device_count = len(self.form.devices.widget.active_devices)
         if active_device_count >= new_level.min_devices:
-            self.form.size.value = humanize_size(
-                get_raid_size(new_level.value, self.form.devices.value))
+            self.form.size.value = fsutils.humanize_size(
+                fsutils.get_raid_size(
+                    new_level.value, self.form.devices.value))
         else:
             self.form.size.value = '-'
         self.form.devices.widget.set_supports_spares(new_level.supports_spares)
@@ -194,8 +189,9 @@ class RaidStretchy(Stretchy):
 
     def _change_devices(self, sender, new_devices):
         if len(sender.active_devices) >= self.form.level.value.min_devices:
-            self.form.size.value = humanize_size(
-                get_raid_size(self.form.level.value.value, new_devices))
+            self.form.size.value = fsutils.humanize_size(
+                fsutils.get_raid_size(
+                    self.form.level.value.value, new_devices))
         else:
             self.form.size.value = '-'
 

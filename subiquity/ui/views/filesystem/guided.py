@@ -44,8 +44,8 @@ from subiquitycore.ui.utils import (
     )
 from subiquitycore.view import BaseView
 
+from subiquity.common.filesystem import fsutils
 from subiquity.common.types import GuidedChoice
-from subiquity.models.filesystem import humanize_size
 
 
 log = logging.getLogger("subiquity.ui.views.filesystem.guided")
@@ -86,7 +86,7 @@ def summarize_device(disk):
     rows = [(disk, [
         (2, Text(label)),
         Text(disk.type),
-        Text(humanize_size(disk.size), align="right"),
+        Text(fsutils.humanize_size(disk.size), align="right"),
         ])]
     if disk.partitions:
         for part in disk.partitions:
@@ -94,7 +94,7 @@ def summarize_device(disk):
             rows.append((part, [
                 Text(_("partition {number}").format(number=part.number)),
                 (2, Text(details)),
-                Text(humanize_size(part.size), align="right"),
+                Text(fsutils.humanize_size(part.size), align="right"),
                 ]))
     else:
         rows.append((None, [

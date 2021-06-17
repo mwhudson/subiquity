@@ -39,11 +39,7 @@ from subiquitycore.ui.stretchy import (
     Stretchy,
     )
 
-from subiquity.common.filesystem import fsops
-from subiquity.models.filesystem import (
-    get_lvm_size,
-    humanize_size,
-    )
+from subiquity.common.filesystem import fsops, fsutils
 from subiquity.ui.views.filesystem.compound import (
     CompoundDiskForm,
     get_possible_components,
@@ -197,7 +193,8 @@ class VolGroupStretchy(Stretchy):
 
     def _change_devices(self, sender, new_devices):
         if len(sender.active_devices) >= 1:
-            self.form.size.value = humanize_size(get_lvm_size(new_devices))
+            self.form.size.value = fsutils.humanize_size(
+                fsutils.get_lvm_size(new_devices))
         else:
             self.form.size.value = '-'
 

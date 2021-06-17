@@ -18,7 +18,6 @@ import collections
 import fnmatch
 import itertools
 import logging
-import math
 import os
 import pathlib
 import platform
@@ -26,10 +25,10 @@ import tempfile
 
 from curtin import storage_config
 from curtin.block import partition_kname
-from curtin.util import human2bytes
 
 from probert.storage import StorageInfo
 
+from subiquity.common.filesystem import fsattr, fsutils
 from subiquity.common.types import Bootloader
 
 
@@ -126,16 +125,16 @@ def _fsobj_constructed_device(self, skip_dm_crypt=True):
 def fsobj(typ, *, formattable=False, has_partitions=False):
     def wrapper(c):
         c.__attrs_post_init__ = _set_backlinks
-        c.type = attributes.const(typ)
+        c.type = fsattr.const(typ)
         c.id = attr.ib(default=None)
         c._m = attr.ib(repr=None, default=None)
         if formattable:
-            c._fs = attributes.backlink()
+            c._fs = fsattr.backlink()
             c.fs = lambda self: self._fs
-            c._constructed_device = attributes.backlink()
+            c._constructed_device = fsattr.backlink()
             c.constructed_device = _fsobj_constructed_device
         if has_partitions:
-            c._partitions = attributes.backlink(default=attr.Factory(list))
+            c._partitions = fsattr.backlink(default=attr.Factory(list))
             c.partitions = lambda self: self._partitions
         c = attr.s(cmp=False, repr=False)(c)
         c.__repr__ = _fsobj__repr
@@ -172,243 +171,6 @@ def reverse_dependencies(obj):
             yield from v
         elif v is not None:
             yield v
-
-
-@attr.s(cmp=False)
-class RaidLevel:
-    name = attr.ib()
-    value = attr.ib()
-    min_devices = attr.ib()
-    supports_spares = attr.ib(default=True)
-
-
-raidlevels = [
-    # for translators: this is a description of a RAID level
-    RaidLevel(_("0 (striped)"),  "raid0",  2, False),
-    # for translators: this is a description of a RAID level
-    RaidLevel(_("1 (mirrored)"), "raid1",  2),
-    RaidLevel(_("5"),            "raid5",  3),
-    RaidLevel(_("6"),            "raid6",  4),
-    RaidLevel(_("10"),           "raid10", 4),
-    ]
-
-
-def _raidlevels_by_value():
-    r = {level.value: level for level in raidlevels}
-    for n in 0, 1, 5, 6, 10:
-        r[str(n)] = r[n] = r["raid"+str(n)]
-    r["stripe"] = r["raid0"]
-    r["mirror"] = r["raid1"]
-    return r
-
-
-raidlevels_by_value = _raidlevels_by_value()
-
-HUMAN_UNITS = ['B', 'K', 'M', 'G', 'T', 'P']
-
-
-def humanize_size(size):
-    if size == 0:
-        return "0B"
-    p = int(math.floor(math.log(size, 2) / 10))
-    # We want to truncate the non-integral part, not round to nearest.
-    s = "{:.17f}".format(size / 2 ** (10 * p))
-    i = s.index('.')
-    s = s[:i + 4]
-    return s + HUMAN_UNITS[int(p)]
-
-
-def dehumanize_size(size):
-    # convert human 'size' to integer
-    size_in = size
-
-    if not size:
-        # Attempting to convert input to a size
-        raise ValueError(_("input cannot be empty"))
-
-    if not size[-1].isdigit():
-        suffix = size[-1].upper()
-        size = size[:-1]
-    else:
-        suffix = None
-
-    parts = size.split('.')
-    if len(parts) > 2:
-        raise ValueError(
-            # Attempting to convert input to a size
-            _("{input!r} is not valid input").format(input=size_in))
-    elif len(parts) == 2:
-        div = 10 ** len(parts[1])
-        size = parts[0] + parts[1]
-    else:
-        div = 1
-
-    try:
-        num = int(size)
-    except ValueError:
-        raise ValueError(
-            # Attempting to convert input to a size
-            _("{input!r} is not valid input").format(input=size_in))
-
-    if suffix is not None:
-        if suffix not in HUMAN_UNITS:
-            raise ValueError(
-                # Attempting to convert input to a size
-                "unrecognized suffix {suffix!r} in {input!r}".format(
-                    suffix=size_in[-1], input=size_in))
-        mult = 2 ** (10 * HUMAN_UNITS.index(suffix))
-    else:
-        mult = 1
-
-    if num < 0:
-        # Attempting to convert input to a size
-        raise ValueError("{input!r}: cannot be negative".format(input=size_in))
-
-    return num * mult // div
-
-
-DEFAULT_CHUNK = 512
-
-
-# The calculation of how much of a device mdadm uses for raid is more than a
-# touch ridiculous. What follows is a translation of the code at:
-# https://git.kernel.org/pub/scm/utils/mdadm/mdadm.git/tree/super1.c,
-# specifically choose_bm_space and the end of validate_geometry1. Note that
-# that calculations are in terms of 512-byte sectors.
-#
-# We make some assumptions about the defaults mdadm uses but mostly that the
-# default metadata version is 1.2, and other formats use less space.
-#
-# Note that data_offset is computed for the first disk mdadm examines and then
-# used for all devices, so the order matters! (Well, if the size of the
-# devices vary, which is not normal but also not something we prevent).
-#
-# All this is tested against reality in ./scripts/get-raid-sizes.py
-def calculate_data_offset_bytes(devsize):
-    # Convert to sectors to make it easier to compare this code to mdadm's (we
-    # convert back at the end)
-    devsize >>= 9
-
-    devsize = align_down(devsize, DEFAULT_CHUNK)
-
-    # conversion of choose_bm_space:
-    if devsize < 64*2:
-        bmspace = 0
-    elif devsize - 64*2 >= 200*1024*1024*2:
-        bmspace = 128*2
-    elif devsize - 4*2 > 8*1024*1024*2:
-        bmspace = 64*2
-    else:
-        bmspace = 4*2
-
-    # From the end of validate_geometry1, assuming metadata 1.2.
-    headroom = 128*1024*2
-    while (headroom << 10) > devsize and headroom / 2 >= DEFAULT_CHUNK*2*2:
-        headroom >>= 1
-
-    data_offset = 12*2 + bmspace + headroom
-    log.debug(
-        "get_raid_size: adjusting for %s sectors of overhead", data_offset)
-    data_offset = align_up(data_offset, 2*1024)
-
-    # convert back to bytes
-    return data_offset << 9
-
-
-def raid_device_sort(devices):
-    # Because the device order matters to mdadm, we sort consistently but
-    # arbitrarily when computing the size and when rendering the config (so
-    # curtin passes the devices to mdadm in the order we calculate the size
-    # for)
-    return sorted(devices, key=lambda d: d.id)
-
-
-def get_raid_size(level, devices):
-    from subiquity.common.filesystem import fsops
-    if len(devices) == 0:
-        return 0
-    devices = raid_device_sort(devices)
-    data_offset = calculate_data_offset_bytes(fsops.size(devices[0]))
-    sizes = [align_down(fsops.size(dev) - data_offset) for dev in devices]
-    min_size = min(sizes)
-    if min_size <= 0:
-        return 0
-    if level == "raid0":
-        return sum(sizes)
-    elif level == "raid1":
-        return min_size
-    elif level == "raid5":
-        return min_size * (len(devices) - 1)
-    elif level == "raid6":
-        return min_size * (len(devices) - 2)
-    elif level == "raid10":
-        return min_size * (len(devices) // 2)
-    else:
-        raise ValueError("unknown raid level %s" % level)
-
-
-# These are only defaults but curtin does not let you change/specify
-# them at this time.
-LVM_OVERHEAD = (1 << 20)
-LVM_CHUNK_SIZE = 4 * (1 << 20)
-
-
-def get_lvm_size(devices, size_overrides={}):
-    from subiquity.common.filesystem import fsops
-    r = 0
-    for d in devices:
-        r += align_down(
-            size_overrides.get(d, fsops.size(d)) - LVM_OVERHEAD,
-            LVM_CHUNK_SIZE)
-    return r
-
-
-def _conv_size(s):
-    if isinstance(s, str):
-        if '%' in s:
-            return s
-        return int(human2bytes(s))
-    return s
-
-
-class attributes:
-    # Just a namespace to hang our wrappers around attr.ib() off.
-
-    @staticmethod
-    def ref(*, backlink=None):
-        metadata = {'ref': True}
-        if backlink:
-            metadata['backlink'] = backlink
-        return attr.ib(metadata=metadata)
-
-    @staticmethod
-    def reflist(*, backlink=None, default=attr.NOTHING):
-        metadata = {'reflist': True}
-        if backlink:
-            metadata['backlink'] = backlink
-        return attr.ib(metadata=metadata, default=default)
-
-    @staticmethod
-    def backlink(*, default=None):
-        return attr.ib(
-            init=False, default=default, metadata={'is_backlink': True})
-
-    @staticmethod
-    def const(value):
-        return attr.ib(default=value)
-
-    @staticmethod
-    def size():
-        return attr.ib(converter=_conv_size)
-
-    @staticmethod
-    def ptable():
-
-        def conv(val):
-            if val == "dos":
-                val = "msdos"
-            return val
-        return attr.ib(default=None, converter=conv)
 
 
 def asdict(inst):
@@ -455,7 +217,7 @@ class Dasd:
 
 @fsobj("disk", formattable=True, has_partitions=True)
 class Disk:
-    ptable = attributes.ptable()
+    ptable = fsattr.ptable()
     serial = attr.ib(default=None)
     wwn = attr.ib(default=None)
     multipath = attr.ib(default=None)
@@ -495,7 +257,7 @@ class Disk:
             'wwn': self.wwn or 'unknown',
             'multipath': self.multipath or 'unknown',
             'size': self._info.size,
-            'humansize': humanize_size(self._info.size),
+            'humansize': fsutils.humanize_size(self._info.size),
             'vendor': self._info.vendor or 'unknown',
             'rotational': 'true' if rotational == '1' else 'false',
         }
@@ -507,8 +269,8 @@ class Disk:
 
 @fsobj("partition", formattable=True)
 class Partition:
-    device = attributes.ref(backlink="_partitions")  # Disk
-    size = attributes.size()
+    device = fsattr.ref(backlink="_partitions")  # Disk
+    size = fsattr.size()
 
     wipe = attr.ib(default=None)
     flag = attr.ib(default=None)
@@ -535,21 +297,24 @@ class Partition:
 @fsobj("raid", formattable=True, has_partitions=True)
 class Raid:
     name = attr.ib()
-    raidlevel = attr.ib(converter=lambda x: raidlevels_by_value[x].value)
-    devices = attributes.reflist(backlink="_constructed_device")
+    raidlevel = attr.ib(
+        converter=lambda x: fsutils.raidlevels_by_value[x].value)
+    devices = fsattr.reflist(backlink="_constructed_device")
 
     def serialize_devices(self):
         # Surprisingly, the order of devices passed to mdadm --create
         # matters (see get_raid_size) so we sort devices here the same
         # way get_raid_size does.
-        return {'devices': [d.id for d in raid_device_sort(self.devices)]}
+        return {
+            'devices': [d.id for d in fsutils.raid_device_sort(self.devices)],
+            }
 
-    spare_devices = attributes.reflist(
+    spare_devices = fsattr.reflist(
         backlink="_constructed_device", default=attr.Factory(set))
 
     preserve = attr.ib(default=False)
     wipe = attr.ib(default=None)
-    ptable = attributes.ptable()
+    ptable = fsattr.ptable()
     metadata = attr.ib(default=None)
 
     # What is a device that makes up this device referred to as?
@@ -559,7 +324,7 @@ class Raid:
 @fsobj("lvm_volgroup", has_partitions=True)
 class LVM_VolGroup:
     name = attr.ib()
-    devices = attributes.reflist(backlink="_constructed_device")
+    devices = fsattr.reflist(backlink="_constructed_device")
 
     preserve = attr.ib(default=False)
 
@@ -570,8 +335,8 @@ class LVM_VolGroup:
 @fsobj("lvm_partition", formattable=True)
 class LVM_LogicalVolume:
     name = attr.ib()
-    volgroup = attributes.ref(backlink="_partitions")  # LVM_VolGroup
-    size = attributes.size()
+    volgroup = fsattr.ref(backlink="_partitions")  # LVM_VolGroup
+    size = fsattr.size()
     wipe = attr.ib(default=None)
 
     preserve = attr.ib(default=False)
@@ -596,7 +361,7 @@ LUKS_OVERHEAD = 16*(2**20)
 
 @fsobj("dm_crypt")
 class DM_Crypt:
-    volume = attributes.ref(backlink="_constructed_device")
+    volume = fsattr.ref(backlink="_constructed_device")
     key = attr.ib(metadata={'redact': True}, default=None)
     keyfile = attr.ib(default=None)
 
@@ -613,7 +378,7 @@ class DM_Crypt:
     dm_name = attr.ib(default=None)
     preserve = attr.ib(default=False)
 
-    _constructed_device = attributes.backlink()
+    _constructed_device = fsattr.backlink()
 
     def constructed_device(self):
         return self._constructed_device
@@ -622,14 +387,14 @@ class DM_Crypt:
 @fsobj("format")
 class Filesystem:
     fstype = attr.ib()
-    volume = attributes.ref(backlink="_fs")
+    volume = fsattr.ref(backlink="_fs")
 
     label = attr.ib(default=None)
     uuid = attr.ib(default=None)
     preserve = attr.ib(default=False)
     extra_options = attr.ib(default=None)
 
-    _mount = attributes.backlink()
+    _mount = fsattr.backlink()
 
     def mount(self):
         return self._mount
@@ -647,7 +412,7 @@ class Filesystem:
 
 @fsobj("mount")
 class Mount:
-    device = attributes.ref(backlink="_mount")  # Filesystem
+    device = fsattr.ref(backlink="_mount")  # Filesystem
     path = attr.ib()
     fstype = attr.ib(default=None)
     options = attr.ib(default=None)
@@ -666,14 +431,6 @@ class Mount:
             # /boot/efi
             return False
         return True
-
-
-def align_up(size, block_size=1 << 20):
-    return (size + block_size - 1) & ~(block_size - 1)
-
-
-def align_down(size, block_size=1 << 20):
-    return size & ~(block_size - 1)
 
 
 class FilesystemModel(object):
@@ -828,14 +585,15 @@ class FilesystemModel(object):
                     p.size = 0
                     p.size = fsops.free_for_partitions(parent)
                     if p.type == 'lvm_partition':
-                        p.size = align_down(p.size, LVM_CHUNK_SIZE)
+                        p.size = fsutils.align_down(
+                            p.size, fsutils.LVM_CHUNK_SIZE)
             elif isinstance(p.size, str):
                 if p.size.endswith("%"):
                     percentage = int(p.size[:-1])
-                    p.size = align_down(
+                    p.size = fsutils.align_down(
                         fsops.available_for_partitions(parent)*percentage//100)
                 else:
-                    p.size = dehumanize_size(p.size)
+                    p.size = fsutils.dehumanize_size(p.size)
 
     def _actions_from_config(self, config, blockdevs, is_probe_data=False):
         """Convert curtin storage config into action instances.
@@ -1093,7 +851,7 @@ class FilesystemModel(object):
         from subiquity.common.filesystem import boot, fsops
         if size > fsops.free_for_partitions(device):
             raise Exception("%s > %s", size, fsops.free_for_partitions(device))
-        real_size = align_up(size)
+        real_size = fsutils.align_up(size)
         log.debug("add_partition: rounded size from %s to %s", size, real_size)
         if device._fs is not None:
             raise Exception("%s is already formatted" % (device,))

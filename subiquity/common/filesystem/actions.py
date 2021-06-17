@@ -18,7 +18,7 @@ import functools
 
 from subiquitycore.gettext38 import pgettext
 
-from subiquity.common.filesystem import boot, fsops, labels
+from subiquity.common.filesystem import boot, fsops, fsutils, labels
 from subiquity.models.filesystem import (
     Bootloader,
     Disk,
@@ -26,7 +26,6 @@ from subiquity.models.filesystem import (
     LVM_VolGroup,
     Partition,
     Raid,
-    raidlevels_by_value,
     )
 
 
@@ -252,7 +251,7 @@ def _can_remove_device(device):
     if isinstance(cd, Raid):
         if device in cd.spare_devices:
             return True
-        min_devices = raidlevels_by_value[cd.raidlevel].min_devices
+        min_devices = fsutils.raidlevels_by_value[cd.raidlevel].min_devices
         if len(cd.devices) == min_devices:
             return _(
                 "Removing {selflabel} would leave the {cdtype} {cdlabel} with "
