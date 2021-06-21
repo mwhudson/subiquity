@@ -53,8 +53,7 @@ parts:
      - "-lib/python*/site-packages/_yaml.*.so"
      - "-lib/python*/site-packages/jsonschema"
   apport:
-    plugin: python
-    source-type: nil
+    plugin: nil
     stage-packages:
       - apport
     stage:
