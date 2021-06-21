@@ -183,6 +183,8 @@ class FilesystemManipulator:
     def clear(self, obj):
         if obj.type == "disk":
             obj.preserve = False
+        elif obj.type == "raid":
+            obj.reformat = True
         obj.wipe = 'superblock'
         for subobj in obj.fs(), obj.constructed_device():
             self.delete(subobj)

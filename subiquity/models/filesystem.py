@@ -701,6 +701,7 @@ class Raid(_Device):
     preserve = attr.ib(default=False)
     wipe = attr.ib(default=None)
     ptable = attributes.ptable()
+    reformat = attr.ib(default=None)
     metadata = attr.ib(default=None)
     container = attributes.ref(backlink="_subvolumes", default=None)  # Raid
     _subvolumes = attributes.backlink(default=attr.Factory(list))
