@@ -88,8 +88,9 @@ parts:
       #- urwid
     source: .
     source-type: git
+    build-environment:
+      PATH: "/usr/bin:$PATH"
     organize:
-      'bin/console-conf-tui': usr/bin/console-conf
       'bin/subiquity-tui': usr/bin/subiquity
       'bin/subiquity-loadkeys': usr/bin/subiquity-loadkeys
       'bin/subiquity-service': usr/bin/subiquity-service
