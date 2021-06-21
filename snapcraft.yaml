@@ -40,7 +40,7 @@ parts:
     plugin: python
     source-type: git
     source: https://git.launchpad.net/~mwhudson/curtin
-    source-commit: a78212263bac00cb01da5a169102705173d457ba
+    source-branch: raid-reformat-hax
     python-packages:
       - pyyaml==5.3.1
       - oauthlib
