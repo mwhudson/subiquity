@@ -124,7 +124,6 @@ parts:
     build-packages:
       - console-setup
       - locales
-      - xkb-data
       - python3-attr
       - python3-yaml
     override-build: PYTHONPATH=$SNAPCRAFT_PROJECT_DIR/ $SNAPCRAFT_PROJECT_DIR/scripts/make-kbd-info.py
