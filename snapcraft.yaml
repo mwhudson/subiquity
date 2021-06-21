@@ -54,20 +54,9 @@ parts:
      - "-lib/python*/site-packages/jsonschema"
   apport:
     plugin: python
-    source-type: bzr
-    source: lp:~ubuntu-core-dev/ubuntu/focal/apport/ubuntu
-    build-packages:
-      - python3-distutils-extra
-      - python3-apt
-      - python3-httplib2
-      - python3-problem-report
-      - python3-requests-unixsocket
+    source-type: nil
     stage-packages:
-      - python3-distutils-extra
-      - python3-apt
-      - python3-httplib2
-      - python3-problem-report
-      - python3-requests-unixsocket
+      - apport
     stage:
       - "lib/python*/site-packages/"
       - "-lib/python*/site-packages/etc/*"
