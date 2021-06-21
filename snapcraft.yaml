@@ -68,17 +68,11 @@ parts:
       - libsystemd-dev
       - lsb-release
       - pkg-config
-      - python3-urwid
-      - python3-venv
     stage-packages:
       - cloud-init
       - libsystemd0
       - iso-codes
       - lsb-release
-      - python3-bson
-      - python3-urwid
-      - python3-requests
-      - python3-requests-unixsocket
       - ssh-import-id
     python-packages:
       - attrs
@@ -86,6 +80,10 @@ parts:
       - systemd-python
       - aiohttp
       - yarl==1.5.1
+      - urwid
+      - requests
+      - bson
+      - requests-unixsocket
       #- urwid
     source: .
     source-type: git
