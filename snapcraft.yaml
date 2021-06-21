@@ -69,6 +69,7 @@ parts:
       - lsb-release
       - pkg-config
       - python3-urwid
+      - python3-venv
     stage-packages:
       - cloud-init
       - libsystemd0
