@@ -68,6 +68,7 @@ parts:
       - libsystemd-dev
       - lsb-release
       - pkg-config
+      - python3-venv
     stage-packages:
       - cloud-init
       - libsystemd0
