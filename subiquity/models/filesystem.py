@@ -312,7 +312,7 @@ def get_raid_size(level, devices):
         return 0
     devices = raid_device_sort(devices)
     data_offset = calculate_data_offset_bytes(devices[0].size)
-    sizes = [align_down(dev.size - data_offset) for dev in devices]
+    sizes = [align_down(dev.size - data_offset, 1024*512) for dev in devices]
     min_size = min(sizes)
     if min_size <= 0:
         return 0

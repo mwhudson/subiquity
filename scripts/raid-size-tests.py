@@ -136,9 +136,9 @@ try:
                 if count >= level.min_devices:
                     if not verify_size_ok(level.value, [size]*count):
                         fails += 1
-                    if not verify_size_ok(level.value, [align_down(random.randrange(size, 10*size))]*count):
+                    if not verify_size_ok(level.value, [align_down(random.randrange(size, 10*size), 1024)]*count):
                         fails += 1
-                    sizes = [align_down(random.randrange(size, 10*size)) for _ in range(count)]
+                    sizes = [align_down(random.randrange(size, 10*size), 1024) for _ in range(count)]
                     if not verify_size_ok(level.value, sizes):
                         fails += 1
 finally:
