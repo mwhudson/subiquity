@@ -307,25 +307,26 @@ def raid_device_sort(devices):
     return sorted(devices, key=lambda d: d.id)
 
 
-def get_raid_size(level, devices):
+def get_raid_size(level, devices, bytes_used_per_device=None):
     if len(devices) == 0:
         return 0
     devices = raid_device_sort(devices)
     data_offset = calculate_data_offset_bytes(devices[0].size)
     sizes = [align_down(dev.size - data_offset, 1024*512) for dev in devices]
-    min_size = min(sizes)
-    if min_size <= 0:
+    if bytes_used_per_device is None:
+        bytes_used_per_device = min(sizes)
+    if bytes_used_per_device <= 0:
         return 0
     if level == "raid0" or level == "container":
         return sum(sizes)
     elif level == "raid1":
-        return min_size
+        return bytes_used_per_device
     elif level == "raid5":
-        return min_size * (len(devices) - 1)
+        return bytes_used_per_device * (len(devices) - 1)
     elif level == "raid6":
-        return min_size * (len(devices) - 2)
+        return bytes_used_per_device * (len(devices) - 2)
     elif level == "raid10":
-        return min_size * (len(devices) // 2)
+        return bytes_used_per_device * (len(devices) // 2)
     else:
         raise ValueError("unknown raid level %s" % level)
 
@@ -705,6 +706,7 @@ class Raid(_Device):
     metadata = attr.ib(default=None)
     container = attributes.ref(backlink="_subvolumes", default=None)  # Raid
     _subvolumes = attributes.backlink(default=attr.Factory(list))
+    bytes_used_per_device = attr.ib(default=None)
 
     @property
     def size(self):
@@ -712,7 +714,8 @@ class Raid(_Device):
             devices = self.container.devices
         else:
             devices = self.devices
-        return get_raid_size(self.raidlevel, devices)
+        return get_raid_size(
+            self.raidlevel, devices, self.bytes_used_per_device)
 
     @property
     def available_for_partitions(self):
