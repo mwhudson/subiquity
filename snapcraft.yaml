@@ -37,8 +37,8 @@ parts:
       sed -e "s,@@PACKAGED_VERSION@@,$PACKAGED_VERSION,g" -i curtin/version.py
     plugin: python
     source-type: git
-    source: https://git.launchpad.net/curtin
-    source-commit: 82765ab3e59273db0623337787209f0c9836935c
+    source: https://git.launchpad.net/~mwhudson/curtin
+    source-commit: a9de3450edd3e7d1f89064604f5a3dfe3c98bf9e
     python-packages:
       - pyyaml==5.3.1
       - oauthlib
