@@ -60,6 +60,7 @@ from subiquity.common.types import (
     KeyFingerprint,
     LiveSessionSSHInfo,
     PasswordKind,
+    SourceFlavor,
     )
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.server.controller import SubiquityController
@@ -111,8 +112,9 @@ class MetaController:
     async def client_variant_POST(self, variant: str) -> None:
         if variant not in ('desktop', 'server'):
             raise ValueError(f'unrecognized client variant {variant}')
+        flavor = getattr(SourceFlavor, variant.upper())
         for controller in self.app.controllers.instances:
-            if variant not in controller.relevant_variants:
+            if flavor not in controller.relevant_flavors:
                 controller.configured()
 
     async def ssh_info_GET(self) -> Optional[LiveSessionSSHInfo]:

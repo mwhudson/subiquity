@@ -17,7 +17,7 @@ import logging
 import subprocess
 
 from subiquity.common.apidef import API
-from subiquity.common.types import TimeZoneInfo
+from subiquity.common.types import SourceFlavor, TimeZoneInfo
 from subiquity.server.controller import SubiquityController
 
 log = logging.getLogger('subiquity.server.controllers.timezone')
@@ -79,7 +79,7 @@ class TimeZoneController(SubiquityController):
         }
 
     autoinstall_default = ''
-    relevant_variants = ('desktop', )
+    relevant_flavors = (SourceFlavor.DESKTOP,)
 
     def load_autoinstall_data(self, data):
         self.deserialize(data)

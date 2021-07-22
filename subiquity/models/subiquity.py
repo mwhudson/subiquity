@@ -129,7 +129,7 @@ class SubiquityModel:
         self.updates = UpdatesModel()
         self.userdata = {}
 
-        self.confirmation = asyncio.Event()
+        self._confirmation = asyncio.Event()
 
         self._events = {
             name: asyncio.Event() for name in ALL_MODEL_NAMES
@@ -161,13 +161,23 @@ class SubiquityModel:
             "model %s for %s is configured, to go %s",
             model_name, stage, unconfigured)
 
+    async def wait_install(self):
+        await asyncio.wait({e.wait() for e in self.install_events})
+
+    async def wait_postinstall(self):
+        await asyncio.wait({e.wait() for e in self.postinstall_events})
+
     def needs_configuration(self, model_name):
         if model_name is None:
             return False
         return not self._events[model_name].is_set()
 
     def confirm(self):
-        self.confirmation.set()
+        self._confirmation.set()
+
+    async def wait_confirmation(self):
+        await self._confirmation.wait()
+        return True
 
     def get_target_groups(self):
         command = ['chroot', self.target, 'getent', 'group']
