@@ -42,8 +42,16 @@ class SourceController(SubiquityController):
     async def GET(self) -> SourceSelectionAndSetting:
         r = []
         for source in self.model.sources:
+            name = source.name['en']
+            cur_lang = self.app.model.locale.selected_language
+            if cur_lang:
+                cur_lang = cur_lang.rsplit('.', 1)[0]
+                for lang in cur_lang, cur_lang.split('_', 1)[0]:
+                    if lang in source.name:
+                        name = source.name[lang]
+                        break
             r.append(SourceSelection(
-                name=source.name['en'],
+                name=name,
                 id=source.id,
                 size=source.size,
                 flavor=getattr(SourceFlavor, source.flavor.upper()),
@@ -54,3 +62,4 @@ class SourceController(SubiquityController):
         for source in self.model.sources:
             if source.id == source_id:
                 self.model.current = self.source
+        self.configured()
