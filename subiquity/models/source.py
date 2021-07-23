@@ -19,6 +19,8 @@ import yaml
 
 import attr
 
+from subiquity.common.types import SourceFlavor
+
 
 @attr.s(auto_attribs=True)
 class CatalogEntry:
@@ -36,7 +38,7 @@ class SourceModel:
     def __init__(self):
         self._dir = '/cdrom/casper'
         self.current = CatalogEntry(
-            flavor='server',
+            flavor=SourceFlavor.SERVER,
             id='synthesized',
             name={'en': 'Ubuntu Server'},
             path='/media/filesystem',
@@ -52,6 +54,7 @@ class SourceModel:
         entries = yaml.safe_load(fp)
         for entry in entries:
             c = CatalogEntry(**entry)
+            c.flavor = getattr(SourceFlavor, c.flavor.upper())
             self.sources.append(c)
             if c.default:
                 self.current = c

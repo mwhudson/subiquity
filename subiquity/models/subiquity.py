@@ -29,6 +29,7 @@ from subiquitycore.file_util import write_file
 from subiquitycore.utils import run_command
 
 from subiquity.common.resources import resource_path
+from subiquity.common.types import SourceFlavor
 
 from .filesystem import FilesystemModel
 from .identity import IdentityModel
@@ -71,7 +72,7 @@ ff02::2 ip6-allrouters
 """
 
 # Models that contribute to the curtin config
-INSTALL_MODEL_NAMES = [
+_INSTALL_MODEL_NAMES = [
     "debconf_selections",
     "filesystem",
     "kernel",
@@ -81,19 +82,28 @@ INSTALL_MODEL_NAMES = [
     "proxy",
     "source",
     ]
+INSTALL_MODEL_NAMES = {
+    SourceFlavor.DESKTOP: _INSTALL_MODEL_NAMES,
+    SourceFlavor.SERVER: _INSTALL_MODEL_NAMES,
+    }
 
 # Models that contribute to the cloud-init config (and other postinstall steps)
-POSTINSTALL_MODEL_NAMES = [
+_POSTINSTALL_MODEL_NAMES = [
     "identity",
     "locale",
     "packages",
     "snaplist",
     "ssh",
-    "timezone",
     "userdata",
     ]
+POSTINSTALL_MODEL_NAMES = {
+    SourceFlavor.DESKTOP: _POSTINSTALL_MODEL_NAMES + ['timezone'],
+    SourceFlavor.SERVER: _POSTINSTALL_MODEL_NAMES,
+    }
 
-ALL_MODEL_NAMES = INSTALL_MODEL_NAMES + POSTINSTALL_MODEL_NAMES
+ALL_MODEL_NAMES = _INSTALL_MODEL_NAMES + \
+                  _POSTINSTALL_MODEL_NAMES + \
+                  ['timezone']
 
 
 class DebconfSelectionsModel:
@@ -134,43 +144,45 @@ class SubiquityModel:
 
         self._confirmation = asyncio.Event()
 
-        self.install_events = set()
-        self.postinstall_events = set()
-        self._events = {}
+        self._install_event = asyncio.Event()
+        self._postinstall_event = asyncio.Event()
+        self._is_configured = {}
 
         for name in ALL_MODEL_NAMES:
-            self._events[name] = event = asyncio.Event()
-            if name in INSTALL_MODEL_NAMES:
-                self.install_events.add(event)
-            elif name in POSTINSTALL_MODEL_NAMES:
-                self.postinstall_events.add(event)
-            hub.subscribe(('configured', name), self._configured, event, name)
+            self._is_configured[name] = False
+            hub.subscribe(('configured', name), self._configured, name)
+        self._is_configured['source'] = True
 
-        self._events['source'].set()
-
-    def _configured(self, event, model_name):
-        event.set()
-        if model_name in INSTALL_MODEL_NAMES:
+    def _configured(self, model_name):
+        flavor = self.source.current.flavor
+        if model_name in INSTALL_MODEL_NAMES[flavor]:
             stage = 'install'
             unconfigured = {
-                mn for mn in INSTALL_MODEL_NAMES
-                if not self._events[mn].is_set()
+                mn for mn in INSTALL_MODEL_NAMES[flavor]
+                if not self._is_configured[mn]
                 }
-        elif model_name in POSTINSTALL_MODEL_NAMES:
+            if not unconfigured:
+                self._install_event.set()
+        elif model_name in POSTINSTALL_MODEL_NAMES[flavor]:
             stage = 'postinstall'
             unconfigured = {
-                mn for mn in POSTINSTALL_MODEL_NAMES
-                if not self._events[mn].is_set()
+                mn for mn in POSTINSTALL_MODEL_NAMES[flavor]
+                if not self._is_configured[mn]
                 }
+            if not unconfigured:
+                self._postinstall_event.set()
+        else:
+            stage = 'unknown'
+            unconfigured = set()
         log.debug(
             "model %s for %s is configured, to go %s",
             model_name, stage, unconfigured)
 
     async def wait_install(self):
-        await asyncio.wait({e.wait() for e in self.install_events})
+        await self._install_event.wait()
 
     async def wait_postinstall(self):
-        await asyncio.wait({e.wait() for e in self.postinstall_events})
+        await self._postinstall_event.wait()
 
     def needs_configuration(self, model_name):
         if model_name is None:

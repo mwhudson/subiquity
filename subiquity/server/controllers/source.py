@@ -17,7 +17,6 @@ import os
 
 from subiquity.common.apidef import API
 from subiquity.common.types import (
-    SourceFlavor,
     SourceSelection,
     SourceSelectionAndSetting,
     )
@@ -43,7 +42,7 @@ class SourceController(SubiquityController):
         r = []
         for source in self.model.sources:
             name = source.name['en']
-            cur_lang = self.app.model.locale.selected_language
+            cur_lang = self.app.base_model.locale.selected_language
             if cur_lang:
                 cur_lang = cur_lang.rsplit('.', 1)[0]
                 for lang in cur_lang, cur_lang.split('_', 1)[0]:
@@ -54,7 +53,7 @@ class SourceController(SubiquityController):
                 name=name,
                 id=source.id,
                 size=source.size,
-                flavor=getattr(SourceFlavor, source.flavor.upper()),
+                flavor=source.flavor,
                 default=source.default))
         return SourceSelectionAndSetting(r, self.model.current.id)
 
