@@ -15,40 +15,42 @@
 
 import os
 
-from subiquitycore.lsb_release import lsb_release
+from subiquity.common.apidef import API
+from subiquity.common.types import (
+    SourceFlavor,
+    SourceSelection,
+    SourceSelectionAndSetting,
+    )
+from subiquity.server.controller import SubiquityController
 
-from subiquity.server.controller import NonInteractiveController
 
-
-class SourceController(NonInteractiveController):
+class SourceController(SubiquityController):
 
     model_name = "source"
 
+    endpoint = API.source
 
-    def load_autoinstall_data(self, data):
-        if data is None:
+    def start(self):
+        path = '/cdrom/casper/install-source.yaml'
+        if self.app.opts.source_catalog is not None:
+            path = self.app.opts.source_catalog
+        if not os.path.exists(path):
             return
-        package = data.get('package')
-        flavor = data.get('flavor')
-        if package is None:
-            if flavor is None or flavor == 'generic':
-                package = 'linux-generic'
-            else:
-                if flavor is None:
-                    package = 'generic'
-                else:
-                    if flavor == 'hwe':
-                        flavor = 'generic-hwe'
-                    # Should check this package exists really but
-                    # that's a bit tricky until we get cleverer about
-                    # the apt config in general.
-                    package = 'linux-{flavor}-{release}'.format(
-                        flavor=flavor, release=lsb_release()['release'])
-        self.model.metapkg_name = package
+        with open(path) as fp:
+            self.model.load_from_file(fp)
 
-    def make_autoinstall(self):
-        return {
-            'kernel': {
-                'package': self.model.metapkg_name,
-                },
-            }
+    async def GET(self) -> SourceSelectionAndSetting:
+        r = []
+        for source in self.model.sources:
+            r.append(SourceSelection(
+                name=source.name['en'],
+                id=source.id,
+                size=source.size,
+                flavor=getattr(SourceFlavor, source.flavor.upper()),
+                default=source.default))
+        return SourceSelectionAndSetting(r, self.model.current.id)
+
+    async def POST(self, source_id: str) -> None:
+        for source in self.model.sources:
+            if source.id == source_id:
+                self.model.current = self.source

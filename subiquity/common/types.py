@@ -183,6 +183,7 @@ class SourceSelection:
     default: bool
 
 
+@attr.s(auto_attribs=True)
 class SourceSelectionAndSetting:
     sources: List[SourceSelection]
     current_id: str
