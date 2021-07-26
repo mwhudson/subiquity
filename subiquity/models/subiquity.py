@@ -265,8 +265,7 @@ class SubiquityModel:
                 config['ssh_authorized_keys'] = self.ssh.authorized_keys
         if self.ssh.install_server:
             config['ssh_pwauth'] = self.ssh.pwauth
-        flavor = self.source.current.flavor
-        for model_name in POSTINSTALL_MODEL_NAMES[flavor]:
+        for model_name in _POSTINSTALL_MODEL_NAMES + ['timezone']:
             model = getattr(self, model_name)
             if getattr(model, 'make_cloudconfig', None):
                 merge_config(config, model.make_cloudconfig())
