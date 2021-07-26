@@ -170,6 +170,7 @@ class SubiquityModel:
 
     def _configured(self, model_name):
         flavor = self.source.current.flavor
+        self._is_configured[model_name] = True
         if model_name in INSTALL_MODEL_NAMES[flavor]:
             stage = 'install'
             unconfigured = {
@@ -202,7 +203,7 @@ class SubiquityModel:
     def needs_configuration(self, model_name):
         if model_name is None:
             return False
-        return not self._configured[model_name]
+        return not self._is_configured[model_name]
 
     def confirm(self):
         self._confirmation.set()
@@ -211,7 +212,7 @@ class SubiquityModel:
         self._confirmation_task = asyncio.get_event_loop().create_task(
             self._confirmation.wait())
         try:
-            await self._confirmation_task.wait()
+            await self._confirmation_task
         except asyncio.CancelledError:
             return False
         else:
@@ -264,7 +265,8 @@ class SubiquityModel:
                 config['ssh_authorized_keys'] = self.ssh.authorized_keys
         if self.ssh.install_server:
             config['ssh_pwauth'] = self.ssh.pwauth
-        for model_name in POSTINSTALL_MODEL_NAMES:
+        flavor = self.source.current.flavor
+        for model_name in POSTINSTALL_MODEL_NAMES[flavor]:
             model = getattr(self, model_name)
             if getattr(model, 'make_cloudconfig', None):
                 merge_config(config, model.make_cloudconfig())
@@ -388,7 +390,8 @@ class SubiquityModel:
                     'permissions': 0o644,
                     }
 
-        for model_name in INSTALL_MODEL_NAMES:
+        flavor = self.source.current.flavor
+        for model_name in INSTALL_MODEL_NAMES[flavor]:
             model = getattr(self, model_name)
             log.debug("merging config from %s", model)
             merge_config(config, model.render())

@@ -228,8 +228,7 @@ class InstallController(SubiquityController):
 
             self.app.update_state(ApplicationState.POST_WAIT)
 
-            await asyncio.wait(
-                {e.wait() for e in self.model.postinstall_events})
+            await self.model.wait_postinstall()
 
             self.app.update_state(ApplicationState.POST_RUNNING)
 

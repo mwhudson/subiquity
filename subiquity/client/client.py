@@ -97,6 +97,7 @@ class SubiquityClient(TuiApplication):
         "Welcome",
         "Refresh",
         "Keyboard",
+        "Source",
         "Zdev",
         "Network",
         "Proxy",

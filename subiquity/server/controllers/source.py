@@ -65,5 +65,5 @@ class SourceController(SubiquityController):
     async def POST(self, source_id: str) -> None:
         for source in self.model.sources:
             if source.id == source_id:
-                self.model.current = self.source
+                self.model.current = source
         self.configured()
