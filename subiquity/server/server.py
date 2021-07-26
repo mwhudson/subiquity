@@ -359,7 +359,9 @@ class SubiquityServer(Application):
                 if self.base_model.needs_configuration(controller.model_name):
                     override_status = 'confirm'
         if override_status is not None:
-            resp = web.Response(headers={'x-status': override_status})
+            resp = web.Response(
+                body=override_status + '\n',
+                headers={'x-status': override_status})
         else:
             resp = await handler(request)
         if self.updated:

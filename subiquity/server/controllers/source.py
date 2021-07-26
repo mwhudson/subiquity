@@ -38,6 +38,9 @@ class SourceController(SubiquityController):
         with open(path) as fp:
             self.model.load_from_file(fp)
 
+    def interactive(self):
+        return len(self.model.sources) > 1
+
     async def GET(self) -> SourceSelectionAndSetting:
         r = []
         for source in self.model.sources:
