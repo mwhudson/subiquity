@@ -200,6 +200,8 @@ class InstallController(SubiquityController):
         context.set('is-install-context', True)
         try:
             while True:
+                self.app.update_state(ApplicationState.WAITING)
+
                 await self.model.wait_install()
 
                 if not self.app.interactive:

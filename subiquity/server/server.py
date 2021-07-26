@@ -544,7 +544,6 @@ class SubiquityServer(Application):
         if not self.interactive and not self.opts.dry_run:
             open('/run/casper-no-prompt', 'w').close()
         self.load_serialized_state()
-        self.update_state(ApplicationState.WAITING)
         await super().start()
         await self.apply_autoinstall_config()
 

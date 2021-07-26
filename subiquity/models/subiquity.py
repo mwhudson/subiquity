@@ -143,15 +143,30 @@ class SubiquityModel:
         self.userdata = {}
 
         self._confirmation = asyncio.Event()
+        self._confirmation_task = None
 
         self._install_event = asyncio.Event()
         self._postinstall_event = asyncio.Event()
         self._is_configured = {}
 
+        hub.subscribe(('configured', 'source'), self._new_source)
+
         for name in ALL_MODEL_NAMES:
             self._is_configured[name] = False
             hub.subscribe(('configured', name), self._configured, name)
         self._is_configured['source'] = True
+
+    def _new_source(self):
+        flavor = self.source.current.flavor
+        if self._confirmation_task is None:
+            return
+        unconf = False
+        for model_name in INSTALL_MODEL_NAMES[flavor]:
+            if not self._is_configured[model_name]:
+                unconf = True
+        if unconf:
+            self._install_event = asyncio.Event()
+            self._confirmation_task.cancel()
 
     def _configured(self, model_name):
         flavor = self.source.current.flavor
@@ -187,14 +202,22 @@ class SubiquityModel:
     def needs_configuration(self, model_name):
         if model_name is None:
             return False
-        return not self._events[model_name].is_set()
+        return not self._configured[model_name]
 
     def confirm(self):
         self._confirmation.set()
 
     async def wait_confirmation(self):
-        await self._confirmation.wait()
-        return True
+        self._confirmation_task = asyncio.get_event_loop().create_task(
+            self._confirmation.wait())
+        try:
+            await self._confirmation_task.wait()
+        except asyncio.CancelledError:
+            return False
+        else:
+            return True
+        finally:
+            self._confirmation_task = None
 
     def get_target_groups(self):
         command = ['chroot', self.target, 'getent', 'group']
