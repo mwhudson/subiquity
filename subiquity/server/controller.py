@@ -25,7 +25,6 @@ from subiquitycore.controller import (
     )
 
 from subiquity.common.api.server import bind
-from subiquity.common.types import SourceFlavor
 
 log = logging.getLogger("subiquity.server.controller")
 
@@ -36,7 +35,6 @@ class SubiquityController(BaseController):
     autoinstall_schema = None
     autoinstall_default = None
     endpoint = None
-    relevant_flavors = (SourceFlavor.DESKTOP, SourceFlavor.SERVER)
 
     def __init__(self, app):
         super().__init__(app)
