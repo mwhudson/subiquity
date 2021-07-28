@@ -112,7 +112,7 @@ class MetaController:
     async def client_variant_POST(self, variant: str) -> None:
         from subiquity.models.source import fake_entries
         flavor = getattr(SourceFlavor, variant.upper())
-        self.app.model.source.current = fake_entries[flavor]
+        self.app.base_model.source.current = fake_entries[flavor]
         self.app.controllers.Source.configured()
 
     async def ssh_info_GET(self) -> Optional[LiveSessionSSHInfo]:
