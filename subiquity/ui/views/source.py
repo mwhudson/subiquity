@@ -22,6 +22,7 @@ from subiquitycore.ui.form import (
     RadioButtonField,
 )
 
+from subiquity.models.filesystem import humanize_size
 
 log = logging.getLogger('subiquity.ui.views.source')
 
@@ -29,7 +30,6 @@ log = logging.getLogger('subiquity.ui.views.source')
 class SourceView(BaseView):
 
     title = _("Choose type of install")
-    excerpt = _("You can install some different things.")
 
     def __init__(self, controller, sources, current_id):
         self.controller = controller
@@ -42,8 +42,8 @@ class SourceView(BaseView):
         initial = {}
 
         for source in sources:
-            help = _("This takes {size} bytes on disk.").format(
-                size=source.size)
+            help = _("This takes {size} of disk.").format(
+                size=humanize_size(source.size))
             ns[source.id] = RadioButtonField(group, source.name, help)
             initial[source.id] = source.id == current_id
 
@@ -55,7 +55,9 @@ class SourceView(BaseView):
         connect_signal(self.form, 'submit', self.done)
         connect_signal(self.form, 'cancel', self.cancel)
 
-        super().__init__(self.form.as_screen(excerpt=_(self.excerpt)))
+        excerpt = _("Choose the base for the installation.")
+
+        super().__init__(self.form.as_screen(excerpt=excerpt))
 
     def done(self, result):
         log.debug("User input: {}".format(result.as_data()))

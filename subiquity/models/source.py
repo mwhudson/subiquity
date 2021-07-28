@@ -33,18 +33,31 @@ class CatalogEntry:
     default: bool = False
 
 
+fake_entries = {
+    SourceFlavor.SERVER: CatalogEntry(
+        flavor=SourceFlavor.SERVER,
+        id='synthesized',
+        name={'en': 'Ubuntu Server'},
+        path='/media/filesystem',
+        type='cp',
+        default=True,
+        size=2 << 30),
+    SourceFlavor.DESKTOP: CatalogEntry(
+        flavor=SourceFlavor.DESKTOP,
+        id='synthesized',
+        name={'en': 'Ubuntu Desktop'},
+        path='/media/filesystem',
+        type='cp',
+        default=True,
+        size=5 << 30),
+    }
+
+
 class SourceModel:
 
     def __init__(self):
         self._dir = '/cdrom/casper'
-        self.current = CatalogEntry(
-            flavor=SourceFlavor.SERVER,
-            id='synthesized',
-            name={'en': 'Ubuntu Server'},
-            path='/media/filesystem',
-            type='cp',
-            default=True,
-            size=2 << 30)
+        self.current = fake_entries[SourceFlavor.SERVER]
         self.sources = [self.current]
 
     def load_from_file(self, fp):

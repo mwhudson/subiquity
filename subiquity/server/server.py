@@ -60,6 +60,7 @@ from subiquity.common.types import (
     KeyFingerprint,
     LiveSessionSSHInfo,
     PasswordKind,
+    SourceFlavor,
     )
 from subiquity.models.subiquity import SubiquityModel
 from subiquity.server.controller import SubiquityController
@@ -109,7 +110,10 @@ class MetaController:
                 controller.configured()
 
     async def client_variant_POST(self, variant: str) -> None:
-        pass
+        from subiquity.models.source import fake_entries
+        flavor = getattr(SourceFlavor, variant.upper())
+        self.app.model.source.current = fake_entries[flavor]
+        self.app.controllers.Source.configured()
 
     async def ssh_info_GET(self) -> Optional[LiveSessionSSHInfo]:
         ips = []
