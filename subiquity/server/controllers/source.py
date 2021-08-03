@@ -30,7 +30,7 @@ class SourceController(SubiquityController):
     endpoint = API.source
 
     def start(self):
-        path = '/cdrom/casper/install-source.yaml'
+        path = '/cdrom/casper/install-sources.yaml'
         if self.app.opts.source_catalog is not None:
             path = self.app.opts.source_catalog
         if not os.path.exists(path):

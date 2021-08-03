@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import os
 import typing
 import yaml
@@ -20,6 +21,8 @@ import yaml
 import attr
 
 from subiquity.common.types import SourceFlavor
+
+log = logging.getLogger('subiquity.models.source')
 
 
 @attr.s(auto_attribs=True)
@@ -71,6 +74,7 @@ class SourceModel:
             self.sources.append(c)
             if c.default:
                 self.current = c
+        log.debug("loaded %d sources from %r", len(self.sources), fp.name)
         if self.current is None:
             self.current = self.sources[0]
 
