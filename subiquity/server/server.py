@@ -211,6 +211,7 @@ class SubiquityServer(Application):
         "Kernel",
         "Keyboard",
         "Zdev",
+        "Source",
         "Network",
         "Proxy",
         "Mirror",

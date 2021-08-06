@@ -29,6 +29,7 @@ from subiquitycore.file_util import write_file
 from subiquitycore.utils import run_command
 
 from subiquity.common.resources import resource_path
+from subiquity.common.types import SourceFlavor
 
 from .filesystem import FilesystemModel
 from .identity import IdentityModel
@@ -39,6 +40,7 @@ from .mirror import MirrorModel
 from .network import NetworkModel
 from .proxy import ProxyModel
 from .snaplist import SnapListModel
+from .source import SourceModel
 from .ssh import SSHModel
 from .timezone import TimeZoneModel
 from .updates import UpdatesModel
@@ -116,6 +118,7 @@ class SubiquityModel:
         self.proxy = ProxyModel()
         self.snaplist = SnapListModel()
         self.ssh = SSHModel()
+        self.source = SourceModel()
         self.timezone = TimeZoneModel()
         self.updates = UpdatesModel()
         self.userdata = {}
@@ -300,16 +303,13 @@ class SubiquityModel:
         config = {
             'stages': stages,
 
-            'sources': {
-                'ubuntu00': 'cp:///media/filesystem'
-                },
-
             'curthooks_commands': {
                 '001-configure-apt': [
                     resource_path('bin/subiquity-configure-apt'),
                     sys.executable, str(self.network.has_network).lower(),
                     ],
                 },
+
             'grub': {
                 'terminal': 'unmodified',
                 'probe_additional_os': True

@@ -61,10 +61,6 @@ from subiquity.server.controller import (
 log = logging.getLogger("subiquity.server.controller.filesystem")
 block_discover_log = logging.getLogger('block-discover')
 
-# Disks larger than this are considered sensible targets for guided
-# installation.
-DEFAULT_MIN_SIZE_GUIDED = 6 * (1 << 30)
-
 
 class FilesystemController(SubiquityController, FilesystemManipulator):
 
@@ -221,8 +217,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         probe_resp = await self._probe_response(wait, GuidedStorageResponse)
         if probe_resp is not None:
             return probe_resp
-        if not min_size:
-            min_size = DEFAULT_MIN_SIZE_GUIDED
+        min_size = 2*self.app.base_model.source.current.size + (1 << 30)
         disks = []
         for raid in self.model._all(type='raid'):
             if not boot.can_be_boot_device(raid, with_reformatting=True):
