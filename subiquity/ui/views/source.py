@@ -41,11 +41,16 @@ class SourceView(BaseView):
             }
         initial = {}
 
-        for source in sources:
-            help = _("This takes {size} of disk.").format(
-                size=humanize_size(source.size))
-            ns[source.id] = RadioButtonField(group, source.name, help)
-            initial[source.id] = source.id == current_id
+        for default in True, False:
+            for source in sorted(sources, key=lambda s: s.id):
+                if source.default != default:
+                    continue
+                size = humanize_size(source.size)
+                help = "\n" + source.description + "\n\n" + _(
+                    "Installed, this variant will initially use {size} of "
+                    "disk.").format(size=size)
+                ns[source.id] = RadioButtonField(group, source.name, help)
+                initial[source.id] = source.id == current_id
 
         SourceForm = type(Form)('SourceForm', (Form,), ns)
         log.debug('%r %r', ns, current_id)

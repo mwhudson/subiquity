@@ -56,9 +56,10 @@ class SourceController(SubiquityController):
                         break
             r.append(SourceSelection(
                 name=name,
+                description=source.description,
                 id=source.id,
                 size=source.size,
-                flavor=source.flavor,
+                variant=source.variant,
                 default=source.default))
         return SourceSelectionAndSetting(r, self.model.current.id)
 

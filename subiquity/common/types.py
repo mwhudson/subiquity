@@ -171,6 +171,7 @@ class KeyboardSetup:
 @attr.s(auto_attribs=True)
 class SourceSelection:
     name: str
+    description: str
     id: str
     size: int
     variant: str
