@@ -20,16 +20,15 @@ import yaml
 
 import attr
 
-from subiquity.common.types import SourceFlavor
-
 log = logging.getLogger('subiquity.models.source')
 
 
 @attr.s(auto_attribs=True)
 class CatalogEntry:
-    flavor: str
+    variant: str
     id: str
     name: typing.Dict[str, str]
+    description: typing.Dict[str, str]
     path: str
     size: int
     type: str
@@ -37,18 +36,20 @@ class CatalogEntry:
 
 
 fake_entries = {
-    SourceFlavor.SERVER: CatalogEntry(
-        flavor=SourceFlavor.SERVER,
+    'server': CatalogEntry(
+        flavor='server',
         id='synthesized',
         name={'en': 'Ubuntu Server'},
+        description={'en': 'the default'},
         path='/media/filesystem',
         type='cp',
         default=True,
         size=2 << 30),
-    SourceFlavor.DESKTOP: CatalogEntry(
-        flavor=SourceFlavor.DESKTOP,
+    'desktop': CatalogEntry(
+        flavor='desktop',
         id='synthesized',
         name={'en': 'Ubuntu Desktop'},
+        description={'en': 'the default'},
         path='/media/filesystem',
         type='cp',
         default=True,
@@ -60,7 +61,7 @@ class SourceModel:
 
     def __init__(self):
         self._dir = '/cdrom/casper'
-        self.current = fake_entries[SourceFlavor.SERVER]
+        self.current = fake_entries['server']
         self.sources = [self.current]
 
     def load_from_file(self, fp):
@@ -70,7 +71,6 @@ class SourceModel:
         entries = yaml.safe_load(fp)
         for entry in entries:
             c = CatalogEntry(**entry)
-            c.flavor = getattr(SourceFlavor, c.flavor.upper())
             self.sources.append(c)
             if c.default:
                 self.current = c
@@ -83,6 +83,7 @@ class SourceModel:
         scheme = self.current.type
         return {
             'sources': {
-                'ubuntu00': f'{scheme}://{path}',
+                'ubuntu00': '{scheme}://{path}'.format(
+                    scheme=scheme, part=path),
                 },
             }

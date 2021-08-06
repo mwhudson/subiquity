@@ -168,18 +168,12 @@ class KeyboardSetup:
     layouts: List[KeyboardLayout]
 
 
-class SourceFlavor(enum.Enum):
-    SERVER = enum.auto()
-    DESKTOP = enum.auto()
-    # CORE = enum.auto()  # one day!
-
-
 @attr.s(auto_attribs=True)
 class SourceSelection:
     name: str
     id: str
     size: int
-    flavor: SourceFlavor
+    variant: str
     default: bool
 
 

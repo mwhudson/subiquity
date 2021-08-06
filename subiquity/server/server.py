@@ -114,7 +114,9 @@ class MetaController:
     async def client_variant_POST(self, variant: str) -> None:
         if variant not in ('desktop', 'server'):
             raise ValueError(f'unrecognized client variant {variant}')
-        self.app.base_model.set_source_variant(variant)
+        from subiquity.models.source import fake_entries
+        self.app.base_model.source.current = fake_entries[variant]
+        self.app.controllers.Source.configured()
 
     async def ssh_info_GET(self) -> Optional[LiveSessionSSHInfo]:
         ips = []
