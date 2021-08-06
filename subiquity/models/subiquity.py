@@ -29,7 +29,6 @@ from subiquitycore.file_util import write_file
 from subiquitycore.utils import run_command
 
 from subiquity.common.resources import resource_path
-from subiquity.common.types import SourceFlavor
 
 from .filesystem import FilesystemModel
 from .identity import IdentityModel

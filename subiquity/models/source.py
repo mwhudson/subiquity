@@ -37,7 +37,7 @@ class CatalogEntry:
 
 fake_entries = {
     'server': CatalogEntry(
-        flavor='server',
+        variant='server',
         id='synthesized',
         name={'en': 'Ubuntu Server'},
         description={'en': 'the default'},
@@ -46,7 +46,7 @@ fake_entries = {
         default=True,
         size=2 << 30),
     'desktop': CatalogEntry(
-        flavor='desktop',
+        variant='desktop',
         id='synthesized',
         name={'en': 'Ubuntu Desktop'},
         description={'en': 'the default'},
@@ -84,6 +84,6 @@ class SourceModel:
         return {
             'sources': {
                 'ubuntu00': '{scheme}://{path}'.format(
-                    scheme=scheme, part=path),
+                    scheme=scheme, path=path),
                 },
             }
