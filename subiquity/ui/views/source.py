@@ -22,7 +22,7 @@ from subiquitycore.ui.form import (
     RadioButtonField,
 )
 
-from subiquity.models.filesystem import humanize_size
+from subiquity.models.filesystem import align_up, humanize_size
 
 log = logging.getLogger('subiquity.ui.views.source')
 
@@ -45,10 +45,17 @@ class SourceView(BaseView):
             for source in sorted(sources, key=lambda s: s.id):
                 if source.default != default:
                     continue
-                size = humanize_size(source.size)
+                i = 2
+                while (2 << i) < source.size:
+                    i += 1
+                size = humanize_size(align_up(source.size, 2 << (i-3)))
+                base = size[:-1].rstrip('0')
+                if base.endswith('.'):
+                    base = base[:-1]
+                size = base + ' ' + size[-1] + 'iB'
                 help = "\n" + source.description + "\n\n" + _(
-                    "Installed, this variant will initially use {size} of "
-                    "disk.").format(size=size)
+                    "This variant will occopy approximately "
+                    "{size} of disk when installed.").format(size=size)
                 ns[source.id] = RadioButtonField(group, source.name, help)
                 initial[source.id] = source.id == current_id
 
