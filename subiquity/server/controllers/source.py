@@ -62,6 +62,10 @@ class SourceController(SubiquityController):
                 default=source.default))
         return SourceSelectionAndSetting(r, self.model.current.id)
 
+    def configured(self):
+        super().configured()
+        self.app.base_model.set_source_variant(self.model.current.variant)
+
     async def POST(self, source_id: str) -> None:
         for source in self.model.sources:
             if source.id == source_id:

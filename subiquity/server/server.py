@@ -169,6 +169,7 @@ INSTALL_MODEL_NAMES = ModelNames({
     "mirror",
     "network",
     "proxy",
+    "source",
     })
 
 POSTINSTALL_MODEL_NAMES = ModelNames({
