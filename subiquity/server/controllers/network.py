@@ -32,7 +32,7 @@ from subiquitycore.models.network import (
     )
 from subiquitycore.utils import arun_command
 
-from subiquity.common.api.client import make_client_for_conn
+from subiquity_cs.common.api.client import make_client_for_conn
 from subiquity.common.apidef import (
     API,
     LinkAction,

@@ -24,7 +24,7 @@ from subiquitycore.utils import arun_command
 
 from subiquity.common.apidef import API
 from subiquity.common.resources import resource_path
-from subiquity.common.serialize import Serializer
+from subiquity_cs.common.serialize import Serializer
 from subiquity.common.types import (
     AnyStep,
     KeyboardLayout,

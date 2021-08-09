@@ -17,8 +17,8 @@ import unittest
 
 from subiquitycore import contextlib38
 
-from subiquity.common.api.client import make_client
-from subiquity.common.api.defs import api, Payload
+from subiquity_cs.common.api.client import make_client
+from subiquity_cs.common.api.defs import api, Payload
 
 
 def extract(c):

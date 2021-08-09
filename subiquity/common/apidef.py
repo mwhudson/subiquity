@@ -23,7 +23,7 @@ from subiquitycore.models.network import (
     WLANConfig,
     )
 
-from subiquity.common.api.defs import api, Payload, simple_endpoint
+from subiquity_cs.common.api.defs import api, Payload, simple_endpoint
 from subiquity.common.types import (
     AnyStep,
     ApplicationState,

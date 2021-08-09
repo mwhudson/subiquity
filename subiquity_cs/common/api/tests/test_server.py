@@ -22,8 +22,8 @@ from subiquitycore.context import Context
 from subiquitycore.tests.util import run_coro
 from subiquitycore import contextlib38
 
-from subiquity.common.api.defs import api, Payload
-from subiquity.common.api.server import (
+from subiquity_cs.common.api.defs import api, Payload
+from subiquity_cs.common.api.server import (
     bind,
     controller_for_request,
     MissingImplementationError,

@@ -36,12 +36,12 @@ from subiquity.client.keycodes import (
     DummyKeycodesFilter,
     KeyCodesFilter,
     )
-from subiquity.common.api.client import make_client_for_conn
+from subiquity_cs.common.api.client import make_client_for_conn
 from subiquity.common.apidef import API
 from subiquity.common.errorreport import (
     ErrorReporter,
     )
-from subiquity.common.serialize import from_json
+from subiquity_cs.common.serialize import from_json
 from subiquity.common.types import (
     ApplicationState,
     ErrorReportKind,

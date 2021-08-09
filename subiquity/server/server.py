@@ -43,7 +43,7 @@ from subiquitycore.ssh import (
     )
 from subiquitycore.utils import arun_command, run_command
 
-from subiquity.common.api.server import (
+from subiquity_cs.common.api.server import (
     bind,
     controller_for_request,
     )
@@ -52,7 +52,7 @@ from subiquity.common.errorreport import (
     ErrorReportKind,
     ErrorReporter,
     )
-from subiquity.common.serialize import to_json
+from subiquity_cs.common.serialize import to_json
 from subiquity.common.types import (
     ApplicationState,
     ApplicationStatus,

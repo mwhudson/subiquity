@@ -31,7 +31,7 @@ from subiquitycore.models.network import (
 from subiquitycore.ui.views.network import NetworkView
 
 from subiquity.client.controller import SubiquityTuiController
-from subiquity.common.api.server import make_server_at_path
+from subiquity_cs.common.api.server import make_server_at_path
 from subiquity.common.apidef import LinkAction, NetEventAPI
 from subiquity.common.types import (
     ErrorReportKind,

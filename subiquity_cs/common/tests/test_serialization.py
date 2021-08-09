@@ -19,7 +19,7 @@ import string
 import typing
 import unittest
 
-from subiquity.common.serialize import Serializer
+from subiquity_cs.common.serialize import Serializer
 
 
 @attr.s(auto_attribs=True)

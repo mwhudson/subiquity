@@ -24,7 +24,7 @@ from subiquitycore.controller import (
     BaseController,
     )
 
-from subiquity.common.api.server import bind
+from subiquity_cs.common.api.server import bind
 
 log = logging.getLogger("subiquity.server.controller")
 

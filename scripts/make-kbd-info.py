@@ -7,7 +7,7 @@ import subprocess
 import sys
 from typing import Dict
 
-from subiquity.common.serialize import Serializer
+from subiquity_cs.common.serialize import Serializer
 from subiquity.common.types import (
     AnyStep,
     KeyboardLayout,

@@ -19,7 +19,7 @@ import traceback
 
 from aiohttp import web
 
-from subiquity.common.serialize import Serializer
+from subiquity_cs.common.serialize import Serializer
 
 from .defs import Payload
 
