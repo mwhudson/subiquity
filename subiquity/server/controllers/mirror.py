@@ -88,7 +88,7 @@ class MirrorController(SubiquityController):
     def maybe_start_check(self, apt_config):
         if self.checker is not None and self.checker.apt_config == apt_config:
             return
-        self.checker = DryRunMirrorChecker(self.source, apt_config)
+        self.checker = DryRunMirrorChecker({'uri': 'cp:///'}, apt_config)
         self.app.aio_loop.create_task(self.checker.check(context=self.context))
 
     def serialize(self):

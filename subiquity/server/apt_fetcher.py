@@ -18,12 +18,14 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import yaml
 
 import apt_pkg
 
 from curtin.commands.extract import get_handler_for_source
+from curtin import util
 
 from subiquitycore.context import with_context
 from subiquitycore.utils import (
@@ -38,6 +40,9 @@ from subiquity.common.types import (
 
 
 log = logging.getLogger('subiquity.server.controllers.mirror')
+
+
+_apt_options_for_checking = None
 
 
 def apt_options_for_checking():
@@ -120,6 +125,22 @@ class MirrorChecker:
             raise Exception
 
     @with_context()
+    async def apply_apt_config(self, context, target):
+        conf = self.tmpfile()
+        with open(conf, 'w') as fp:
+            yaml.dump(self.apt_config, fp)
+        await self.run([
+            sys.executable, '-m', 'curtin',
+            'apt-config', '-t', target, '-c', conf,
+            ])
+
+    @with_context()
+    async def apt_update_check(self, context, target):
+        await self.run([
+            'apt-get', 'update', f'-oDir={target}',
+            ] + apt_options_for_checking())
+
+    @with_context()
     async def check(self, context):
         handler = get_handler_for_source(self.source)
         root = handler.setup()
@@ -127,17 +148,9 @@ class MirrorChecker:
         try:
             self._tmp_root = tempfile.mkdtemp()
             overlay1 = await self.add_overlay(root)
-            conf = self.tmpfile()
-            with open(conf) as fp:
-                yaml.dump(self.apt_config, fp)
-            await self.run([
-                self.executable, '-m', 'curtin',
-                'apt-config', '-t', overlay1, '-c', conf,
-                ])
+            await self.apply_apt_config(context=context, target=overlay1)
             overlay2 = await self.add_overlay(overlay1)
-            await self.run([
-                'apt-get', 'update', f'-oDir={overlay2}',
-                ] + apt_options_for_checking())
+            await self.apt_update_check(overlay2)
             self._status = MirrorCheckStatus.PASSED
         except Exception:
             self._status = MirrorCheckStatus.FAILED
@@ -164,7 +177,26 @@ class DryRunMirrorChecker(MirrorChecker):
     async def add_overlay(self, lower):
         t = self.tmpdir()
         os.mkdir(f'{t}/etc')
+        os.makedirs(f'{t}/var/lib/apt/partial')
+        util.write_file(f'{t}/var/lib/dpkg/status', '')
         await arun_command([
             'cp', '-aT', f'{lower}/etc/apt', f'{t}/etc/apt',
             ])
         return t
+
+    @with_context()
+    async def apply_apt_config(self, context, target):
+        from curtin.commands.apt_config import (
+            distro,
+            find_apt_mirror_info,
+            generate_sources_list,
+            apply_preserve_sources_list,
+            rename_apt_lists)
+        cfg = self.apt_config['apt']
+        release = distro.lsb_release()['codename']
+        arch = distro.get_architecture()
+        mirrors = find_apt_mirror_info(cfg, arch)
+
+        generate_sources_list(cfg, release, mirrors, target, arch)
+        apply_preserve_sources_list(target)
+        rename_apt_lists(mirrors, target, arch)

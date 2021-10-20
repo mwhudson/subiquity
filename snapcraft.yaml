@@ -41,8 +41,8 @@ parts:
       sed -e "s,@@PACKAGED_VERSION@@,$PACKAGED_VERSION,g" -i curtin/version.py
     plugin: python
     source-type: git
-    source: https://git.launchpad.net/curtin
-    source-commit: 809817fdac257de1769e385a42aeaf3d5bcc2c60
+    source: https://git.launchpad.net/~mwhudson/curtin
+    source-branch: extract-refactor
     build-packages:
       - shared-mime-info
       - zlib1g-dev
