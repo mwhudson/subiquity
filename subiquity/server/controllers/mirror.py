@@ -25,6 +25,7 @@ from subiquity.common.apidef import API
 from subiquity.common.types import (
     MirrorCheckState,
     MirrorCheckStatus,
+    MirrorState,
     )
 from subiquity.server.apt_fetcher import DryRunMirrorChecker
 from subiquity.server.controller import SubiquityController
@@ -105,8 +106,10 @@ class MirrorController(SubiquityController):
     def configured(self):
         return super().configured()
 
-    async def GET(self) -> str:
-        return self.model.get_mirror()
+    async def GET(self) -> MirrorState:
+        return MirrorState(
+            self.model.get_mirror(),
+            await self.check_GET())
 
     async def POST(self, data: str):
         self.model.set_mirror(data)

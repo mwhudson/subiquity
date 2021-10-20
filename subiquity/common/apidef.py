@@ -36,6 +36,7 @@ from subiquity.common.types import (
     KeyboardSetup,
     IdentityData,
     MirrorCheckState,
+    MirrorState,
     ModifyPartitionV2,
     NetworkStatus,
     RefreshStatus,
@@ -218,7 +219,7 @@ class API:
             def GET(dev_name: str) -> str: ...
 
     class mirror:
-        def GET() -> str: ...
+        def GET() -> MirrorState: ...
         def POST(data: Payload[str]): ...
 
         class check:

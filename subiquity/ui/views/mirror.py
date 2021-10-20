@@ -46,7 +46,7 @@ class MirrorView(BaseView):
     excerpt = _("If you use an alternative mirror for Ubuntu, enter its "
                 "details here.")
 
-    def __init__(self, controller, mirror):
+    def __init__(self, controller, mirror, check_state):
         self.controller = controller
 
         self.form = MirrorForm(initial={'url': mirror})
@@ -54,7 +54,8 @@ class MirrorView(BaseView):
         connect_signal(self.form, 'submit', self.done)
         connect_signal(self.form, 'cancel', self.cancel)
 
-        super().__init__(self.form.as_screen(excerpt=_(self.excerpt)))
+        super().__init__(self.form.as_screen(
+            excerpt=_(self.excerpt) + str(check_state.status)))
 
     def done(self, result):
         log.debug("User input: {}".format(result.as_data()))

@@ -242,6 +242,12 @@ class MirrorCheckState:
     output: Optional[str]
 
 
+@attr.s(auto_attribs=True)
+class MirrorState:
+    mirror: str
+    check_state: MirrorCheckState
+
+
 class ProbeStatus(enum.Enum):
     PROBING = enum.auto()
     FAILED = enum.auto()

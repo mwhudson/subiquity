@@ -150,7 +150,7 @@ class MirrorChecker:
             overlay1 = await self.add_overlay(root)
             await self.apply_apt_config(context=context, target=overlay1)
             overlay2 = await self.add_overlay(overlay1)
-            await self.apt_update_check(overlay2)
+            await self.apt_update_check(context=context, target=overlay2)
             self._status = MirrorCheckStatus.PASSED
         except Exception:
             self._status = MirrorCheckStatus.FAILED
