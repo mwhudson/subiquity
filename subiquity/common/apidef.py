@@ -35,8 +35,9 @@ from subiquity.common.types import (
     KeyboardSetting,
     KeyboardSetup,
     IdentityData,
-    NetworkStatus,
+    MirrorCheckState,
     ModifyPartitionV2,
+    NetworkStatus,
     RefreshStatus,
     ShutdownMode,
     SnapInfo,
@@ -60,7 +61,6 @@ class API:
     """The API offered by the subiquity installer process."""
     identity = simple_endpoint(IdentityData)
     locale = simple_endpoint(str)
-    mirror = simple_endpoint(str)
     proxy = simple_endpoint(str)
     ssh = simple_endpoint(SSHData)
     updates = simple_endpoint(str)
@@ -216,6 +216,14 @@ class API:
 
         class info:
             def GET(dev_name: str) -> str: ...
+
+    class mirror:
+        def GET() -> str: ...
+        def POST(data: Payload[str]): ...
+
+        class check:
+            def GET() -> MirrorCheckState: ...
+            def POST(url: str): ...
 
     class storage:
         class guided:

@@ -17,11 +17,16 @@ import asyncio
 import logging
 
 from curtin.config import merge_config
+from curtin.util import sanitize_source
 
 from subiquitycore.context import with_context
 
 from subiquity.common.apidef import API
-from subiquity.server.apt_fetcher import DryRunPackageListFetcher
+from subiquity.common.types import (
+    MirrorCheckState,
+    MirrorCheckStatus,
+    )
+from subiquity.server.apt_fetcher import DryRunMirrorChecker
 from subiquity.server.controller import SubiquityController
 from subiquity.server.types import InstallerChannels
 
@@ -48,7 +53,11 @@ class MirrorController(SubiquityController):
         super().__init__(app)
         self.geoip_enabled = True
         self.app.hub.subscribe(InstallerChannels.GEOIP, self.on_geoip)
+        self.app.hub.subscribe(
+            (InstallerChannels.CONFIGURED, 'source'), self.on_source)
+        self.on_source()
         self.cc_event = asyncio.Event()
+        self.checker = None
 
     def load_autoinstall_data(self, data):
         if data is None:
@@ -71,6 +80,16 @@ class MirrorController(SubiquityController):
         if self.geoip_enabled:
             self.model.set_country(self.app.geoip.countrycode)
         self.cc_event.set()
+        self.maybe_start_check(self.model.render())
+
+    def on_source(self):
+        self.source = sanitize_source(self.app.base_model.source.source_uri())
+
+    def maybe_start_check(self, apt_config):
+        if self.checker is not None and self.checker.apt_config == apt_config:
+            return
+        self.checker = DryRunMirrorChecker(self.source, apt_config)
+        self.app.aio_loop.create_task(self.checker.check(context=self.context))
 
     def serialize(self):
         return self.model.get_mirror()
@@ -84,8 +103,6 @@ class MirrorController(SubiquityController):
         return r
 
     def configured(self):
-        self.fetcher = DryRunPackageListFetcher(
-            self.context.child('fetcher'), '/', self.model.render(), True)
         return super().configured()
 
     async def GET(self) -> str:
@@ -94,3 +111,15 @@ class MirrorController(SubiquityController):
     async def POST(self, data: str):
         self.model.set_mirror(data)
         await self.configured()
+
+    async def check_POST(self, url: str):
+        apt_config = self.model.config_for_mirror(url)
+        # XXX Do we have network!!
+        self.maybe_start_check(apt_config)
+
+    async def check_GET(self) -> MirrorCheckState:
+        if self.checker is not None:
+            return self.checker.state()
+        else:
+            return MirrorCheckState(
+                MirrorCheckStatus.NOT_STARTED, output='')
