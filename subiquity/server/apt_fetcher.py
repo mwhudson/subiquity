@@ -191,6 +191,8 @@ class DryRunMirrorChecker(MirrorChecker):
         await arun_command([
             'cp', '-aT', f'{lower}/etc/apt', f'{t}/etc/apt',
             ])
+        if os.path.isdir(f'{t}/etc/apt/sources.list.d'):
+            shutil.rmtree(f'{t}/etc/apt/sources.list.d')
         return t
 
     @with_context()
