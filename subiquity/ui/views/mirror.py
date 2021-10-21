@@ -138,7 +138,7 @@ class MirrorView(BaseView):
                 ]
         else:
             self.output_pile.contents[:] = [
-                (Text(""), self.output_pile.options('weight', 1)),
+                (Text(""), self.output_pile.options('pack')),
                 ]
 
         if check_state.status == MirrorCheckStatus.RUNNING:
