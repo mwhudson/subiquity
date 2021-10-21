@@ -108,7 +108,8 @@ class MirrorView(BaseView):
 
         async def cb():
             await asyncio.sleep(1)
-            status = await self.controller.endpoint.check.GET()
+            status = await self.controller.endpoint.check.GET(
+                self.form.url.value)
             self.update_status(status)
 
         if check_state.status in [
