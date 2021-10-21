@@ -123,17 +123,18 @@ class MirrorView(BaseView):
                 self.form.url.value)
             self.update_status(status)
 
-        if check_state.status in [MirrorCheckStatus.RUNNING,
-                                  MirrorCheckStatus.FAILED]:
+        if check_state.status == MirrorCheckStatus.FAILED:
+            self.output_pile.contents[:] = [
+                (Text(""), self.output_pile.options('pack')),
+                (self.retry_btns, self.output_pile.options('pack')),
+                (Text(""), self.output_pile.options('pack')),
+                (self.output_box, self.output_pile.options('pack')),
+                ]
+        elif check_state.status == MirrorCheckStatus.RUNNING:
             self.output_pile.contents[:] = [
                 (Text(""), self.output_pile.options('pack')),
                 (self.output_box, self.output_pile.options('pack')),
                 ]
-            if check_state.status == MirrorCheckStatus.FAILED:
-                self.output_pile.contents.extend([
-                    (Text(""), self.output_pile.options('pack')),
-                    (self.retry_btns, self.output_pile.options('pack')),
-                    ])
         else:
             self.output_pile.contents[:] = [
                 (Text(""), self.output_pile.options('pack')),
