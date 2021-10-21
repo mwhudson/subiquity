@@ -20,13 +20,14 @@ import asyncio
 import logging
 from urwid import connect_signal, LineBox, Padding, Text
 
+from subiquitycore.ui.buttons import other_btn
 from subiquitycore.ui.container import Columns, Pile
 from subiquitycore.ui.form import (
     Form,
     URLField,
 )
 from subiquitycore.ui.spinner import Spinner
-from subiquitycore.ui.utils import screen
+from subiquitycore.ui.utils import button_pile, rewrap, screen
 from subiquitycore.view import BaseView
 
 from subiquity.common.types import MirrorCheckStatus
@@ -57,8 +58,11 @@ The mirror location cannot be checked because no network has been configured.
 """),
     MirrorCheckStatus.RUNNING: _("The mirror location is being tested."),
     MirrorCheckStatus.PASSED: _("This mirror location passed tests."),
-    MirrorCheckStatus.FAILED: _("This mirror location does not seem to work."),
-    }
+    MirrorCheckStatus.FAILED: _("""\
+This mirror location does not seem to work. The output below may help
+explain the problem. You can try again once the issue has been fixed
+(common problems are network issues or the system clock being wrong).
+"""), }
 
 
 class MirrorView(BaseView):
@@ -80,6 +84,10 @@ class MirrorView(BaseView):
         self.output_text = Text("")
         self.output_box = Padding(LineBox(self.output_text), width=80)
         self.output_pile = Pile([])
+        self.retry_btns = button_pile([other_btn(
+            _("Try again now"),
+            on_press=lambda sender: self.check_url(
+                self.form.url.value, True))])
 
         self.update_status(check_state)
 
@@ -96,17 +104,17 @@ class MirrorView(BaseView):
             buttons=self.form.buttons,
             excerpt=_(self.excerpt)))
 
-    def check_url(self, url):
+    def check_url(self, url, retry=False):
         self.controller.app.aio_loop.create_task(
-            self._check_url(url))
+            self._check_url(url, retry))
 
-    async def _check_url(self, url):
-        state = await self.controller.endpoint.check.POST(url)
+    async def _check_url(self, url, retry=False):
+        state = await self.controller.endpoint.check.POST(url, retry)
         self.update_status(state)
 
     def update_status(self, check_state):
-        self.status_text.set_text(_(
-            MIRROR_CHECK_STATUS_TEXTS[check_state.status]))
+        self.status_text.set_text(rewrap(_(
+            MIRROR_CHECK_STATUS_TEXTS[check_state.status])))
         self.output_text.set_text(check_state.output)
 
         async def cb():
@@ -121,6 +129,11 @@ class MirrorView(BaseView):
                 (Text(""), self.output_pile.options('pack')),
                 (self.output_box, self.output_pile.options('pack')),
                 ]
+            if check_state.status == MirrorCheckStatus.FAILED:
+                self.output_pile.contents.extend([
+                    (Text(""), self.output_pile.options('pack')),
+                    (self.retry_btns, self.output_pile.options('pack')),
+                    ])
         else:
             self.output_pile.contents[:] = [
                 (Text(""), self.output_pile.options('pack')),

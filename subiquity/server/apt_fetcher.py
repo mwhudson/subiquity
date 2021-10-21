@@ -163,9 +163,8 @@ class MirrorChecker:
             self._status = MirrorCheckStatus.FAILED
             raise
         finally:
-            pass
-            #await self.cleanup()
-            #handler.cleanup()
+            await self.cleanup()
+            handler.cleanup()
 
     async def cleanup(self):
         if self._tmp_root is not None:

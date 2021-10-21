@@ -87,8 +87,8 @@ class MirrorController(SubiquityController):
     def on_source(self):
         self.source = sanitize_source(self.app.base_model.source.source_uri())
 
-    def maybe_start_check(self, url, apt_config):
-        if url in self.checkers:
+    def maybe_start_check(self, url, apt_config, retry=False):
+        if url in self.checkers and not retry:
             return
         checker = self.checkers[url] = DryRunMirrorChecker(
             {'uri': 'cp:///'}, apt_config)
@@ -123,14 +123,19 @@ class MirrorController(SubiquityController):
         self.model.set_mirror(data)
         await self.configured()
 
-    async def check_POST(self, url: str) -> MirrorCheckState:
+    async def check_POST(self, url: str, retry: bool = False) \
+            -> MirrorCheckState:
         if self.app.base_model.network.has_network:
             apt_config = self.model.config_for_mirror(url)
-            self.maybe_start_check(url, apt_config)
+            self.maybe_start_check(url, apt_config, retry)
         return await self.check_GET(url)
 
     async def check_GET(self, url: str) -> MirrorCheckState:
         if not self.app.base_model.network.has_network:
             return MirrorCheckState(
                 MirrorCheckStatus.NO_NETWORK, output='')
-        return self.checkers[url].state()
+        checker = self.checkers.get(url)
+        if checker is not None:
+            return checker.state()
+        return MirrorCheckState(
+            MirrorCheckStatus.RUNNING, output='')
