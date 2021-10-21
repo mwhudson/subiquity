@@ -58,7 +58,8 @@ class MirrorController(SubiquityController):
             (InstallerChannels.CONFIGURED, 'source'), self.on_source)
         self.on_source()
         self.cc_event = asyncio.Event()
-        self.checker = None
+        self.checkers = {}
+        self.cur_checker = None
 
     def load_autoinstall_data(self, data):
         if data is None:
@@ -81,16 +82,23 @@ class MirrorController(SubiquityController):
         if self.geoip_enabled:
             self.model.set_country(self.app.geoip.countrycode)
         self.cc_event.set()
-        self.maybe_start_check(self.model.render())
+        self.maybe_start_check(self.model.get_mirror(), self.model.render())
 
     def on_source(self):
         self.source = sanitize_source(self.app.base_model.source.source_uri())
 
-    def maybe_start_check(self, apt_config):
-        if self.checker is not None and self.checker.apt_config == apt_config:
-            return
-        self.checker = DryRunMirrorChecker({'uri': 'cp:///'}, apt_config)
-        self.app.aio_loop.create_task(self.checker.check(context=self.context))
+    def maybe_start_check(self, url, apt_config):
+        if url in self.checkers:
+            self.cur_checker = self.cur_checker[self.url]
+        checker = DryRunMirrorChecker({'uri': 'cp:///'}, apt_config)
+        self.cur_check = self.checkers[url] = checker
+        self.app.aio_loop.create_task(self._run_checker(checker))
+
+    async def _run_checker(self, url, checker):
+        try:
+            await checker.check(context=self.context)
+        except Exception:
+            del self.checkers[url]
 
     def serialize(self):
         return self.model.get_mirror()
@@ -115,10 +123,12 @@ class MirrorController(SubiquityController):
         self.model.set_mirror(data)
         await self.configured()
 
-    async def check_POST(self, url: str):
+    async def check_POST(self, url: str) -> MirrorCheckState:
         apt_config = self.model.config_for_mirror(url)
         # XXX Do we have network!!
-        self.maybe_start_check(apt_config)
+        self.checker = None
+        self.maybe_start_check(url, apt_config)
+        return await self.check_GET()
 
     async def check_GET(self) -> MirrorCheckState:
         if self.checker is not None:

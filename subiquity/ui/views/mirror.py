@@ -18,7 +18,7 @@ Select the Ubuntu archive mirror.
 """
 import asyncio
 import logging
-from urwid import connect_signal, Text
+from urwid import connect_signal, LineBox, Padding, Text
 
 from subiquitycore.ui.container import Columns
 from subiquitycore.ui.form import (
@@ -40,9 +40,23 @@ mirror_help = _(
 
 class MirrorForm(Form):
 
+    controller = None
+
     cancel_label = _("Back")
 
     url = URLField(_("Mirror address:"), help=mirror_help)
+
+    def validate_url(self):
+        if self.controller is not None:
+            self.controller.check_url(self.url.value)
+
+
+MIRROR_CHECK_STATUS_TEXTS = {
+    MirrorCheckStatus.NOT_STARTED: _(""),
+    MirrorCheckStatus.RUNNING: _("The mirror location is being tested."),
+    MirrorCheckStatus.PASSED: _("This mirror location passed tests."),
+    MirrorCheckStatus.FAILED: _("This mirror location does not seem to work."),
+    }
 
 
 class MirrorView(BaseView):
@@ -69,16 +83,27 @@ class MirrorView(BaseView):
             Text(""),
             Columns([self.status_text, self.status_spinner]),
             Text(""),
-            self.output_text,
+            Padding(LineBox(self.output_text), width=80),
             ]
+
+        self.form.controller = self
 
         super().__init__(screen(
             rows,
             buttons=self.form.buttons,
             excerpt=_(self.excerpt)))
 
+    def check_url(self, url):
+        self.controller.app.aio_loop.create_task(
+            self._check_url(url))
+
+    async def _check_url(self, url):
+        state = await self.controller.endpoint.check.POST(url)
+        self.update_status(state)
+
     def update_status(self, check_state):
-        self.status_text.set_text(str(check_state.status))
+        self.status_text.set_text(_(
+            MIRROR_CHECK_STATUS_TEXTS[check_state.status]))
         self.output_text.set_text(check_state.output)
 
         async def cb():
