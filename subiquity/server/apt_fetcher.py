@@ -101,7 +101,7 @@ class MirrorChecker:
         async def _reader():
             while not proc.stdout.at_eof():
                 try:
-                    line = await proc.stdout.readuntil(b'\n')
+                    line = await proc.stdout.read(64)
                 except asyncio.IncompleteReadError as e:
                     line = e.partial
                     if not line:
@@ -156,8 +156,9 @@ class MirrorChecker:
             self._status = MirrorCheckStatus.FAILED
             raise
         finally:
-            await self.cleanup()
-            handler.cleanup()
+            pass
+            #await self.cleanup()
+            #handler.cleanup()
 
     async def cleanup(self):
         if self._tmp_root is not None:

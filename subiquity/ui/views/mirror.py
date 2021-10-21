@@ -16,15 +16,20 @@
 Select the Ubuntu archive mirror.
 
 """
+import asyncio
 import logging
-from urwid import connect_signal
+from urwid import connect_signal, Text
 
-from subiquitycore.view import BaseView
+from subiquitycore.ui.container import Columns
 from subiquitycore.ui.form import (
     Form,
     URLField,
 )
+from subiquitycore.ui.spinner import Spinner
+from subiquitycore.ui.utils import screen
+from subiquitycore.view import BaseView
 
+from subiquity.common.types import MirrorCheckStatus
 
 log = logging.getLogger('subiquity.ui.mirror')
 
@@ -54,8 +59,40 @@ class MirrorView(BaseView):
         connect_signal(self.form, 'submit', self.done)
         connect_signal(self.form, 'cancel', self.cancel)
 
-        super().__init__(self.form.as_screen(
-            excerpt=_(self.excerpt) + str(check_state.status)))
+        self.status_text = Text("")
+        self.status_spinner = Spinner(self.controller.app.aio_loop)
+        self.output_text = Text("")
+
+        self.update_status(check_state)
+
+        rows = self.form.as_rows() + [
+            Text(""),
+            Columns([self.status_text, self.status_spinner]),
+            Text(""),
+            self.output_text,
+            ]
+
+        super().__init__(screen(
+            rows,
+            buttons=self.form.buttons,
+            excerpt=_(self.excerpt)))
+
+    def update_status(self, check_state):
+        self.status_text.set_text(str(check_state.status))
+        self.output_text.set_text(check_state.output)
+
+        async def cb():
+            await asyncio.sleep(1)
+            status = await self.controller.endpoint.check.GET()
+            self.update_status(status)
+
+        if check_state.status in [
+                MirrorCheckStatus.NOT_STARTED, MirrorCheckStatus.RUNNING]:
+            self.controller.app.aio_loop.create_task(cb())
+        if check_state.status == MirrorCheckStatus.RUNNING:
+            self.status_spinner.start()
+        else:
+            self.status_spinner.stop()
 
     def done(self, result):
         log.debug("User input: {}".format(result.as_data()))
