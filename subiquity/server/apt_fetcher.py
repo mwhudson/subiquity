@@ -69,7 +69,8 @@ class MirrorChecker:
         self.apt_config = apt_config
         self._tmp_root = None
         self._mounts = []
-        self._output = []
+        self._lines = []
+        self._cur_line = ''
 
     def tmpdir(self):
         return tempfile.mkdtemp(dir=self._tmp_root)
@@ -96,7 +97,7 @@ class MirrorChecker:
     async def run(self, cmd):
         proc = await astart_command(cmd, stderr=subprocess.STDOUT)
 
-        start_output_len = len(self._output)
+        start_lines_len = len(self._lines)
 
         async def _reader():
             while not proc.stdout.at_eof():
@@ -106,13 +107,20 @@ class MirrorChecker:
                     line = e.partial
                     if not line:
                         return
-                self._output.append(line.decode('utf-8'))
+                line = line.decode('utf-8')
+                for char in line:
+                    if char == '\r':
+                        self._cur_line = ''
+                    elif char == '\n':
+                        self._lines.append(self._cur_line + '\n')
+                    else:
+                        self._cur_line += char
 
         async def _waiter():
             rc = await proc.wait()
             await reader
             if rc == 0:
-                for line in self._output[start_output_len:]:
+                for line in self._lines[start_lines_len:]:
                     if line.startswith('Err:'):
                         rc = 1
             print('rc=', rc)
@@ -137,7 +145,7 @@ class MirrorChecker:
     @with_context()
     async def apt_update_check(self, context, target):
         await self.run([
-            'apt-get', 'update', f'-oDir={target}',
+            'apt-get', 'update', '-q=0', f'-oDir={target}',
             ] + apt_options_for_checking())
 
     @with_context()
@@ -170,7 +178,7 @@ class MirrorChecker:
     def state(self):
         return MirrorCheckState(
             status=self._status,
-            output=''.join(self._output))
+            output=''.join(self._lines) + self._cur_line)
 
 
 class DryRunMirrorChecker(MirrorChecker):
