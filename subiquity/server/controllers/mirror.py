@@ -124,15 +124,13 @@ class MirrorController(SubiquityController):
         await self.configured()
 
     async def check_POST(self, url: str) -> MirrorCheckState:
-        apt_config = self.model.config_for_mirror(url)
-        # XXX Do we have network!!
-        self.maybe_start_check(url, apt_config)
+        if self.app.base_model.network.has_network:
+            apt_config = self.model.config_for_mirror(url)
+            self.maybe_start_check(url, apt_config)
         return await self.check_GET(url)
 
     async def check_GET(self, url: str) -> MirrorCheckState:
-        checker = self.checkers.get(url)
-        if checker is not None:
-            return checker.state()
-        else:
+        if not self.app.base_model.network.has_network:
             return MirrorCheckState(
-                MirrorCheckStatus.NOT_STARTED, output='')
+                MirrorCheckStatus.NO_NETWORK, output='')
+        return self.checkers[url].state()

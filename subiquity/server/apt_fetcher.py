@@ -64,7 +64,7 @@ def apt_options_for_checking():
 class MirrorChecker:
 
     def __init__(self, source, apt_config):
-        self._status = MirrorCheckStatus.NOT_STARTED
+        self._status = MirrorCheckStatus.RUNNING
         self.source = source
         self.apt_config = apt_config
         self._tmp_root = None
@@ -152,7 +152,6 @@ class MirrorChecker:
     async def check(self, context):
         handler = get_handler_for_source(self.source)
         root = handler.setup()
-        self._status = MirrorCheckStatus.RUNNING
         try:
             self._tmp_root = tempfile.mkdtemp()
             overlay1 = await self.add_overlay(root)

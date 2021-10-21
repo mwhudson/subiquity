@@ -20,7 +20,7 @@ import asyncio
 import logging
 from urwid import connect_signal, LineBox, Padding, Text
 
-from subiquitycore.ui.container import Columns
+from subiquitycore.ui.container import Columns, Pile
 from subiquitycore.ui.form import (
     Form,
     URLField,
@@ -52,7 +52,9 @@ class MirrorForm(Form):
 
 
 MIRROR_CHECK_STATUS_TEXTS = {
-    MirrorCheckStatus.NOT_STARTED: _(""),
+    MirrorCheckStatus.NO_NETWORK: _("""\
+The mirror location cannot be checked because no network has been configured.
+"""),
     MirrorCheckStatus.RUNNING: _("The mirror location is being tested."),
     MirrorCheckStatus.PASSED: _("This mirror location passed tests."),
     MirrorCheckStatus.FAILED: _("This mirror location does not seem to work."),
@@ -76,14 +78,15 @@ class MirrorView(BaseView):
         self.status_text = Text("")
         self.status_spinner = Spinner(self.controller.app.aio_loop)
         self.output_text = Text("")
+        self.output_box = Padding(LineBox(self.output_text), width=80)
+        self.output_pile = Pile([])
 
         self.update_status(check_state)
 
         rows = self.form.as_rows() + [
             Text(""),
             Columns([self.status_text, self.status_spinner]),
-            Text(""),
-            Padding(LineBox(self.output_text), width=80),
+            self.output_pile,
             ]
 
         self.form.controller = self
@@ -112,17 +115,29 @@ class MirrorView(BaseView):
                 self.form.url.value)
             self.update_status(status)
 
-        if check_state.status in [
-                MirrorCheckStatus.NOT_STARTED, MirrorCheckStatus.RUNNING]:
-            self.controller.app.aio_loop.create_task(cb())
+        if check_state.status in [MirrorCheckStatus.RUNNING,
+                                  MirrorCheckStatus.FAILED]:
+            self.output_pile.contents[:] = [
+                (Text(""), self.output_pile.options('pack')),
+                (self.output_box, self.output_pile.options('pack')),
+                ]
+        else:
+            self.output_pile.contents[:] = [
+                (Text(""), self.output_pile.options('pack')),
+                ]
+
         if check_state.status == MirrorCheckStatus.RUNNING:
+            self.controller.app.aio_loop.create_task(cb())
             self.status_spinner.start()
         else:
             self.status_spinner.stop()
 
+        self.last_status = check_state.status
+
     def done(self, result):
         log.debug("User input: {}".format(result.as_data()))
-        self.controller.done(result.url.value)
+        if self.last_status == MirrorCheckStatus.PASSED:
+            self.controller.done(result.url.value)
 
     def cancel(self, result=None):
         self.controller.cancel()

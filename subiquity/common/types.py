@@ -230,7 +230,7 @@ class NetworkStatus:
 
 
 class MirrorCheckStatus(enum.Enum):
-    NOT_STARTED = enum.auto()
+    NO_NETWORK = enum.auto()
     RUNNING = enum.auto()
     PASSED = enum.auto()
     FAILED = enum.auto()
