@@ -37,6 +37,7 @@ from subiquitycore.ui.form import (
     URLField,
 )
 from subiquitycore.ui.spinner import Spinner
+from subiquitycore.ui.stretchy import Stretchy
 from subiquitycore.ui.utils import button_pile, rewrap
 from subiquitycore.view import BaseView
 
@@ -47,6 +48,33 @@ log = logging.getLogger('subiquity.ui.mirror')
 mirror_help = _(
     "You may provide an archive mirror that will be used instead "
     "of the default.")
+
+
+class ConfirmUncheckedMirror(Stretchy):
+
+    def __init__(self, parent, status):
+        self.parent = parent
+        if status == MirrorCheckStatus.RUNNING:
+            title = _("it's still running")
+            explanation = _("might not work")
+        else:
+            title = _("it didn't work")
+            explanation = _("will fail. what are you doing.")
+        buttons = button_pile([
+            other_btn("OK", on_press=self._ok),
+            other_btn("Cancel", on_press=self._close),
+            ])
+        super().__init__(
+            title,
+            [Text(explanation), Text(""), buttons],
+            0, 2)
+
+    def _close(self, sender=None):
+        self.parent.remove_overlay()
+
+    def _ok(self, sender=None):
+        self.parent.controller.done(
+            self.parent.form.url.value)
 
 
 class MirrorForm(Form):
@@ -153,15 +181,16 @@ class MirrorView(BaseView):
 
         if check_state.status == MirrorCheckStatus.RUNNING:
             self.controller.app.aio_loop.create_task(cb())
-            self.status_spinner.start()
-        else:
-            self.status_spinner.stop()
 
         self.last_status = check_state.status
 
     def done(self, result):
         log.debug("User input: {}".format(result.as_data()))
-        if self.last_status == MirrorCheckStatus.PASSED:
+        if self.last_status in [
+                MirrorCheckStatus.RUNNING, MirrorCheckStatus.FAILED]:
+            self.show_stretchy_overlay(
+                ConfirmUncheckedMirror(self, self.last_status))
+        else:
             self.controller.done(result.url.value)
 
     def cancel(self, result=None):
