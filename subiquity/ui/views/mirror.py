@@ -18,16 +18,26 @@ Select the Ubuntu archive mirror.
 """
 import asyncio
 import logging
-from urwid import connect_signal, LineBox, Padding, Text
+from urwid import (
+    connect_signal,
+    LineBox,
+    Padding,
+    Text,
+    )
 
 from subiquitycore.ui.buttons import other_btn
-from subiquitycore.ui.container import Columns, ListBox, Pile
+from subiquitycore.ui.container import (
+    Columns,
+    ListBox,
+    Pile,
+    WidgetWrap,
+    )
 from subiquitycore.ui.form import (
     Form,
     URLField,
 )
 from subiquitycore.ui.spinner import Spinner
-from subiquitycore.ui.utils import button_pile, rewrap, screen
+from subiquitycore.ui.utils import button_pile, rewrap
 from subiquitycore.view import BaseView
 
 from subiquity.common.types import MirrorCheckStatus
@@ -82,8 +92,8 @@ class MirrorView(BaseView):
         self.status_text = Text("")
         self.status_spinner = Spinner(self.controller.app.aio_loop)
         self.output_text = Text("")
-        self.output_box = ListBox([self.output_text])
-        self.output_pile = Pile([])
+        self.output_box = LineBox(ListBox([self.output_text]))
+        self.output_wrap = WidgetWrap(self.output_box)
         self.retry_btns = button_pile([other_btn(
             _("Try again now"),
             on_press=lambda sender: self.check_url(
@@ -97,13 +107,19 @@ class MirrorView(BaseView):
             ] + [('pack', r) for r in self.form.as_rows()] + [
             ('pack', Text("")),
             ('pack', Columns([self.status_text, self.status_spinner])),
-            self.output_pile,
+            ('pack', Text("")),
+            self.output_wrap,
+            ('pack', Text("")),
             ('pack', self.form.buttons),
+            ('pack', Text("")),
             ]
 
         self.form.controller = self
 
-        super().__init__(Pile(rows))
+        pile = Pile(rows)
+        pile.focus_position = len(rows) - 2
+        super().__init__(Padding(
+            pile, align='center', width=("relative", 79), min_width=76))
 
     def check_url(self, url, retry=False):
         self.controller.app.aio_loop.create_task(
@@ -125,21 +141,15 @@ class MirrorView(BaseView):
             self.update_status(status)
 
         if check_state.status == MirrorCheckStatus.FAILED:
-            self.output_pile.contents[:] = [
-                (Text(""), self.output_pile.options('pack')),
-                (self.retry_btns, self.output_pile.options('pack')),
-                (Text(""), self.output_pile.options('pack')),
-                (self.output_box, self.output_pile.options('pack')),
-                ]
+            self.output_wrap._w = Pile([
+                ('pack', self.retry_btns),
+                ('pack', Text("")),
+                self.output_box,
+                ])
         elif check_state.status == MirrorCheckStatus.RUNNING:
-            self.output_pile.contents[:] = [
-                (Text(""), self.output_pile.options('pack')),
-                (self.output_box, self.output_pile.options('pack')),
-                ]
+            self.output_wrap._w = self.output_box
         else:
-            self.output_pile.contents[:] = [
-                (Text(""), self.output_pile.options('pack')),
-                ]
+            self.output_wrap._w = ListBox([Text("")])
 
         if check_state.status == MirrorCheckStatus.RUNNING:
             self.controller.app.aio_loop.create_task(cb())
