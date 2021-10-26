@@ -27,7 +27,6 @@ from urwid import (
 
 from subiquitycore.ui.buttons import other_btn
 from subiquitycore.ui.container import (
-    Columns,
     ListBox,
     Pile,
     WidgetWrap,
@@ -38,6 +37,7 @@ from subiquitycore.ui.form import (
 )
 from subiquitycore.ui.spinner import Spinner
 from subiquitycore.ui.stretchy import Stretchy
+from subiquitycore.ui.table import TableRow, TablePile
 from subiquitycore.ui.utils import button_pile, rewrap
 from subiquitycore.view import BaseView
 
@@ -119,6 +119,7 @@ class MirrorView(BaseView):
 
         self.status_text = Text("")
         self.status_spinner = Spinner(self.controller.app.aio_loop)
+        self.status_wrap = WidgetWrap(self.status_text)
         self.output_text = Text("")
         self.output_box = LineBox(ListBox([self.output_text]))
         self.output_wrap = WidgetWrap(self.output_box)
@@ -134,7 +135,7 @@ class MirrorView(BaseView):
             ('pack', Text("")),
             ] + [('pack', r) for r in self.form.as_rows()] + [
             ('pack', Text("")),
-            ('pack', Columns([self.status_text, self.status_spinner])),
+            ('pack', self.status_wrap),
             ('pack', Text("")),
             self.output_wrap,
             ('pack', Text("")),
@@ -181,6 +182,13 @@ class MirrorView(BaseView):
 
         if check_state.status == MirrorCheckStatus.RUNNING:
             self.controller.app.aio_loop.create_task(cb())
+            self.status_spinner.start()
+            self.status_wrap._w = TablePile([
+                TableRow([self.status_text, self.status_spinner]),
+                ])
+        else:
+            self.status_spinner.stop()
+            self.status_wrap._w = self.status_text
 
         self.last_status = check_state.status
 
