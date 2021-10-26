@@ -25,7 +25,11 @@ from urwid import (
     Text,
     )
 
-from subiquitycore.ui.buttons import other_btn
+from subiquitycore.ui.buttons import (
+    danger_btn,
+    done_btn,
+    other_btn,
+    )
 from subiquitycore.ui.container import (
     ListBox,
     Pile,
@@ -49,24 +53,40 @@ mirror_help = _(
     "You may provide an archive mirror that will be used instead "
     "of the default.")
 
+MIRROR_CHECK_CONFIRMATION_TEXTS = {
+    MirrorCheckStatus.RUNNING: (
+        _("Mirror check still running"),
+        _("""\
+The check of the mirror URL is still running. You can continue but there is a
+chance that the installation will fail.
+"""),
+        ),
+    MirrorCheckStatus.FAILED: (
+        _("Mirror check failed"),
+        _("""\
+The check of the mirror URL failed. You can continue but it is very likely that
+the installation will fail.
+"""),
+        ),
+    }
+
 
 class ConfirmUncheckedMirror(Stretchy):
 
     def __init__(self, parent, status):
         self.parent = parent
+        title, explanation = MIRROR_CHECK_CONFIRMATION_TEXTS[status]
         if status == MirrorCheckStatus.RUNNING:
-            title = _("it's still running")
-            explanation = _("might not work")
+            ok_btn = done_btn
         else:
-            title = _("it didn't work")
-            explanation = _("will fail. what are you doing.")
+            ok_btn = danger_btn
         buttons = button_pile([
-            other_btn("OK", on_press=self._ok),
+            ok_btn("OK", on_press=self._ok),
             other_btn("Cancel", on_press=self._close),
             ])
         super().__init__(
             title,
-            [Text(explanation), Text(""), buttons],
+            [Text(rewrap(explanation)), Text(""), buttons],
             0, 2)
 
     def _close(self, sender=None):
