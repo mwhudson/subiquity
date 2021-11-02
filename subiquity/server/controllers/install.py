@@ -15,6 +15,7 @@
 
 import asyncio
 import datetime
+import json
 import logging
 import os
 import re
@@ -139,7 +140,7 @@ class InstallController(SubiquityController):
             conf.write(datestr)
             conf.write(yaml.dump(config))
 
-    def _get_curtin_command(self):
+    def _get_curtin_command(self, stages):
         config_file_name = 'subiquity-curtin-install.conf'
 
         if self.app.opts.dry_run:
@@ -155,8 +156,11 @@ class InstallController(SubiquityController):
         else:
             config_location = os.path.join('/var/log/installer',
                                            config_file_name)
-            curtin_cmd = [sys.executable, '-m', 'curtin', '--showtrace', '-c',
-                          config_location, 'install']
+            curtin_cmd = [
+                sys.executable, '-m', 'curtin', '--showtrace',
+                '-c', config_location,
+                '--set', 'stages=' + json.dumps(stages),
+                'install']
             log_location = INSTALL_LOG
 
         ident = self._event_syslog_id
@@ -182,18 +186,15 @@ class InstallController(SubiquityController):
             shutil.rmtree(target)
 
     @with_context(
-        description="installing system", level="INFO", childlevel="DEBUG")
-    async def curtin_install(self, *, context):
+        description="{label}", level="INFO", childlevel="DEBUG")
+    async def run_curtin(self, *, context, label, stage):
         log.debug('curtin_install')
         self.curtin_event_contexts[''] = context
-
-        curtin_cmd = self._get_curtin_command()
-
-        log.debug('curtin install cmd: {}'.format(curtin_cmd))
-
+        curtin_cmd = self._get_curtin_command([stage])
+        log.debug('curtin cmd for %s: %s' % (stage, curtin_cmd))
         cp = await arun_command(self.logged_command(curtin_cmd), check=True)
-
-        log.debug('curtin_install completed: %s', cp.returncode)
+        log.debug('curtin cmd completed: %s', cp.returncode)
+        await self.drain_curtin_events(context=context)
 
     @with_context()
     async def install(self, *, context):
@@ -223,8 +224,18 @@ class InstallController(SubiquityController):
                     self.app.aio_loop,
                     [(self.app.log_syslog_id, self.log_event),
                      (self._event_syslog_id, self.curtin_event)]):
-                await self.curtin_install(context=context)
-                await self.drain_curtin_events(context=context)
+                await self.run_curtin(
+                    context=context,
+                    label="partitioning storage",
+                    stage='partitioning')
+                await self.run_curtin(
+                    context=context,
+                    label="extracting system",
+                    stage='extract')
+                await self.run_curtin(
+                    context=context,
+                    label="configuring system",
+                    stage='curthooks')
 
             self.app.update_state(ApplicationState.POST_WAIT)
 
