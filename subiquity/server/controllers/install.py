@@ -40,6 +40,7 @@ from subiquitycore.utils import (
     )
 
 from subiquity.common.errorreport import ErrorReportKind
+from subiquity.server.apt import AptConfigurer
 from subiquity.server.controller import (
     SubiquityController,
     )
@@ -149,7 +150,7 @@ class InstallController(SubiquityController):
             conf.write(datestr)
             conf.write(yaml.dump(config))
 
-    def _get_curtin_command(self, stages):
+    def _get_curtin_command(self, command, **conf):
         if self.app.opts.dry_run:
             log_location = '.subiquity/install.log'
             event_file = "examples/curtin-events.json"
@@ -160,18 +161,20 @@ class InstallController(SubiquityController):
                 self._event_syslog_id, log_location,
                 ]
         else:
-            curtin_cmd = [
+            cmd = [
                 sys.executable, '-m', 'curtin', '--showtrace',
                 '-c', self.config_location(),
-                '--set', 'stages=' + json.dumps(stages),
-                'install']
+                ]
+            for k, v in conf.items():
+                cmd.extend('--set', k + '=' + json.dumps(v))
+            cmd.extend(cmd)
             log_location = INSTALL_LOG
 
         self.app.note_file_for_apport("CurtinConfig", self.config_location())
         self.app.note_file_for_apport("CurtinLog", log_location)
         self.app.note_file_for_apport("CurtinErrors", ERROR_TARFILE)
 
-        return curtin_cmd
+        return self.logged_command(curtin_cmd)
 
     @with_context(description="umounting /target dir")
     async def unmount_target(self, *, context, target):
@@ -190,11 +193,19 @@ class InstallController(SubiquityController):
     async def run_curtin(self, *, context, label, stage):
         log.debug('curtin_install')
         self.curtin_event_contexts[''] = context
-        curtin_cmd = self._get_curtin_command([stage])
+        curtin_cmd = self._get_curtin_command('install', stages=[stage])
         log.debug('curtin cmd for %s: %s' % (stage, curtin_cmd))
-        cp = await arun_command(self.logged_command(curtin_cmd), check=True)
+        cp = await arun_command(curtin_cmd, check=True)
         log.debug('curtin cmd completed: %s', cp.returncode)
         await self.drain_curtin_events(context=context)
+
+    @with_context(
+        description="configuring apt", level="INFO")
+    async def configure_apt(self, *, context):
+        configurer = AptConfigurer(
+            self.model.network.has_network, self.model.target,
+            self._get_curtin_command)
+        await configurer.configure()
 
     @with_context()
     async def install(self, *, context):
@@ -234,6 +245,7 @@ class InstallController(SubiquityController):
                     context=context,
                     label="extracting system",
                     stage='extract')
+                await self.configure_apt(context=context)
                 await self.run_curtin(
                     context=context,
                     label="configuring system",

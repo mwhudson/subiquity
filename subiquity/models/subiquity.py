@@ -330,13 +330,6 @@ class SubiquityModel:
         # fixed, the only way to get curtin to leave the network
         # config entirely alone is to omit the 'network' stage.
         config = {
-            'curthooks_commands': {
-                '001-configure-apt': [
-                    resource_path('bin/subiquity-configure-apt'),
-                    sys.executable, str(self.network.has_network).lower(),
-                    ],
-                },
-
             'grub': {
                 'terminal': 'unmodified',
                 'probe_additional_os': True
