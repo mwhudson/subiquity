@@ -329,12 +329,7 @@ class SubiquityModel:
         # Until https://bugs.launchpad.net/curtin/+bug/1876984 gets
         # fixed, the only way to get curtin to leave the network
         # config entirely alone is to omit the 'network' stage.
-        stages = [
-            stage for stage in CONFIG_BUILTIN['stages'] if stage != 'network'
-            ]
         config = {
-            'stages': stages,
-
             'curthooks_commands': {
                 '001-configure-apt': [
                     resource_path('bin/subiquity-configure-apt'),
