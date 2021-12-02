@@ -43,17 +43,24 @@ def summarize_device(device, part_filter=lambda p: True):
         Text(labels.desc(device)),
         Text(humanize_size(device.size), align="right"),
         ])]
-    partitions = device.partitions()
+    partitions = device.parts_and_gaps()
     if partitions:
-        for part in device.partitions():
+        for part in partitions:
             if not part_filter(part):
                 continue
-            details = ", ".join(
-                labels.annotations(part) + labels.usage_labels(part))
+            if isinstance(part, list):
+                label = "free space"
+                size = part[1] - part[0]
+                details = ''
+            else:
+                label = labels.label(part, short=True)
+                size = part.size
+                details = ", ".join(
+                    labels.annotations(part) + labels.usage_labels(part))
             rows.append((part, [
-                Text(labels.label(part, short=True)),
+                Text(label),
                 (2, Text(details)),
-                Text(humanize_size(part.size), align="right"),
+                Text(humanize_size(size), align="right"),
                 ]))
     else:
         rows.append((None, [

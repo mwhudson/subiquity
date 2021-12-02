@@ -102,6 +102,11 @@ def _part_actions(part):
         ]
 
 
+@_supported_actions.register(list)
+def _list_actions(part):
+    return []
+
+
 @_supported_actions.register(Raid)
 def _raid_actions(raid):
     if raid.raidlevel == "container":
@@ -213,8 +218,6 @@ _can_partition = make_checker(DeviceAction.PARTITION)
 @_can_partition.register(Disk)
 @_can_partition.register(Raid)
 def _can_partition_device(device):
-    if device._has_preexisting_partition():
-        return False
     if device.free_for_partitions <= 0:
         return False
     # We only create msdos partition tables with FBA dasds, which
@@ -298,9 +301,6 @@ def _can_delete_generic(device):
 
 @_can_delete.register(Partition)
 def _can_delete_partition(partition):
-    if partition.device._has_preexisting_partition():
-        return _("Cannot delete a single partition from a device that "
-                 "already has partitions.")
     if boot.is_bootloader_partition(partition):
         return _("Cannot delete required bootloader partition")
     return _can_delete_generic(partition)

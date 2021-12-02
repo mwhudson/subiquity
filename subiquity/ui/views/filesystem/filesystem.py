@@ -389,7 +389,7 @@ class DeviceList(WidgetWrap):
         for device in devices:
             for obj, cells in summarize_device(
                     device,
-                    lambda part: part.available() == self.show_available):
+                    lambda part: isinstance(part, list) or part.available() == self.show_available):
                 if obj is not None:
                     menu = self._action_menu_for_device(obj)
                 else:
@@ -403,17 +403,6 @@ class DeviceList(WidgetWrap):
                     rows.append(make_action_menu_row(cells, menu))
                 else:
                     rows.append(TableRow(cells))
-            if (self.show_available
-                    and device.used > 0
-                    and device.free_for_partitions > 0):
-                free = humanize_size(device.free_for_partitions)
-                rows.append(TableRow([
-                    Text(""),
-                    (3, Color.info_minor(Text(_("free space")))),
-                    Text(free, align="right"),
-                    Text(""),
-                    Text(""),
-                ]))
             rows.append(TableRow([Text("")]))
         self.table.set_contents(rows[:-1])
         if self.table._w.focus_position >= len(rows):

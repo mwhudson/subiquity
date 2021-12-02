@@ -494,6 +494,29 @@ class _Device(_Formattable, ABC):
     # [Partition]
     _partitions = attributes.backlink(default=attr.Factory(list))
 
+    def parts_and_gaps(self):
+        ALIGN = 1 << 20
+        prev_end = GPT_OVERHEAD // 2
+        r = []
+
+        disk_end = self.size - GPT_OVERHEAD // 2
+
+        for p in self._partitions + [None]:
+            if p is None:
+                offset = align_down(self.size - GPT_OVERHEAD // 2)
+            elif p.offset is None:
+                offset = align_up(prev_end)
+            else:
+                offset = p.offset
+            aligned_start = align_up(prev_end, ALIGN)
+            aligned_end = align_down(offset, ALIGN)
+            if aligned_end - aligned_start >= ALIGN:
+                r.append([aligned_start, aligned_end])
+            if p is not None:
+                r.append(p)
+                prev_end = offset + p.size
+        return r
+
     def dasd(self):
         return None
 
@@ -655,6 +678,7 @@ class Partition(_Formattable):
     grub_device = attr.ib(default=False)
     name = attr.ib(default=None)
     multipath = attr.ib(default=None)
+    offset = attr.ib(default=None)
 
     def available(self):
         if self.flag in ['bios_grub', 'prep'] or self.grub_device:
