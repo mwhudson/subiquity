@@ -229,6 +229,25 @@ class NetworkStatus:
     wlan_support_install_state: WLANSupportInstallState
 
 
+class MirrorCheckStatus(enum.Enum):
+    NO_NETWORK = enum.auto()
+    RUNNING = enum.auto()
+    PASSED = enum.auto()
+    FAILED = enum.auto()
+
+
+@attr.s(auto_attribs=True)
+class MirrorCheckState:
+    status: MirrorCheckStatus
+    output: Optional[str]
+
+
+@attr.s(auto_attribs=True)
+class MirrorState:
+    mirror: str
+    check_state: MirrorCheckState
+
+
 class ProbeStatus(enum.Enum):
     PROBING = enum.auto()
     FAILED = enum.auto()

@@ -24,6 +24,11 @@ from subiquitycore.async_helpers import SingleInstanceTask
 from subiquitycore.context import with_context
 
 from subiquity.common.apidef import API
+from subiquity.common.types import (
+    MirrorCheckState,
+    MirrorCheckStatus,
+    MirrorState,
+    )
 from subiquity.server.apt import get_apt_configurer
 from subiquity.server.controller import SubiquityController
 from subiquity.server.types import InstallerChannels
@@ -122,8 +127,11 @@ class MirrorController(SubiquityController):
         await self._apply_apt_config_task.wait()
         return self.apt_configurer
 
-    async def GET(self) -> str:
-        return self.model.get_mirror()
+    async def GET(self) -> MirrorState:
+        return MirrorState(
+            mirror=self.model.get_mirror(),
+            check_state=MirrorCheckState(
+                status=MirrorCheckStatus.NO_NETWORK, output=''))
 
     async def POST(self, data: str):
         self.model.set_mirror(data)
@@ -134,3 +142,10 @@ class MirrorController(SubiquityController):
 
     async def disable_components_POST(self, data: List[str]):
         self.model.disable_components = set(data)
+
+    async def check_POST(self, url: str, retry: bool = False) \
+            -> MirrorCheckState:
+        return await self.check_GET(url)
+
+    async def check_GET(self, url: str) -> MirrorCheckState:
+        return MirrorCheckState(status=MirrorCheckStatus.NO_NETWORK, output='')
