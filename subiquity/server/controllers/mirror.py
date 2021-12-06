@@ -20,6 +20,7 @@ from typing import List
 
 from curtin.config import merge_config
 
+from subiquitycore.async_helpers import SingleInstanceTask
 from subiquitycore.context import with_context
 
 from subiquity.common.apidef import API
@@ -33,6 +34,24 @@ from subiquity.server.controller import SubiquityController
 from subiquity.server.types import InstallerChannels
 
 log = logging.getLogger('subiquity.server.controllers.mirror')
+
+
+class MirrorChecker:
+
+    def __init__(self, apt_configurer):
+        self.apt_configurer = apt_configurer
+        self.status = MirrorCheckStatus.RUNNING
+        self.output = []
+
+    async def check(self):
+        rc = await self.apt_configurer.check(self.output)
+        if rc == 0:
+            self.status = MirrorCheckStatus.PASSED
+        else:
+            self.status = MirrorCheckStatus.FAILED
+
+    def state(self):
+        return MirrorCheckState(self.status, '\n'.join(self.output))
 
 
 class MirrorController(SubiquityController):
@@ -67,7 +86,11 @@ class MirrorController(SubiquityController):
             (InstallerChannels.CONFIGURED, 'source'), self.on_source)
         self.cc_event = asyncio.Event()
         self.configured_once = True
+        self._apt_config_key = None
+        self._apply_apt_config_task = SingleInstanceTask(
+            self._apply_apt_config)
         self.apt_configurer = None
+        self.checkers = {}
 
     def load_autoinstall_data(self, data):
         if data is None:
@@ -85,6 +108,8 @@ class MirrorController(SubiquityController):
                 await asyncio.wait_for(self.cc_event.wait(), 10)
         except asyncio.TimeoutError:
             pass
+        self.apt_configurer = self.make_apt_configurer(
+            self.model.get_config())
 
     def on_geoip(self):
         if self.geoip_enabled:
@@ -92,8 +117,7 @@ class MirrorController(SubiquityController):
         self.cc_event.set()
 
     def on_source(self):
-        if self.configured_once:
-            self._make_apt_configurer()
+        self.checkers = {}
 
     def serialize(self):
         return self.model.get_mirror()
@@ -107,17 +131,29 @@ class MirrorController(SubiquityController):
         return r
 
     async def configured(self):
-        self.configured_once = True
-        self._make_apt_configurer()
         await super().configured()
 
-    def _make_apt_configurer(self):
+    def maybe_start_check(self, url, apt_config, retry=False):
+        if url in self.checkers and not retry:
+            return
+        configurer = self.make_apt_configurer(apt_config)
+        checker = self.checkers[url] = MirrorChecker(configurer)
+        asyncio.create_task(checker.check())
+
+    def make_apt_configurer(self, config):
+        return get_apt_configurer(
+            self.app,
+            self.context,
+            self.app.controllers.Source.source_path,
+            config)
+
+    async def _apply_apt_config(self):
         if self.apt_configurer is not None:
             self.apt_configurer.cleanup()
         self.apt_configurer = get_apt_configurer(
-            self.app, self.context, self.app.controllers.Source.source_path,
-            self.model.get_config())
-        asyncio.create_task(self.apt_configurer.get_configured_tree())
+            self.app, self.app.controllers.Source.source_path)
+        await self.apt_configurer.apply_apt_config(
+            self.context, self.model.get_config())
 
     async def GET(self) -> MirrorState:
         return MirrorState(
@@ -127,6 +163,11 @@ class MirrorController(SubiquityController):
 
     async def POST(self, data: str):
         self.model.set_mirror(data)
+        if data in self.checkers:
+            self.apt_configurer = self.checkers[data].apt_configurer
+        else:
+            self.apt_configurer = self.make_apt_configurer(
+                self.model.get_config())
         await self.configured()
 
     async def disable_components_GET(self) -> List[str]:
@@ -137,7 +178,17 @@ class MirrorController(SubiquityController):
 
     async def check_POST(self, url: str, retry: bool = False) \
             -> MirrorCheckState:
+        if self.app.base_model.network.has_network:
+            apt_config = self.model.config_for_mirror(url)
+            self.maybe_start_check(url, apt_config, retry)
         return await self.check_GET(url)
 
     async def check_GET(self, url: str) -> MirrorCheckState:
-        return MirrorCheckState(status=MirrorCheckStatus.NO_NETWORK, output='')
+        if not self.app.base_model.network.has_network:
+            return MirrorCheckState(
+                MirrorCheckStatus.NO_NETWORK, output='')
+        checker = self.checkers.get(url)
+        if checker is not None:
+            return checker.state()
+        return MirrorCheckState(
+            MirrorCheckStatus.RUNNING, output='')

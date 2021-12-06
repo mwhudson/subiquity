@@ -77,5 +77,12 @@ class MirrorModel(object):
             self.config, "primary", self.architecture)
         config["uri"] = mirror
 
+    def config_for_mirror(self, mirror):
+        config = copy.deepcopy(self.config)
+        sub_config = get_arch_mirrorconfig(
+            config, "primary", self.architecture)
+        sub_config["uri"] = mirror
+        return {'apt': config}
+
     def render(self):
         return {}

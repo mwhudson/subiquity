@@ -17,14 +17,17 @@ import asyncio
 import datetime
 import os
 import shutil
+import subprocess
 import tempfile
+
+import apt_pkg
 
 from curtin.util import write_file
 
 import yaml
 
 from subiquitycore.lsb_release import lsb_release
-from subiquitycore.utils import arun_command
+from subiquitycore.utils import arun_command, astart_command
 
 from subiquity.server.curtin import run_curtin_command
 
@@ -52,6 +55,25 @@ class OverlayMountpoint(_MountBase):
         self.lowers = lowers
         self.upperdir = upperdir
         self.mountpoint = mountpoint
+
+
+_apt_options_for_checking = None
+
+
+def apt_options_for_checking():
+    global _apt_options_for_checking
+    if _apt_options_for_checking is None:
+        opts = [
+            '-oDir::Cache::pkgcache=',
+            '-oDir::Cache::srcpkgcache=',
+            '-oAPT::Update::Error-Mode=any',
+            ]
+        apt_pkg.init_config()
+        for key in apt_pkg.config.keys('Acquire::IndexTargets'):
+            if key.count('::') == 3:
+                opts.append(f'-o{key}::DefaultEnabled=false')
+        _apt_options_for_checking = opts
+    return _apt_options_for_checking
 
 
 class AptConfigurer:
@@ -176,6 +198,50 @@ class AptConfigurer:
             config=config_location)
         return configured_tree
 
+    async def check(self, output):
+        configured_tree = await self.get_configured_tree()
+
+        check_tree = await self.setup_overlay(configured_tree)
+
+        cmd = [
+            'apt-get', 'update', '-q=0', '-oDir=' + check_tree.p(),
+            ] + apt_options_for_checking()
+
+        proc = await astart_command(cmd, stderr=subprocess.STDOUT)
+
+        async def _reader():
+            cur_line = ''
+
+            while not proc.stdout.at_eof():
+                try:
+                    line = await proc.stdout.read(64)
+                except asyncio.IncompleteReadError as e:
+                    line = e.partial
+                    if not line:
+                        return
+                line = line.decode('utf-8')
+                for char in line:
+                    if char == '\r':
+                        cur_line = ''
+                    elif char == '\n':
+                        output.append(cur_line + '\n')
+                    else:
+                        cur_line += char
+
+        async def _waiter():
+            rc = await proc.wait()
+            await reader
+            if rc == 0:
+                for line in output:
+                    if line.startswith('Err:'):
+                        rc = 1
+            print('rc=', rc)
+            return rc
+
+        reader = asyncio.get_event_loop().create_task(_reader())
+
+        return await _waiter()
+
     async def configure_for_install(self, context):
         configured_tree = await self.get_configured_tree()
 
@@ -247,9 +313,11 @@ class DryRunAptConfigurer(AptConfigurer):
 
     async def setup_overlay(self, source):
         if isinstance(source, OverlayMountpoint):
-            source = source.lowers[0]
+            source = source.p()
         target = self.tdir()
         os.mkdir(f'{target}/etc')
+        os.makedirs(f'{target}/var/lib/apt/partial')
+        write_file(f'{target}/var/lib/dpkg/status', '')
         await arun_command([
             'cp', '-aT', f'{source}/etc/apt', f'{target}/etc/apt',
             ], check=True)
@@ -260,6 +328,26 @@ class DryRunAptConfigurer(AptConfigurer):
             lowers=[source],
             mountpoint=target,
             upperdir=None)
+
+    async def _make_configured_tree(self):
+        configured_tree = await self.setup_overlay(self.source)
+
+        from curtin.commands.apt_config import (
+            distro,
+            find_apt_mirror_info,
+            generate_sources_list,
+            apply_preserve_sources_list,
+            rename_apt_lists)
+        cfg = self.apt_config['apt']
+        release = distro.lsb_release()['codename']
+        arch = distro.get_architecture()
+        mirrors = find_apt_mirror_info(cfg, arch)
+
+        generate_sources_list(cfg, release, mirrors, configured_tree.p(), arch)
+        apply_preserve_sources_list(configured_tree.p())
+        rename_apt_lists(mirrors, configured_tree.p(), arch)
+
+        return configured_tree
 
     async def deconfigure(self, context, target):
         return
