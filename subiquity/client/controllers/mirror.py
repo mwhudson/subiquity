@@ -26,8 +26,8 @@ class MirrorController(SubiquityTuiController):
     endpoint_name = 'mirror'
 
     async def make_ui(self):
-        mirror = await self.endpoint.GET()
-        return MirrorView(self, mirror)
+        state = await self.endpoint.GET()
+        return MirrorView(self, state.mirror)
 
     def run_answers(self):
         if 'mirror' in self.answers:

@@ -35,8 +35,10 @@ from subiquity.common.types import (
     KeyboardSetting,
     KeyboardSetup,
     IdentityData,
-    NetworkStatus,
+    MirrorCheckState,
+    MirrorState,
     ModifyPartitionV2,
+    NetworkStatus,
     RefreshStatus,
     ShutdownMode,
     SnapInfo,
@@ -305,8 +307,12 @@ class API:
         def POST(mode: ShutdownMode, immediate: bool = False): ...
 
     class mirror:
-        def GET() -> str: ...
+        def GET() -> MirrorState: ...
         def POST(data: Payload[str]): ...
+
+        class check:
+            def GET(url: str) -> MirrorCheckState: ...
+            def POST(url: str, retry: bool = False) -> MirrorCheckState: ...
 
         class disable_components:
             def GET() -> List[str]: ...
