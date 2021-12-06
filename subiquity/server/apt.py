@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import datetime
 import os
 import shutil
@@ -89,10 +90,13 @@ class AptConfigurer:
     #    system, or if it is not, just copy /var/lib/apt/lists from the
     #    'configured_tree' overlay.
 
-    def __init__(self, app, source):
+    def __init__(self, app, context, source, apt_config):
         self.app = app
+        self.context = context
         self.source = source
-        self.configured_tree = None
+        self.apt_config = apt_config
+
+        self._configured_tree_task = None
         self.install_mount = None
         self._mounts = []
         self._tdirs = []
@@ -147,12 +151,17 @@ class AptConfigurer:
             mountpoint=mount.p(),
             upperdir=upperdir)
 
-    async def apply_apt_config(self, context):
-        self.configured_tree = await self.setup_overlay(self.source)
+    async def get_configured_tree(self):
+        if not self._configured_tree_task:
+            self._configured_tree_task = asyncio.create_task(
+                self._make_configured_tree())
+        return await self._configured_tree_task
 
-        config = {
-            'apt': self.app.base_model.mirror.get_config(),
-            }
+    async def _make_configured_tree(self):
+        configured_tree = await self.setup_overlay(self.source)
+
+        config = {'apt': self.apt_config}
+        # Ugh race on paths here
         config_location = os.path.join(
             self.app.root, 'var/log/installer/subiquity-curtin-apt.conf')
 
@@ -163,13 +172,14 @@ class AptConfigurer:
         self.app.note_data_for_apport("CurtinAptConfig", config_location)
 
         await run_curtin_command(
-            self.app, context, 'apt-config', '-t', self.configured_tree.p(),
+            self.app, self.context, 'apt-config', '-t', configured_tree.p(),
             config=config_location)
+        return configured_tree
 
     async def configure_for_install(self, context):
-        assert self.configured_tree is not None
+        configured_tree = await self.get_configured_tree()
 
-        self.install_tree = await self.setup_overlay(self.configured_tree)
+        self.install_tree = await self.setup_overlay(configured_tree)
 
         os.mkdir(self.install_tree.p('cdrom'))
         await self.mount(
@@ -204,12 +214,13 @@ class AptConfigurer:
             shutil.rmtree(d)
 
     async def deconfigure(self, context, target):
+        configured_tree = await self.get_configured_tree()
         target = Mountpoint(mountpoint=target)
 
         async def _restore_dir(dir):
             shutil.rmtree(target.p(dir))
             await self.app.command_runner.run([
-                'cp', '-aT', self.configured_tree.p(dir), target.p(dir),
+                'cp', '-aT', configured_tree.p(dir), target.p(dir),
                 ])
 
         await self.unmount(target.p('cdrom'))
@@ -254,8 +265,8 @@ class DryRunAptConfigurer(AptConfigurer):
         return
 
 
-def get_apt_configurer(app, source):
+def get_apt_configurer(app, context, source, config):
     if app.opts.dry_run:
-        return DryRunAptConfigurer(app, source)
+        return DryRunAptConfigurer(app, context, source, config)
     else:
-        return AptConfigurer(app, source)
+        return AptConfigurer(app, context, source, config)

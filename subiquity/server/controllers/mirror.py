@@ -20,7 +20,6 @@ from typing import List
 
 from curtin.config import merge_config
 
-from subiquitycore.async_helpers import SingleInstanceTask
 from subiquitycore.context import with_context
 
 from subiquity.common.apidef import API
@@ -68,9 +67,6 @@ class MirrorController(SubiquityController):
             (InstallerChannels.CONFIGURED, 'source'), self.on_source)
         self.cc_event = asyncio.Event()
         self.configured_once = True
-        self._apt_config_key = None
-        self._apply_apt_config_task = SingleInstanceTask(
-            self._apply_apt_config)
         self.apt_configurer = None
 
     def load_autoinstall_data(self, data):
@@ -97,7 +93,7 @@ class MirrorController(SubiquityController):
 
     def on_source(self):
         if self.configured_once:
-            self._apply_apt_config_task.start_sync()
+            self._make_apt_configurer()
 
     def serialize(self):
         return self.model.get_mirror()
@@ -111,20 +107,17 @@ class MirrorController(SubiquityController):
         return r
 
     async def configured(self):
-        await super().configured()
         self.configured_once = True
-        self._apply_apt_config_task.start_sync()
+        self._make_apt_configurer()
+        await super().configured()
 
-    async def _apply_apt_config(self):
+    def _make_apt_configurer(self):
         if self.apt_configurer is not None:
             self.apt_configurer.cleanup()
         self.apt_configurer = get_apt_configurer(
-            self.app, self.app.controllers.Source.source_path)
-        await self.apt_configurer.apply_apt_config(self.context)
-
-    async def wait_config(self):
-        await self._apply_apt_config_task.wait()
-        return self.apt_configurer
+            self.app, self.context, self.app.controllers.Source.source_path,
+            self.model.get_config())
+        asyncio.create_task(self.apt_configurer.get_configured_tree())
 
     async def GET(self) -> MirrorState:
         return MirrorState(
