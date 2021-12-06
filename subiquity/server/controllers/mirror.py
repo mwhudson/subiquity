@@ -36,6 +36,24 @@ from subiquity.server.types import InstallerChannels
 log = logging.getLogger('subiquity.server.controllers.mirror')
 
 
+class MirrorChecker:
+
+    def __init__(self, apt_configurer):
+        self.apt_configurer = apt_configurer
+        self.status = MirrorCheckStatus.RUNNING
+        self.output = []
+
+    async def check(self):
+        rc = await self.apt_configurer.check(self.output)
+        if rc == 0:
+            self.status = MirrorCheckStatus.PASSED
+        else:
+            self.status = MirrorCheckStatus.FAILED
+
+    def state(self):
+        return MirrorCheckState(self.status, '\n'.join(self.output))
+
+
 class MirrorController(SubiquityController):
 
     endpoint = API.mirror
@@ -72,6 +90,7 @@ class MirrorController(SubiquityController):
         self._apply_apt_config_task = SingleInstanceTask(
             self._apply_apt_config)
         self.apt_configurer = None
+        self.checkers = {}
 
     def load_autoinstall_data(self, data):
         if data is None:
@@ -89,6 +108,8 @@ class MirrorController(SubiquityController):
                 await asyncio.wait_for(self.cc_event.wait(), 10)
         except asyncio.TimeoutError:
             pass
+        self.apt_configurer = self.make_apt_configurer(
+            self.model.get_config())
 
     def on_geoip(self):
         if self.geoip_enabled:
@@ -96,8 +117,7 @@ class MirrorController(SubiquityController):
         self.cc_event.set()
 
     def on_source(self):
-        if self.configured_once:
-            self._apply_apt_config_task.start_sync()
+        self.checkers = {}
 
     def serialize(self):
         return self.model.get_mirror()
@@ -112,8 +132,20 @@ class MirrorController(SubiquityController):
 
     async def configured(self):
         await super().configured()
-        self.configured_once = True
-        self._apply_apt_config_task.start_sync()
+
+    def maybe_start_check(self, url, apt_config, retry=False):
+        if url in self.checkers and not retry:
+            return
+        configurer = self.make_apt_configurer(apt_config)
+        checker = self.checkers[url] = MirrorChecker(configurer)
+        asyncio.create_task(checker.check())
+
+    def make_apt_configurer(self, config):
+        return get_apt_configurer(
+            self.app,
+            self.context,
+            self.app.controllers.Source.source_path,
+            config)
 
     async def _apply_apt_config(self):
         if self.apt_configurer is not None:
@@ -123,10 +155,6 @@ class MirrorController(SubiquityController):
         await self.apt_configurer.apply_apt_config(
             self.context, self.model.get_config())
 
-    async def wait_config(self):
-        await self._apply_apt_config_task.wait()
-        return self.apt_configurer
-
     async def GET(self) -> MirrorState:
         return MirrorState(
             mirror=self.model.get_mirror(),
@@ -135,6 +163,11 @@ class MirrorController(SubiquityController):
 
     async def POST(self, data: str):
         self.model.set_mirror(data)
+        if data in self.checkers:
+            self.apt_configurer = self.checkers[data].apt_configurer
+        else:
+            self.apt_configurer = self.make_apt_configurer(
+                self.model.get_config())
         await self.configured()
 
     async def disable_components_GET(self) -> List[str]:
@@ -145,7 +178,17 @@ class MirrorController(SubiquityController):
 
     async def check_POST(self, url: str, retry: bool = False) \
             -> MirrorCheckState:
+        if self.app.base_model.network.has_network:
+            apt_config = self.model.config_for_mirror(url)
+            self.maybe_start_check(url, apt_config, retry)
         return await self.check_GET(url)
 
     async def check_GET(self, url: str) -> MirrorCheckState:
-        return MirrorCheckState(status=MirrorCheckStatus.NO_NETWORK, output='')
+        if not self.app.base_model.network.has_network:
+            return MirrorCheckState(
+                MirrorCheckStatus.NO_NETWORK, output='')
+        checker = self.checkers.get(url)
+        if checker is not None:
+            return checker.state()
+        return MirrorCheckState(
+            MirrorCheckStatus.RUNNING, output='')

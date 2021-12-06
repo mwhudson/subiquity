@@ -13,17 +13,21 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
 import datetime
 import os
 import shutil
+import subprocess
 import tempfile
+
+import apt_pkg
 
 from curtin.util import write_file
 
 import yaml
 
 from subiquitycore.lsb_release import lsb_release
-from subiquitycore.utils import arun_command
+from subiquitycore.utils import arun_command, astart_command
 
 from subiquity.server.curtin import run_curtin_command
 
@@ -51,6 +55,25 @@ class OverlayMountpoint(_MountBase):
         self.lowers = lowers
         self.upperdir = upperdir
         self.mountpoint = mountpoint
+
+
+_apt_options_for_checking = None
+
+
+def apt_options_for_checking():
+    global _apt_options_for_checking
+    if _apt_options_for_checking is None:
+        opts = [
+            '-oDir::Cache::pkgcache=',
+            '-oDir::Cache::srcpkgcache=',
+            '-oAPT::Update::Error-Mode=any',
+            ]
+        apt_pkg.init_config()
+        for key in apt_pkg.config.keys('Acquire::IndexTargets'):
+            if key.count('::') == 3:
+                opts.append(f'-o{key}::DefaultEnabled=false')
+        _apt_options_for_checking = opts
+    return _apt_options_for_checking
 
 
 class AptConfigurer:
@@ -89,10 +112,13 @@ class AptConfigurer:
     #    system, or if it is not, just copy /var/lib/apt/lists from the
     #    'configured_tree' overlay.
 
-    def __init__(self, app, source):
+    def __init__(self, app, context, source, apt_config):
         self.app = app
+        self.context = context
         self.source = source
-        self.configured_tree = None
+        self.apt_config = apt_config
+
+        self._configured_tree_task = None
         self.install_mount = None
         self._mounts = []
         self._tdirs = []
@@ -147,10 +173,16 @@ class AptConfigurer:
             mountpoint=mount.p(),
             upperdir=upperdir)
 
-    async def apply_apt_config(self, context, apt_config):
-        self.configured_tree = await self.setup_overlay(self.source)
+    async def get_configured_tree(self):
+        if not self._configured_tree_task:
+            self._configured_tree_task = asyncio.create_task(
+                self._make_configured_tree())
+        return await self._configured_tree_task
 
-        config = {'apt': apt_config}
+    async def _make_configured_tree(self):
+        configured_tree = await self.setup_overlay(self.source)
+
+        config = {'apt': self.apt_config}
         # Ugh race on paths here
         config_location = os.path.join(
             self.app.root, 'var/log/installer/subiquity-curtin-apt.conf')
@@ -162,13 +194,58 @@ class AptConfigurer:
         self.app.note_data_for_apport("CurtinAptConfig", config_location)
 
         await run_curtin_command(
-            self.app, context, 'apt-config', '-t', self.configured_tree.p(),
+            self.app, self.context, 'apt-config', '-t', configured_tree.p(),
             config=config_location)
+        return configured_tree
+
+    async def check(self, output):
+        configured_tree = await self.get_configured_tree()
+
+        check_tree = await self.setup_overlay(configured_tree)
+
+        cmd = [
+            'apt-get', 'update', '-q=0', '-oDir=' + check_tree.p(),
+            ] + apt_options_for_checking()
+
+        proc = await astart_command(cmd, stderr=subprocess.STDOUT)
+
+        async def _reader():
+            cur_line = ''
+
+            while not proc.stdout.at_eof():
+                try:
+                    line = await proc.stdout.read(64)
+                except asyncio.IncompleteReadError as e:
+                    line = e.partial
+                    if not line:
+                        return
+                line = line.decode('utf-8')
+                for char in line:
+                    if char == '\r':
+                        cur_line = ''
+                    elif char == '\n':
+                        output.append(cur_line + '\n')
+                    else:
+                        cur_line += char
+
+        async def _waiter():
+            rc = await proc.wait()
+            await reader
+            if rc == 0:
+                for line in output:
+                    if line.startswith('Err:'):
+                        rc = 1
+            print('rc=', rc)
+            return rc
+
+        reader = asyncio.get_event_loop().create_task(_reader())
+
+        return await _waiter()
 
     async def configure_for_install(self, context):
-        assert self.configured_tree is not None
+        configured_tree = await self.get_configured_tree()
 
-        self.install_tree = await self.setup_overlay(self.configured_tree)
+        self.install_tree = await self.setup_overlay(configured_tree)
 
         os.mkdir(self.install_tree.p('cdrom'))
         await self.mount(
@@ -203,12 +280,13 @@ class AptConfigurer:
             shutil.rmtree(d)
 
     async def deconfigure(self, context, target):
+        configured_tree = await self.get_configured_tree()
         target = Mountpoint(mountpoint=target)
 
         async def _restore_dir(dir):
             shutil.rmtree(target.p(dir))
             await self.app.command_runner.run([
-                'cp', '-aT', self.configured_tree.p(dir), target.p(dir),
+                'cp', '-aT', configured_tree.p(dir), target.p(dir),
                 ])
 
         await self.unmount(target.p('cdrom'))
@@ -235,9 +313,11 @@ class DryRunAptConfigurer(AptConfigurer):
 
     async def setup_overlay(self, source):
         if isinstance(source, OverlayMountpoint):
-            source = source.lowers[0]
+            source = source.p()
         target = self.tdir()
         os.mkdir(f'{target}/etc')
+        os.makedirs(f'{target}/var/lib/apt/partial')
+        write_file(f'{target}/var/lib/dpkg/status', '')
         await arun_command([
             'cp', '-aT', f'{source}/etc/apt', f'{target}/etc/apt',
             ], check=True)
@@ -249,12 +329,32 @@ class DryRunAptConfigurer(AptConfigurer):
             mountpoint=target,
             upperdir=None)
 
+    async def _make_configured_tree(self):
+        configured_tree = await self.setup_overlay(self.source)
+
+        from curtin.commands.apt_config import (
+            distro,
+            find_apt_mirror_info,
+            generate_sources_list,
+            apply_preserve_sources_list,
+            rename_apt_lists)
+        cfg = self.apt_config['apt']
+        release = distro.lsb_release()['codename']
+        arch = distro.get_architecture()
+        mirrors = find_apt_mirror_info(cfg, arch)
+
+        generate_sources_list(cfg, release, mirrors, configured_tree.p(), arch)
+        apply_preserve_sources_list(configured_tree.p())
+        rename_apt_lists(mirrors, configured_tree.p(), arch)
+
+        return configured_tree
+
     async def deconfigure(self, context, target):
         return
 
 
-def get_apt_configurer(app, source):
+def get_apt_configurer(app, context, source, config):
     if app.opts.dry_run:
-        return DryRunAptConfigurer(app, source)
+        return DryRunAptConfigurer(app, context, source, config)
     else:
-        return AptConfigurer(app, source)
+        return AptConfigurer(app, context, source, config)
