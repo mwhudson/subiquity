@@ -147,12 +147,11 @@ class AptConfigurer:
             mountpoint=mount.p(),
             upperdir=upperdir)
 
-    async def apply_apt_config(self, context):
+    async def apply_apt_config(self, context, apt_config):
         self.configured_tree = await self.setup_overlay(self.source)
 
-        config = {
-            'apt': self.app.base_model.mirror.get_config(),
-            }
+        config = {'apt': apt_config}
+        # Ugh race on paths here
         config_location = os.path.join(
             self.app.root, 'var/log/installer/subiquity-curtin-apt.conf')
 
