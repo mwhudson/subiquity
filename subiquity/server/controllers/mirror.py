@@ -85,10 +85,6 @@ class MirrorController(SubiquityController):
         self.app.hub.subscribe(
             (InstallerChannels.CONFIGURED, 'source'), self.on_source)
         self.cc_event = asyncio.Event()
-        self.configured_once = True
-        self._apt_config_key = None
-        self._apply_apt_config_task = SingleInstanceTask(
-            self._apply_apt_config)
         self.apt_configurer = None
         self.checkers = {}
 
@@ -130,9 +126,6 @@ class MirrorController(SubiquityController):
         r['geoip'] = self.geoip_enabled
         return r
 
-    async def configured(self):
-        await super().configured()
-
     def maybe_start_check(self, url, apt_config, retry=False):
         if url in self.checkers and not retry:
             return
@@ -146,14 +139,6 @@ class MirrorController(SubiquityController):
             self.context,
             self.app.controllers.Source.source_path,
             config)
-
-    async def _apply_apt_config(self):
-        if self.apt_configurer is not None:
-            self.apt_configurer.cleanup()
-        self.apt_configurer = get_apt_configurer(
-            self.app, self.app.controllers.Source.source_path)
-        await self.apt_configurer.apply_apt_config(
-            self.context, self.model.get_config())
 
     async def GET(self) -> MirrorState:
         return MirrorState(
