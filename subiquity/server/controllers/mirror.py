@@ -51,7 +51,7 @@ class MirrorChecker:
             self.status = MirrorCheckStatus.FAILED
 
     def state(self):
-        return MirrorCheckState(self.status, '\n'.join(self.output))
+        return MirrorCheckState(self.status, ''.join(self.output))
 
 
 class MirrorController(SubiquityController):
@@ -114,6 +114,9 @@ class MirrorController(SubiquityController):
 
     def on_source(self):
         self.checkers = {}
+        if self.cc_event.is_set() and self.interactive():
+            self.maybe_start_check(
+                self.model.get_mirror(), self.model.get_config())
 
     def serialize(self):
         return self.model.get_mirror()
@@ -122,7 +125,7 @@ class MirrorController(SubiquityController):
         self.model.set_mirror(data)
 
     def make_autoinstall(self):
-        r = copy.deepcopy(self.model.config)
+        r = self.model.get_config()
         r['geoip'] = self.geoip_enabled
         return r
 
