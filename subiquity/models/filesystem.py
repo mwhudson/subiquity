@@ -17,6 +17,7 @@ from abc import ABC, abstractmethod
 import attr
 import collections
 import fnmatch
+import functools
 import itertools
 import logging
 import math
@@ -482,6 +483,18 @@ class _Formattable(ABC):
 GPT_OVERHEAD = 2 * (1 << 20)
 
 
+@attr.s(eq=False, auto_attribs=True)
+class Gap:
+    start: int
+    size: int
+    in_extended: False
+
+
+@functools.singledispatch
+def parts_and_gaps(device):
+    raise NotImplementedError(device)
+
+
 @attr.s(eq=False)
 class _Device(_Formattable, ABC):
     # Anything that can have partitions, e.g. a disk or a RAID.
@@ -493,29 +506,6 @@ class _Device(_Formattable, ABC):
 
     # [Partition]
     _partitions = attributes.backlink(default=attr.Factory(list))
-
-    def parts_and_gaps(self):
-        ALIGN = 1 << 20
-        prev_end = GPT_OVERHEAD // 2
-        r = []
-
-        disk_end = self.size - GPT_OVERHEAD // 2
-
-        for p in self._partitions + [None]:
-            if p is None:
-                offset = align_down(self.size - GPT_OVERHEAD // 2)
-            elif p.offset is None:
-                offset = align_up(prev_end)
-            else:
-                offset = p.offset
-            aligned_start = align_up(prev_end, ALIGN)
-            aligned_end = align_down(offset, ALIGN)
-            if aligned_end - aligned_start >= ALIGN:
-                r.append([aligned_start, aligned_end])
-            if p is not None:
-                r.append(p)
-                prev_end = offset + p.size
-        return r
 
     def dasd(self):
         return None
@@ -787,6 +777,57 @@ class Raid(_Device):
     component_name = "component"
 
 
+@parts_and_gaps.register(Disk)
+@parts_and_gaps.register(Raid)
+def _parts_and_gaps_raid_disk(device):
+    ALIGN = 1 << 20
+    EBR_SPACE = 1 << 20
+    MIN_GAP_SIZE = 1 << 20
+    prev_end = GPT_OVERHEAD // 2
+    r = []
+
+    def maybe_add_gap(start, end, in_extended):
+        if end - start >= MIN_GAP_SIZE:
+            r.append(Gap(start, end - start, in_extended))
+
+    parts = sorted(device._partitions, key=lambda p: p.offset)
+    extended_end = None
+
+    for p in parts + [None]:
+        if p is None:
+            offset = align_down(device.size - GPT_OVERHEAD // 2)
+        else:
+            offset = p.offset
+
+        aligned_gap_start = align_up(prev_end, ALIGN)
+        if extended_end is not None:
+            aligned_gap_start = max(
+                extended_end, aligned_gap_start + EBR_SPACE)
+        aligned_gap_end = align_down(offset, ALIGN)
+
+        if extended_end is not None and aligned_gap_start >= extended_end:
+            aligned_down_extended_end = align_down(extended_end)
+            aligned_up_extended_end = align_up(extended_end)
+            maybe_add_gap(
+                aligned_gap_start, aligned_down_extended_end, True)
+            maybe_add_gap(
+                aligned_up_extended_end, aligned_down_extended_end, False)
+        else:
+            maybe_add_gap(
+                aligned_gap_start,
+                aligned_gap_end, extended_end is not None)
+
+        if p is not None:
+            r.append(p)
+            if p.flag == "extended":
+                prev_end = offset + EBR_SPACE
+                extended_end = offset + p.size
+            else:
+                prev_end = offset + p.size
+
+    return r
+
+
 @fsobj("lvm_volgroup")
 class LVM_VolGroup(_Device):
     name = attr.ib()
@@ -814,6 +855,17 @@ class LVM_VolGroup(_Device):
     # What is a device that makes up this device referred to as?
     component_name = "PV"
 
+
+@parts_and_gaps.register(LVM_VolGroup)
+def _parts_and_gaps_vg(device):
+    used = 0
+    r = []
+    for lv in device._partitions:
+        r.append(lv)
+        used += lv.size
+    if device.size - used >= LVM_CHUNK_SIZE:
+        r.append(Gap(0, device.size - used, False))
+    return r
 
 @fsobj("lvm_partition")
 class LVM_LogicalVolume(_Formattable):
