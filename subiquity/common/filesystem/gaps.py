@@ -54,10 +54,14 @@ class GapFinder:
     ebr_space: int = 0
 
     def au(self, v):  # au == "align up"
-        return align_up(v, self.part_align)
+        r = v % self.part_align
+        if r:
+            return v + self.part_align - r
+        else:
+            return v
 
     def ad(self, v):  # ad == "align down"
-        return align_down(v, self.part_align)
+        return v - v % self.part_align
 
     def maybe_add_gap(self, start, end):
         if end - start >= self.min_gap_size:
@@ -87,6 +91,7 @@ class GapFinder:
                 self.maybe_add_gap(gap_start, self.ad(extended_end))
                 self.in_extended = False
                 self.maybe_add_gap(self.au(extended_end), gap_end)
+                extended_end = None
             else:
                 self.maybe_add_gap(gap_start, gap_end)
 

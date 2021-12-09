@@ -20,11 +20,11 @@ from subiquity.common.filesystem.gaps import (
     ALIGN,
     EBR_SPACE,
     Gap,
+    GapFinder,
     parts_and_gaps,
     )
 from subiquity.models.filesystem import (
     align_down,
-    align_up,
     GPT_OVERHEAD,
     )
 from subiquity.models.tests.test_filesystem import (
@@ -158,25 +158,20 @@ class TestDiskGaps(unittest.TestCase):
             ])
 
     def test_half_extended_half_logical(self):
-        size = 1 << 30
-        m, d = make_model_and_disk(size=size, ptable='dos')
-        p1 = make_partition(
-            m, d, offset=GPT_OVERHEAD//2, size=d.free_for_partitions//2,
-            flag='extended')
-        p2 = make_partition(
-            m, d, offset=GPT_OVERHEAD//2 + EBR_SPACE,
-            size=align_down(p1.size//2), flag='logical')
+        finder = GapFinder(
+            part_align=5,
+            min_gap_size=1,
+            min_start_offset=0,
+            min_end_offset=0,
+            ebr_space=2)
+        m, d = make_model_and_disk(size=100, ptable='dos')
+        p1 = make_partition(m, d, offset=0, size=50, flag='extended')
+        p2 = make_partition(m, d, offset=5, size=25, flag='logical')
         self.assertEqual(
-            parts_and_gaps(d),
+            finder.find_gaps(d),
             [
                 p1,
                 p2,
-                Gap(
-                    GPT_OVERHEAD//2 + EBR_SPACE + p2.size + EBR_SPACE,
-                    p1.size - p2.size - 2*EBR_SPACE,
-                    True),
-                Gap(
-                    GPT_OVERHEAD//2 + p1.size,
-                    d.available_for_partitions - p1.size,
-                    False),
+                Gap(35, 15, True),
+                Gap(50, 50, False),
             ])
