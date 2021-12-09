@@ -66,16 +66,15 @@ def _parts_and_gaps_raid_disk(device):
 
         aligned_gap_start = align_up(prev_end, ALIGN)
         if extended_end is not None:
-            aligned_gap_start = max(
+            aligned_gap_start = min(
                 extended_end, align_up(aligned_gap_start + EBR_SPACE, ALIGN))
         aligned_gap_end = align_down(offset, ALIGN)
 
-        if extended_end is not None and aligned_gap_start >= extended_end:
+        if extended_end is not None and aligned_gap_end >= extended_end:
             aligned_down_extended_end = align_down(extended_end, ALIGN)
             aligned_up_extended_end = align_up(extended_end, ALIGN)
             maybe_add_gap(aligned_gap_start, aligned_down_extended_end, True)
-            maybe_add_gap(
-                aligned_up_extended_end, aligned_gap_end, False)
+            maybe_add_gap(aligned_up_extended_end, aligned_gap_end, False)
         else:
             maybe_add_gap(
                 aligned_gap_start,
@@ -84,7 +83,7 @@ def _parts_and_gaps_raid_disk(device):
         if p is not None:
             r.append(p)
             if p.flag == "extended":
-                prev_end = offset + EBR_SPACE
+                prev_end = offset
                 extended_end = offset + p.size
             else:
                 prev_end = offset + p.size
