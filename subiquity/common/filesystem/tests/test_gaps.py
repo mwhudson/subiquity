@@ -17,14 +17,13 @@
 import unittest
 
 from subiquity.common.filesystem.gaps import (
-    ALIGN,
-    EBR_SPACE,
     Gap,
-    GapFinder,
+    ONE_MB,
+    ParttableInfo,
+    find_disk_gaps,
     parts_and_gaps,
     )
 from subiquity.models.filesystem import (
-    align_down,
     GPT_OVERHEAD,
     )
 from subiquity.models.tests.test_filesystem import (
@@ -35,140 +34,116 @@ from subiquity.models.tests.test_filesystem import (
 
 class TestDiskGaps(unittest.TestCase):
 
-    def test_no_partition(self):
+    def test_no_partition_gpt(self):
         size = 1 << 30
-        m, d = make_model_and_disk(size=size)
+        m, d = make_model_and_disk(size=size, ptable='gpt')
         self.assertEqual(
             parts_and_gaps(d),
-            [Gap(GPT_OVERHEAD//2, size - GPT_OVERHEAD, False)])
+            [Gap(ONE_MB, size - GPT_OVERHEAD, False)])
+
+    def test_no_partition_dos(self):
+        size = 1 << 30
+        m, d = make_model_and_disk(size=size, ptable='dos')
+        self.assertEqual(
+            parts_and_gaps(d),
+            [Gap(ONE_MB, size - ONE_MB, False)])
 
     def test_all_partition(self):
-        size = 1 << 30
-        m, d = make_model_and_disk(size=size)
-        p = make_partition(
-            m, d, offset=GPT_OVERHEAD//2, size=d.free_for_partitions)
+        info = ParttableInfo(
+            part_align=10, min_gap_size=1, min_start_offset=0,
+            min_end_offset=0)
+        m, d = make_model_and_disk(size=100)
+        p = make_partition(m, d, offset=0, size=100)
         self.assertEqual(
-            parts_and_gaps(d),
+            find_disk_gaps(d, info),
             [p])
 
     def test_half_partition(self):
-        size = 1 << 30
-        m, d = make_model_and_disk(size=size)
-        p = make_partition(
-            m, d, offset=GPT_OVERHEAD//2, size=d.free_for_partitions//2)
+        info = ParttableInfo(
+            part_align=10, min_gap_size=1,
+            min_start_offset=0, min_end_offset=0)
+        m, d = make_model_and_disk(size=100)
+        p = make_partition(m, d, offset=0, size=50)
         self.assertEqual(
-            parts_and_gaps(d),
-            [
-                p,
-                Gap(GPT_OVERHEAD//2 + p.size, p.size),
-            ])
+            find_disk_gaps(d, info),
+            [p, Gap(50, 50)])
 
     def test_gap_in_middle(self):
-        size = 1 << 30
-        m, d = make_model_and_disk(size=size)
-        p_size = align_down(d.free_for_partitions//4, ALIGN)
-        p1 = make_partition(
-            m, d, offset=GPT_OVERHEAD//2, size=p_size)
-        p2 = make_partition(
-            m, d, offset=d.size - GPT_OVERHEAD//2 - p_size, size=p_size)
+        info = ParttableInfo(
+            part_align=10, min_gap_size=1,
+            min_start_offset=0, min_end_offset=0)
+        m, d = make_model_and_disk(size=100)
+        p1 = make_partition(m, d, offset=0, size=20)
+        p2 = make_partition(m, d, offset=80, size=20)
         self.assertEqual(
-            parts_and_gaps(d),
-            [
-                p1,
-                Gap(
-                    GPT_OVERHEAD//2 + p_size,
-                    d.available_for_partitions - p_size*2),
-                p2,
-            ])
+            find_disk_gaps(d, info),
+            [p1, Gap(20, 60), p2])
+
+    def test_small_gap(self):
+        info = ParttableInfo(
+            part_align=10, min_gap_size=20,
+            min_start_offset=0, min_end_offset=0)
+        m, d = make_model_and_disk(size=100)
+        p1 = make_partition(m, d, offset=0, size=40)
+        p2 = make_partition(m, d, offset=50, size=50)
+        self.assertEqual(
+            find_disk_gaps(d, info),
+            [p1, p2])
+
+    def test_align_gap(self):
+        info = ParttableInfo(
+            part_align=10, min_gap_size=1,
+            min_start_offset=0, min_end_offset=0)
+        m, d = make_model_and_disk(size=100)
+        p1 = make_partition(m, d, offset=0, size=17)
+        p2 = make_partition(m, d, offset=53, size=47)
+        self.assertEqual(
+            find_disk_gaps(d, info),
+            [p1, Gap(20, 30), p2])
 
     def test_all_extended(self):
-        size = 1 << 30
-        m, d = make_model_and_disk(size=size, ptable='dos')
-        p = make_partition(
-            m, d, offset=GPT_OVERHEAD//2, size=d.free_for_partitions,
-            flag='extended')
+        info = ParttableInfo(
+            part_align=5, min_gap_size=1, min_start_offset=0, min_end_offset=0,
+            ebr_space=2)
+        m, d = make_model_and_disk(size=100, ptable='dos')
+        p = make_partition(m, d, offset=0, size=100, flag='extended')
         self.assertEqual(
-            parts_and_gaps(d),
+            find_disk_gaps(d, info),
             [
                 p,
-                Gap(
-                    GPT_OVERHEAD//2 + EBR_SPACE,
-                    p.size - EBR_SPACE,
-                    True),
+                Gap(5, 95, True),
             ])
 
     def test_half_extended(self):
-        size = 1 << 30
-        m, d = make_model_and_disk(size=size, ptable='dos')
-        p = make_partition(
-            m, d, offset=GPT_OVERHEAD//2, size=d.free_for_partitions//2,
-            flag='extended')
+        info = ParttableInfo(
+            part_align=5, min_gap_size=1, min_start_offset=0, min_end_offset=0,
+            ebr_space=2)
+        m, d = make_model_and_disk(size=100)
+        p = make_partition(m, d, offset=0, size=50, flag='extended')
         self.assertEqual(
-            parts_and_gaps(d),
-            [
-                p,
-                Gap(
-                    GPT_OVERHEAD//2 + EBR_SPACE,
-                    p.size - EBR_SPACE,
-                    True),
-                Gap(
-                    GPT_OVERHEAD//2 + p.size,
-                    d.available_for_partitions - p.size,
-                    False),
-            ])
+            find_disk_gaps(d, info),
+            [p, Gap(5, 45, True), Gap(50, 50, False)])
 
     def test_half_extended_one_logical(self):
-        size = 1 << 30
-        m, d = make_model_and_disk(size=size, ptable='dos')
-        p1 = make_partition(
-            m, d, offset=GPT_OVERHEAD//2, size=d.free_for_partitions//2,
-            flag='extended')
-        p2 = make_partition(
-            m, d, offset=GPT_OVERHEAD//2 + EBR_SPACE, size=p1.size,
-            flag='logical')
+        info = ParttableInfo(
+            part_align=5, min_gap_size=1, min_start_offset=0, min_end_offset=0,
+            ebr_space=2)
+        m, d = make_model_and_disk(size=100)
+        p1 = make_partition(m, d, offset=0, size=50, flag='extended')
+        p2 = make_partition(m, d, offset=5, size=45, flag='logical')
         self.assertEqual(
-            parts_and_gaps(d),
-            [
-                p1,
-                p2,
-                Gap(
-                    GPT_OVERHEAD//2 + p1.size,
-                    d.available_for_partitions - p1.size,
-                    False),
-            ])
-
-    def test_half_extended_one_logical(self):
-        size = 1 << 30
-        m, d = make_model_and_disk(size=size, ptable='dos')
-        p1 = make_partition(
-            m, d, offset=GPT_OVERHEAD//2, size=d.free_for_partitions//2,
-            flag='extended')
-        p2 = make_partition(
-            m, d, offset=GPT_OVERHEAD//2 + EBR_SPACE, size=p1.size,
-            flag='logical')
-        self.assertEqual(
-            parts_and_gaps(d),
-            [
-                p1,
-                p2,
-                Gap(
-                    GPT_OVERHEAD//2 + p1.size,
-                    d.available_for_partitions - p1.size,
-                    False),
-            ])
+            find_disk_gaps(d, info),
+            [p1, p2, Gap(50, 50, False)])
 
     def test_half_extended_half_logical(self):
-        finder = GapFinder(
-            part_align=5,
-            min_gap_size=1,
-            min_start_offset=0,
-            min_end_offset=0,
+        info = ParttableInfo(
+            part_align=5, min_gap_size=1, min_start_offset=0, min_end_offset=0,
             ebr_space=2)
         m, d = make_model_and_disk(size=100, ptable='dos')
         p1 = make_partition(m, d, offset=0, size=50, flag='extended')
         p2 = make_partition(m, d, offset=5, size=25, flag='logical')
         self.assertEqual(
-            finder.find_gaps(d),
+            find_disk_gaps(d, info),
             [
                 p1,
                 p2,

@@ -19,7 +19,6 @@ import attr
 
 from subiquity.models.filesystem import (
     align_down,
-    align_up,
     Disk,
     LVM_CHUNK_SIZE,
     LVM_VolGroup,
@@ -46,78 +45,92 @@ MIN_GAP_SIZE = 1 << 20
 
 
 @attr.s(auto_attribs=True)
-class GapFinder:
+class ParttableInfo:
     part_align: int
     min_gap_size: int
     min_start_offset: int
     min_end_offset: int
     ebr_space: int = 0
 
-    def au(self, v):  # au == "align up"
-        r = v % self.part_align
-        if r:
-            return v + self.part_align - r
-        else:
-            return v
 
-    def ad(self, v):  # ad == "align down"
-        return v - v % self.part_align
+ONE_MB = 1 << 20
 
-    def maybe_add_gap(self, start, end):
-        if end - start >= self.min_gap_size:
-            self.result.append(Gap(start, end - start, self.in_extended))
+gpt_info = ParttableInfo(
+    part_align=ONE_MB,
+    min_gap_size=ONE_MB,
+    min_start_offset=GPT_OVERHEAD//2,
+    min_end_offset=GPT_OVERHEAD//2)
 
-    def find_gaps(self, device):
-        self.result = []
-        self.in_extended = False
-        prev_end = self.min_start_offset
-
-        parts = sorted(device._partitions, key=lambda p: p.offset)
-        extended_end = None
-
-        for part in parts + [None]:
-            if part is None:
-                gap_end = self.ad(device.size - self.min_end_offset)
-            else:
-                gap_end = self.ad(part.offset)
-
-            gap_start = self.au(prev_end)
-
-            if self.in_extended:
-                gap_start = min(
-                    extended_end, self.au(gap_start + self.ebr_space))
-
-            if self.in_extended and gap_end >= extended_end:
-                self.maybe_add_gap(gap_start, self.ad(extended_end))
-                self.in_extended = False
-                self.maybe_add_gap(self.au(extended_end), gap_end)
-                extended_end = None
-            else:
-                self.maybe_add_gap(gap_start, gap_end)
-
-            if part is None:
-                break
-            self.result.append(part)
-            if part.flag == "extended":
-                self.in_extended = True
-                prev_end = part.offset
-                extended_end = part.offset + part.size
-            else:
-                prev_end = part.offset + part.size
-
-        return self.result
+dos_info = ParttableInfo(
+    part_align=ONE_MB,
+    min_gap_size=ONE_MB,
+    min_start_offset=GPT_OVERHEAD//2,
+    min_end_offset=0,
+    ebr_space=ONE_MB)
 
 
 @parts_and_gaps.register(Disk)
 @parts_and_gaps.register(Raid)
-def _parts_and_gaps_raid_disk(device):
-    finder = GapFinder(
-        part_align=1 << 20,
-        min_gap_size=1 << 20,
-        min_start_offset=GPT_OVERHEAD // 2,
-        min_end_offset=GPT_OVERHEAD // 2,
-        ebr_space=1 << 20)
-    return finder.find_gaps(device)
+def find_disk_gaps(device, info=None):
+    if info is None:
+        if device.ptable in [None, 'gpt']:
+            info = gpt_info
+        elif device.ptable in ['dos', 'msdos']:
+            info = dos_info
+
+    result = []
+    extended_end = None
+
+    def au(v):  # au == "align up"
+        r = v % info.part_align
+        if r:
+            return v + info.part_align - r
+        else:
+            return v
+
+    def ad(v):  # ad == "align down"
+        return v - v % info.part_align
+
+    def maybe_add_gap(start, end, in_extended):
+        if end - start >= info.min_gap_size:
+            result.append(Gap(start, end - start, in_extended))
+
+    prev_end = info.min_start_offset
+
+    parts = sorted(device._partitions, key=lambda p: p.offset)
+    extended_end = None
+
+    for part in parts + [None]:
+        if part is None:
+            gap_end = ad(device.size - info.min_end_offset)
+        else:
+            gap_end = ad(part.offset)
+
+        gap_start = au(prev_end)
+
+        if extended_end is not None:
+            gap_start = min(
+                extended_end, au(gap_start + info.ebr_space))
+
+        if extended_end is not None and gap_end >= extended_end:
+            maybe_add_gap(gap_start, ad(extended_end), True)
+            maybe_add_gap(au(extended_end), gap_end, False)
+            extended_end = None
+        else:
+            maybe_add_gap(gap_start, gap_end, extended_end is not None)
+
+        if part is None:
+            break
+
+        result.append(part)
+
+        if part.flag == "extended":
+            prev_end = part.offset
+            extended_end = part.offset + part.size
+        else:
+            prev_end = part.offset + part.size
+
+    return result
 
 
 @parts_and_gaps.register(LVM_VolGroup)
