@@ -58,6 +58,16 @@ class TestDiskGaps(unittest.TestCase):
             find_disk_gaps(d, info),
             [p])
 
+    def test_all_partition_with_min_offsets(self):
+        info = ParttableInfo(
+            part_align=10, min_gap_size=1, min_start_offset=10,
+            min_end_offset=10)
+        m, d = make_model_and_disk(size=100)
+        p = make_partition(m, d, offset=10, size=80)
+        self.assertEqual(
+            find_disk_gaps(d, info),
+            [p])
+
     def test_half_partition(self):
         info = ParttableInfo(
             part_align=10, min_gap_size=1,
