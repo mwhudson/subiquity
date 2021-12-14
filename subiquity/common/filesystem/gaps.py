@@ -152,3 +152,63 @@ def can_fit_bootloader_partition(disk):
     elif bl == Bootloader.PREP:
         return _can_fit_bootloader_partition_of_size(
             disk, PREP_GRUB_SIZE_BYTES)
+
+
+def _gap_for_bootloader_partition_bios(disk):
+    for pg in parts_and_gaps(disk):
+        if isinstance(pg, Partition):
+            if pg.preserve:
+                raise Exception("cannot fit bios partition")
+            tg = trailing_gap(pg)
+            if tg is not None:
+                tgs = tg.size
+            else:
+                tgs = 0
+            if tgs >= BIOS_GRUB_SIZE_BYTES:
+                pgs = parts_and_gaps(pg.device)
+                for p in pgs[:pgs.index(tg)]:
+                    p.offset += BIOS_GRUB_SIZE_BYTES
+                return Gap(
+                    disk,
+                    disk.alignment_data().min_start_offset,
+                    BIOS_GRUB_SIZE_BYTES)
+            if tg is not None:
+                i = pgs.index(tg)
+            else:
+                i = None
+            largest = max(pgs[:i], key=lambda p: p.size)
+            for p in pgs[:pgs.index(largest)+1]:
+                p.offset += BIOS_GRUB_SIZE_BYTES
+            largest.size -= tgs - BIOS_GRUB_SIZE_BYTES
+            for p in pgs[pgs.index(largest) + 1]:
+                p.offset += tgs
+                return Gap(
+                    disk,
+                    disk.alignment_data().min_start_offset,
+                    BIOS_GRUB_SIZE_BYTES)
+        if isinstance(pg, Gap) and pg.size >= BIOS_GRUB_SIZE_BYTES:
+            return pg
+
+
+def _gap_for_bootloader_partition_of_size(disk, size):
+    for pg in parts_and_gaps(disk):
+        if isinstance(pg, Partition):
+            if pg.preserve:
+                continue
+            elif size - trailing_gap_size(pg) < pg.size//2:
+                return True
+        if isinstance(pg, Gap) and pg.size >= size:
+            return True
+
+
+def gap_for_bootloader_partition(disk):
+    bl = disk._model.bootloader
+    if bl == Bootloader.BIOS:
+        return _gap_for_bootloader_partition_bios(disk)
+    elif bl == Bootloader.UEFI:
+        return _gap_for_bootloader_partition_of_size(
+            disk, UEFI_GRUB_SIZE_BYTES)
+    elif bl == Bootloader.PREP:
+        return _gap_for_bootloader_partition_of_size(
+            disk, PREP_GRUB_SIZE_BYTES)
+
