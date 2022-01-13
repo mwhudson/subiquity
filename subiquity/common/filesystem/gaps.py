@@ -192,13 +192,9 @@ def _gap_for_bootloader_partition_bios(disk):
 
 def _gap_for_bootloader_partition_of_size(disk, size):
     for pg in parts_and_gaps(disk):
-        if isinstance(pg, Partition):
-            if pg.preserve:
-                continue
-            elif size - trailing_gap_size(pg) < pg.size//2:
-                return True
         if isinstance(pg, Gap) and pg.size >= size:
             return True
+    
 
 
 def gap_for_bootloader_partition(disk):

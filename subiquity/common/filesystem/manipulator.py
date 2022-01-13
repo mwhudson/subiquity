@@ -338,6 +338,12 @@ class FilesystemManipulator:
             if part:
                 self._mount_esp(part)
 
+    def add_boot_disk_bios(self, new_boot_disk):
+        if new_boot_disk._has_preexisting_partition():
+            new_boot_disk.grub_device = True
+        else:
+            
+                
     def add_boot_disk(self, new_boot_disk):
         bootloader = self.model.bootloader
         if not self.supports_resilient_boot:
