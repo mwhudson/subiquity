@@ -1,7 +1,16 @@
 #!/usr/bin/python3
 import sys
 
+import attr
 import yaml
+
+from curtin.util import human2bytes
+
+
+@attr.s(auto_attribs=True)
+class PartLoc:
+    start: int
+    end: int
 
 
 class StorageChecker:
@@ -10,19 +19,23 @@ class StorageChecker:
         self.actions = {}
         self.unmounted_swap_ids = set()
         self.path_to_mount = {}
+        self.part_locs = {}
 
     def _check_partition(self, action):
         assert 'device' in action
+        device = action['device']
         assert 'size' in action
         size = str(action['size'])
-        size_units = ['B', 'KB', 'K', 'MB', 'M', 'GB', 'G', 'TB', 'T', '%']
-        valid_unit = any(unit in size for unit in size_units)
-        assert size == '-1' or valid_unit or int(size) % 512 == 0
+        size = int(human2bytes(size))
+        assert size == -1 or int(size) % 512 == 0
         assert 'number' in action
-        assert action['device'] in self.actions
-        assert 'ptable' in self.actions[action['device']]
+        assert device in self.actions
+        assert 'ptable' in self.actions[device]
         if action.get('flag') in ('boot', 'bios_grub', 'prep'):
-            assert self.actions[action['device']]['type'] in ('disk', 'raid')
+            assert self.actions[device]['type'] in ('disk', 'raid')
+        if 'offset' in action and size != -1:
+            self.part_locs.setdefault(device, []).append(
+                PartLoc(action['offset'], action['offset'] + size - 1))
 
     def _check_format(self, action):
         assert 'volume' in action
@@ -64,6 +77,16 @@ class StorageChecker:
             m(action)
         self.actions[action['id']] = action
 
+    def check_no_overlapping_partitions(self):
+        for disk in self.part_locs:
+            locs = self.part_locs[disk]
+            for loc1 in locs:
+                for loc2 in locs:
+                    if loc1 == loc2:
+                        continue
+                    if loc2.end > loc1.start and loc1.start < loc2.end:
+                        assert('overlap')
+
     def final_checks(self):
         # Check we mounted all the swap devices
         if len(self.unmounted_swap_ids) > 0:
@@ -73,6 +96,8 @@ class StorageChecker:
 
         # Check we mounted /
         assert '/' in self.path_to_mount
+
+        self.check_no_overlapping_partitions()
 
 
 config = yaml.safe_load(open(sys.argv[1]))
