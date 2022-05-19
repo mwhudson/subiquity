@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import json
 import logging
 import os
 import shlex
@@ -126,6 +127,9 @@ class MetaController:
         for controller in self.app.controllers.instances:
             if controller.endpoint in endpoints:
                 await controller.configured()
+
+    async def save_configured_controllers_POST(self) -> None:
+        self.app.save_configured_controllers()
 
     async def client_variant_POST(self, variant: str) -> None:
         if variant not in self.app.supported_variants:
@@ -312,7 +316,7 @@ class SubiquityServer(Application):
                         os.path.dirname(
                             os.path.dirname(__file__))),
                     "examples", "snaps"),
-                self.scale_factor, opts.output_base)
+                self)
             self.snapd = AsyncSnapd(connection)
         elif os.path.exists(self.snapd_socket_path):
             connection = SnapdConnection(self.root, self.snapd_socket_path)
@@ -630,6 +634,23 @@ class SubiquityServer(Application):
         else:
             self.installer_user_passwd_kind = PasswordKind.NONE
 
+    def save_configured_controllers(self):
+        with open(self.state_path('configured-controllers'), 'w') as fp:
+            json.dump(list(self.base_model._configured_names), fp)
+
+    async def load_configured_controllers(self):
+        try:
+            fp = open(self.state_path('configured-controllers'))
+        except FileNotFoundError:
+            return
+        else:
+            with fp:
+                configured_names = json.load(fp)
+            for controller in self.controllers.instances:
+                if controller.model_name in configured_names:
+                    await controller.configured()
+            os.rename(fp.name, fp.name + '.bak')
+
     async def start(self):
         self.controllers.load_all()
         await self.start_api_server()
@@ -663,6 +684,7 @@ class SubiquityServer(Application):
         self.load_serialized_state()
         self.update_state(ApplicationState.WAITING)
         await super().start()
+        await self.load_configured_controllers()
         await self.apply_autoinstall_config()
 
     def exit(self):

@@ -82,6 +82,10 @@ class API:
             def POST(endpoint_names: List[str]) -> None:
                 """Mark the controllers for endpoint_names as configured."""
 
+        class save_configured_controllers:
+            def POST() -> None:
+                """Save which controllers are configured."""
+
         class client_variant:
             def POST(variant: str) -> None:
                 """Choose the install variant -

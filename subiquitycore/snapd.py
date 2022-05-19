@@ -120,21 +120,22 @@ class ResponseSet:
 
 
 class FakeSnapdConnection:
-    def __init__(self, snap_data_dir, scale_factor, output_base):
+    def __init__(self, snap_data_dir, app):
         self.snap_data_dir = snap_data_dir
-        self.scale_factor = scale_factor
+        self.app = app
         self.response_sets = {}
-        self.output_base = output_base
 
     def configure_proxy(self, proxy):
         log.debug("pretending to restart snapd to pick up proxy config")
-        time.sleep(2/self.scale_factor)
+        time.sleep(2/self.app.scale_factor)
 
     def post(self, path, body, **args):
         if path == "v2/snaps/subiquity" and body['action'] == 'refresh':
+            # The pre-refresh hook does this in the real world.
+            self.app.save_configured_controllers()
+            open(self.app.state_path('dont-mark-configured'), 'w').close()
             # The post-refresh hook does this in the real world.
-            update_marker_file = self.output_base + '/run/subiquity/updating'
-            open(update_marker_file, 'w').close()
+            open(self.app.state_path('updating'), 'w').close()
             return _FakeMemoryResponse({
                 "type": "async",
                 "change": "7",
@@ -152,7 +153,7 @@ class FakeSnapdConnection:
             "Don't know how to fake POST response to {}".format((path, args)))
 
     def get(self, path, **args):
-        time.sleep(1/self.scale_factor)
+        time.sleep(1/self.app.scale_factor)
         filename = path.replace('/', '-')
         if args:
             filename += '-' + urlencode(sorted(args.items()))

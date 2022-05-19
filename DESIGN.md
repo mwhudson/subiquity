@@ -461,8 +461,17 @@ because the keyboard settings can be reconstructed from
 /etc/default/keyboard. The proxy controller does need to do this though).
 
 The client records which screen it is on in /run/subiquity/last-screen and when
-it restarts it checks this file and skips to this screen (it also asks the
-server to mark all controllers before this screen as configured).
+it restarts it checks this file and skips to this screen.
+
+The initial version of the client/server split also had the client tell the
+server which screens came before the one it skipped to and the server marked
+the controllers associated with these screens as configured. This always seemed
+a bit strange to record this in the client so newer versions call a method in
+the pre-refresh hook to save the configured controllers to a file and the
+server reads this file if present (and then deletes it, so that if the user
+selects restart after an install failure, no controllers are marked
+configured!). Because we don't know the version we are refreshing from, the old
+code has to stay in place for now.
 
 ### Doing things in the background
 

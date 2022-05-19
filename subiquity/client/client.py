@@ -465,12 +465,13 @@ class SubiquityClient(TuiApplication):
         self.aio_loop.create_task(self._select_initial_screen(index))
 
     async def _select_initial_screen(self, index):
-        endpoint_names = []
-        for c in self.controllers.instances[:index]:
-            if c.endpoint_name:
-                endpoint_names.append(c.endpoint_name)
-        if endpoint_names:
-            await self.client.meta.mark_configured.POST(endpoint_names)
+        if not os.path.exists(self.state_path('dont-mark-configured')):
+            endpoint_names = []
+            for c in self.controllers.instances[:index]:
+                if getattr(c, 'endpoint_name', None):
+                    endpoint_names.append(c.endpoint_name)
+            if endpoint_names:
+                await self.client.meta.mark_configured.POST(endpoint_names)
         if self.variant:
             await self.client.meta.client_variant.POST(self.variant)
         self.controllers.index = index - 1
