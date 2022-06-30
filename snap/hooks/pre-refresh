@@ -1,0 +1,3 @@
+#!/bin/sh
+touch /run/subquity/dont-mark-configured
+curl --unix-socket /run/subiquity/socket --data '' a/meta/save_configured_controllers
