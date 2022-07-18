@@ -215,7 +215,19 @@ _can_partition = make_checker(DeviceAction.PARTITION)
 
 @_can_partition.register(gaps.Gap)
 def _can_partition_gap(gap):
-    return True
+    if isinstance(gap.device, LVM_VolGroup):
+        return True
+    elif gap.in_extended:
+        return True
+    else:
+        primary_count = len([
+            p for p in gap.device.partitions() if not p.is_logical
+            ])
+        limit = gap.device.alignment_data().primary_part_limit
+        if primary_count < limit:
+            return True
+        else:
+            return "Primary partition limit reached"
 
 
 _can_format = make_checker(DeviceAction.FORMAT)
