@@ -329,15 +329,18 @@ class SubiquityClient(TuiApplication):
         if self.interactive:
             if self.opts.ssh:
                 ssh_info = await self.client.meta.ssh_info.GET()
-                texts = ssh_help_texts(ssh_info)
-                for line in texts:
-                    import urwid
-                    if isinstance(line, urwid.Widget):
-                        line = '\n'.join([
-                            line.decode('utf-8').rstrip()
-                            for line in line.render((1000,)).text
-                            ])
-                    print(line)
+                if ssh_info is None:
+                    print(open('/var/log/cloud-init.log').read())
+                else:
+                    texts = ssh_help_texts(ssh_info)
+                    for line in texts:
+                        import urwid
+                        if isinstance(line, urwid.Widget):
+                            line = '\n'.join([
+                                line.decode('utf-8').rstrip()
+                                for line in line.render((1000,)).text
+                                ])
+                        print(line)
                 return
 
             # Get the variant from the server and reload desired
