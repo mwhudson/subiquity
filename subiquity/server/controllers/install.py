@@ -148,6 +148,12 @@ class InstallController(SubiquityController):
             }
         }
 
+    def acquire_filesystem_config(self, step: CurtinInstallStep,
+                                  resume_data_file: Path) -> Dict[str, Any]:
+        cfg = self.acquire_initial_config(step, resume_data_file)
+        cfg.update(self.model.filesystem.render())
+        return cfg
+
     @with_context(description="umounting /target dir")
     async def unmount_target(self, *, context, target):
         await run_curtin_command(self.app, context, 'unmount', '-t', target,
@@ -227,7 +233,7 @@ class InstallController(SubiquityController):
                 config_file=config_dir / "subiquity-partitioning.conf",
                 log_file=install_log_file,
                 error_file=error_file,
-                acquire_config=self.acquire_generic_config,
+                acquire_config=self.acquire_filesystem_config,
             ), CurtinInstallStep(
                 name="extract",
                 stages=["extract"],
