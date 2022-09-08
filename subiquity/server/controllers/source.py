@@ -75,6 +75,7 @@ class SourceController(SubiquityController):
         self._handler = None
         self.source_path: Optional[str] = None
         self.ai_source_id: Optional[str] = None
+        self.is_core_boot_classic: bool = False
 
     def make_autoinstall(self):
         return {
@@ -133,10 +134,18 @@ class SourceController(SubiquityController):
             self._handler.cleanup()
         self._handler = get_handler_for_source(
             sanitize_source(self.model.get_source()))
+        self.is_core_boot_classic = False
         if self.app.opts.dry_run:
             self.source_path = '/'
         else:
             self.source_path = self._handler.setup()
+            systems_dir = os.path.join(
+                self.source_path, 'var/lib/snapd/seed/systems')
+            # Really the question here is whether there is a system in here and
+            # if it is a "new style classic" model. But for now we just assume
+            # any new style seed is a new style classic system
+            if os.path.isdir(systems_dir) and os.listdir(systems_dir) != []:
+                self.is_core_boot_classic = True
         await super().configured()
         self.app.base_model.set_source_variant(self.model.current.variant)
 
