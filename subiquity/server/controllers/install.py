@@ -84,6 +84,11 @@ class CurtinInstallStep:
     error_file: Path
     acquire_config: Callable[["CurtinInstallStep", Path], Dict[str, Any]]
 
+    async def run(self, controller, resume_data_file, context, source):
+        await self.run_curtin_install_step(
+            step=self, resume_data_file=resume_data_file,
+            context=context, source=source)
+
 
 class InstallController(SubiquityController):
 
@@ -226,35 +231,54 @@ class InstallController(SubiquityController):
             ), resume_data_file=resume_data_file,
             context=context, source=source)
 
-        generic_steps = [
-            CurtinInstallStep(
-                name="partitioning",
-                stages=["partitioning"],
-                config_file=config_dir / "subiquity-partitioning.conf",
-                log_file=install_log_file,
-                error_file=error_file,
-                acquire_config=self.acquire_filesystem_config,
-            ), CurtinInstallStep(
-                name="extract",
-                stages=["extract"],
-                config_file=config_dir / "subiquity-extract.conf",
-                log_file=install_log_file,
-                error_file=error_file,
-                acquire_config=self.acquire_generic_config,
-            ), CurtinInstallStep(
-                name="curthooks",
-                stages=["curthooks"],
-                config_file=config_dir / "subiquity-curthooks.conf",
-                log_file=install_log_file,
-                error_file=error_file,
-                acquire_config=self.acquire_generic_config,
-            ),
-        ]
+        if self.model.source.is_core_boot_classic:
+            steps = [
+                CurtinInstallStep(
+                    name="partitioning",
+                    stages=["partitioning"],
+                    config_file=config_dir / "subiquity-partitioning.conf",
+                    log_file=install_log_file,
+                    error_file=error_file,
+                    acquire_config=self.acquire_filesystem_config,
+                ), CurtinInstallStep(
+                    name="extract",
+                    stages=["extract"],
+                    config_file=config_dir / "subiquity-extract.conf",
+                    log_file=install_log_file,
+                    error_file=error_file,
+                    acquire_config=self.acquire_generic_config,
+                    ),
+                ]
+        else:
+            steps = [
+                CurtinInstallStep(
+                    name="partitioning",
+                    stages=["partitioning"],
+                    config_file=config_dir / "subiquity-partitioning.conf",
+                    log_file=install_log_file,
+                    error_file=error_file,
+                    acquire_config=self.acquire_filesystem_config,
+                ), CurtinInstallStep(
+                    name="extract",
+                    stages=["extract"],
+                    config_file=config_dir / "subiquity-extract.conf",
+                    log_file=install_log_file,
+                    error_file=error_file,
+                    acquire_config=self.acquire_generic_config,
+                ), CurtinInstallStep(
+                    name="curthooks",
+                    stages=["curthooks"],
+                    config_file=config_dir / "subiquity-curthooks.conf",
+                    log_file=install_log_file,
+                    error_file=error_file,
+                    acquire_config=self.acquire_generic_config,
+                ),
+            ]
 
-        for step in generic_steps:
-            await self.run_curtin_install_step(
-                    step=step, resume_data_file=resume_data_file,
-                    context=context, source=source)
+        for step in steps:
+            await step.run(
+                controller=self, resume_data_file=resume_data_file,
+                context=context, source=source)
 
     @with_context()
     async def install(self, *, context):
