@@ -226,7 +226,7 @@ class InstallController(SubiquityController):
                 error_file=error_file,
                 resume_data_file=resume_data_file,
                 source=source,
-                acquire_config=self.acquire_initial_config,
+                acquire_config=acquire_config,
             )
 
         initial = make_curtin_step(
