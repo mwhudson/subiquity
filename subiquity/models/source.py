@@ -69,6 +69,7 @@ class SourceModel:
         self.sources = [self.current]
         self.lang = None
         self.search_drivers = False
+        self.is_core_boot_classic = False
 
     def load_from_file(self, fp):
         self._dir = os.path.dirname(fp.name)

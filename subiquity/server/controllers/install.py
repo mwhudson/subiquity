@@ -84,20 +84,20 @@ class CurtinInstallStep:
     error_file: Path
     resume_data_file: Path
     source: str
-    acquire_config: Callable[["CurtinInstallStep", Path], Dict[str, Any]]
+    acquire_config: Callable[["CurtinInstallStep"], Dict[str, Any]]
 
     @with_context(
         description="executing curtin install {self.name} step")
-    async def run(self, controller: "InstallController",
-                  context) -> subprocess.CompletedProcess:
+    async def run(self, context, controller: "InstallController"
+                  ) -> subprocess.CompletedProcess:
         """ Run a curtin install step. """
 
-        self.controller.app.note_file_for_apport(
+        controller.app.note_file_for_apport(
                 f"Curtin{self.name}Config", str(self.config_file))
 
-        self.controller.write_config(
+        controller.write_config(
                 config_file=self.config_file,
-                config=self.acquire_config(self, self.resume_data_file)
+                config=self.acquire_config(self)
                 )
 
         # Make sure the log directory exists.
@@ -108,7 +108,7 @@ class CurtinInstallStep:
             fh.write(f"\n---- [[ subiquity step {self.name} ]] ----\n")
 
         return await run_curtin_command(
-                self.app, context,
+                controller.app, context,
                 "install", self.source,
                 "--set", f'json:stages={json.dumps(self.stages)}',
                 config=str(self.config_file),
@@ -151,18 +151,18 @@ class InstallController(SubiquityController):
         generate_config_yaml(str(config_file), config)
 
     def acquire_generic_config(self, step: CurtinInstallStep,
-                               resume_data_file: Path) -> Dict[str, Any]:
+                               ) -> Dict[str, Any]:
         """ Return a dictionary object to be used as the configuration of a
         generic curtin install step. """
         config = self.model.render()
         config["install"]["log_file"] = str(step.log_file)
         config["install"]["log_file_append"] = True
         config["install"]["error_tarfile"] = str(step.error_file)
-        config["install"]["resume_data"] = str(resume_data_file)
+        config["install"]["resume_data"] = str(step.resume_data_file)
         return config
 
-    def acquire_initial_config(self, step: CurtinInstallStep,
-                               resume_data_file: Path) -> Dict[str, Any]:
+    def acquire_initial_config(self, step: CurtinInstallStep
+                               ) -> Dict[str, Any]:
         """ Return a dictionary object to be used as the configuration of the
         initial curtin install step. """
         return {
@@ -174,7 +174,7 @@ class InstallController(SubiquityController):
                 "log_file": str(step.log_file),
                 "log_file_append": True,
                 "error_tarfile": str(step.error_file),
-                "resume_data": str(resume_data_file),
+                "resume_data": str(step.resume_data_file),
             }
         }
 
@@ -233,9 +233,7 @@ class InstallController(SubiquityController):
             name="initial", stages=[],
             acquire_config=self.acquire_initial_config)
 
-        await initial.run(
-            controller=self, resume_data_file=resume_data_file,
-            context=context, source=source)
+        await initial.run(controller=self, context=context)
 
         if self.model.source.is_core_boot_classic:
             steps = [
@@ -262,9 +260,7 @@ class InstallController(SubiquityController):
             ]
 
         for step in steps:
-            await step.run(
-                controller=self, resume_data_file=resume_data_file,
-                context=context, source=source)
+            await step.run(controller=self, context=context)
 
     @with_context()
     async def install(self, *, context):
