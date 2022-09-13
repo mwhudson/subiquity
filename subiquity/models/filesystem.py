@@ -1375,6 +1375,14 @@ class FilesystemModel(object):
             config['grub'] = self.grub
         return config
 
+    def render_early_block_meta(self):
+        return {
+            'storage': {
+                'version': self.storage_version,
+                'config': self._render_actions(),
+                },
+            }
+
     def load_probe_data(self, probe_data):
         for devname, devdata in probe_data['blockdev'].items():
             if int(devdata['attrs']['size']) != 0:

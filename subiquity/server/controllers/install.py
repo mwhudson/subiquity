@@ -115,6 +115,18 @@ class CurtinInstallStep:
                 private_mounts=False)
 
 
+@attr.s(auto_attribs=True)
+class ConfigureEncryptionStep:
+
+    device_map_path: Path
+
+    @with_context(
+        description="executing curtin install {self.name} step")
+    async def run(self, context, controller: "InstallController"
+                  ) -> subprocess.CompletedProcess:
+        pass
+
+
 class InstallController(SubiquityController):
 
     def __init__(self, app):
@@ -179,9 +191,17 @@ class InstallController(SubiquityController):
         }
 
     def acquire_filesystem_config(self, step: CurtinInstallStep,
-                                  resume_data_file: Path) -> Dict[str, Any]:
-        cfg = self.acquire_initial_config(step, resume_data_file)
+                                  ) -> Dict[str, Any]:
+        cfg = self.acquire_initial_config(step)
         cfg.update(self.model.filesystem.render())
+        return cfg
+
+    def acquire_early_filesystem_config(self, step: CurtinInstallStep
+                                        ) -> Dict[str, Any]:
+        cfg = self.acquire_initial_config(step)
+        cfg.update(self.model.filesystem.render_early_block_meta())
+        device_map_path = step.config_file.parent / "device-map.json"
+        cfg['storage']['device_map_path'] = device_map_path
         return cfg
 
     @with_context(description="umounting /target dir")
