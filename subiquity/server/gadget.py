@@ -13,13 +13,21 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import asyncio
+import contextlib
 import enum
 from typing import Optional
+
+from subiquitycore import snapd
+
+from subiquity.common.api.client import make_client
+from subiquity.common.api.defs import api
+from subiquity.common.serialize import Serializer
 
 import attr
 
 
-def named_field(name, default):
+def named_field(name, default=attr.NOTHING):
     return attr.ib(metadata={'name': name}, default=default)
 
 
@@ -52,3 +60,54 @@ class VolumeStructure:
     id: Optional[str] = None
     filesystem: str = ''
     # content: List[VolumeContent] = attr.Factory(list)
+
+
+connection = snapd.SnapdConnection('/', '/var/run/snapd.socket')
+snapd = snapd.AsyncSnapd(connection)
+
+
+class FakeResponse:
+    def __init__(self, data):
+        self.data = data
+
+    def raise_for_status(self):
+        pass
+
+    async def json(self):
+        return self.data
+
+
+@contextlib.asynccontextmanager
+async def make_request(method, path, *, params, json):
+    if method == "GET":
+        content = await snapd.get(path[1:], **params)
+    else:
+        1/0
+    yield FakeResponse(content['result'])
+
+
+@attr.s(auto_attribs=True)
+class Snap:
+    id: str
+
+
+@api
+class SnapdAPI:
+    class v2:
+        class snaps:
+            class snap_name:
+                __parameter__ = True
+                def GET() -> Snap: ...
+
+
+serializer = Serializer(ignore_missing_fields=True)
+
+
+client = make_client(SnapdAPI, make_request, serializer=serializer)
+
+
+async def run():
+    print(await client.v2.snaps['go'].GET())
+
+
+asyncio.get_event_loop().run_until_complete(run())
