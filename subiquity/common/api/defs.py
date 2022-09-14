@@ -52,6 +52,11 @@ class Payload(typing.Generic[T]):
     pass
 
 
+def path_parameter(cls):
+    cls.__parameter__ = True
+    return cls
+
+
 def simple_endpoint(typ):
     class endpoint:
         def GET() -> typ: ...

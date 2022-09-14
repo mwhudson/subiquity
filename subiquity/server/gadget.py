@@ -21,7 +21,7 @@ from typing import List, Optional
 from subiquitycore import snapd
 
 from subiquity.common.api.client import make_client
-from subiquity.common.api.defs import api
+from subiquity.common.api.defs import api, path_parameter
 from subiquity.common.serialize import Serializer
 
 import attr
@@ -111,8 +111,8 @@ class SnapdAPI:
 
     class v2:
         class snaps:
+            @path_parameter
             class snap_name:
-                __parameter__ = True
                 def GET() -> Snap: ...
 
         class find:
