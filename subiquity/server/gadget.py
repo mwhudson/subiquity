@@ -16,7 +16,8 @@
 import asyncio
 import contextlib
 import enum
-from typing import List, Optional
+import json as json_mod
+from typing import Dict, List, Optional
 
 from subiquitycore import snapd
 
@@ -33,6 +34,7 @@ def named_field(name, default=attr.NOTHING):
 
 class Role(enum.Enum):
 
+    NONE = ''
     MBR = 'mbr'
     SYSTEM_BOOT = 'system-boot'
     SYSTEM_BOOT_IMAGE = 'system-boot-image'
@@ -62,6 +64,18 @@ class VolumeStructure:
     # content: List[VolumeContent] = attr.Factory(list)
 
 
+@attr.s(auto_attribs=True)
+class Volume:
+    schema: str
+    structure: List[VolumeStructure]
+
+
+@attr.s(auto_attribs=True)
+class SystemDetails:
+    current: bool
+    volumes: Dict[str, Volume]
+
+
 connection = snapd.SnapdConnection('/', '/var/run/snapd.socket')
 snapd = snapd.AsyncSnapd(connection)
 
@@ -80,10 +94,25 @@ class FakeResponse:
 @contextlib.asynccontextmanager
 async def make_request(method, path, *, params, json):
     if method == "GET":
-        content = await snapd.get(path[1:], **params)
+        if path == "/v2/systems/20220914":
+            with open('v2-systems-20220914.json') as fp:
+                content = json_mod.load(fp)
+        else:
+            content = await snapd.get(path[1:], **params)
     else:
         1/0
     yield FakeResponse(content['result'])
+
+
+class EnumByValueSerializer(Serializer):
+    def _serialize_enum(self, annotation, value):
+        return value.value
+
+    def _deserialize_enum(self, annotation, value):
+        return annotation(value)
+
+
+serializer = EnumByValueSerializer(ignore_unknown_fields=True)
 
 
 class SnapStatus(enum.Enum):
@@ -118,16 +147,10 @@ class SnapdAPI:
         class find:
             def GET(name: str) -> List[Snap]: ...
 
-
-class EnumByValueSerializer(Serializer):
-    def _serialize_enum(self, annotation, value):
-        return value.value
-
-    def _deserialize_enum(self, annotation, value):
-        return annotation(value)
-
-
-serializer = EnumByValueSerializer(ignore_unknown_fields=True)
+        class systems:
+            @path_parameter
+            class label:
+                def GET() -> SystemDetails: ...
 
 
 client = make_client(SnapdAPI, make_request, serializer=serializer)
@@ -135,7 +158,7 @@ client = make_client(SnapdAPI, make_request, serializer=serializer)
 
 async def run():
     print(await client.v2.snaps['go'].GET())
-    print(await client.v2.find.GET(name="heroku"))
+    print(await client.v2.systems['20220914'].GET())
 
 
 asyncio.get_event_loop().run_until_complete(run())
