@@ -91,9 +91,18 @@ class SnapStatus(enum.Enum):
 
 
 @attr.s(auto_attribs=True)
+class Publisher:
+    id: str
+    username: str
+    display_name: str = named_field('display-name')
+
+
+@attr.s(auto_attribs=True)
 class Snap:
     id: str
     status: SnapStatus
+    publisher: Publisher
+
 
 
 @api
@@ -113,7 +122,7 @@ class EnumByValueSerializer(Serializer):
         return annotation(value)
 
 
-serializer = EnumByValueSerializer(ignore_missing_fields=True)
+serializer = EnumByValueSerializer(ignore_unknown_fields=True)
 
 
 client = make_client(SnapdAPI, make_request, serializer=serializer)

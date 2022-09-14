@@ -27,9 +27,9 @@ import attr
 
 class Serializer:
 
-    def __init__(self, *, compact=False, ignore_missing_fields=False):
+    def __init__(self, *, compact=False, ignore_unknown_fields=False):
         self.compact = compact
-        self.ignore_missing_fields = ignore_missing_fields
+        self.ignore_unknown_fields = ignore_unknown_fields
         self.typing_walkers = {
             typing.Union: self._walk_Union,
             list: self._walk_List,
@@ -126,9 +126,10 @@ class Serializer:
             return str(value)
 
     def _serialize_field(self, field, value, path):
+        name = field.metadata.get('name', field.name)
         path = f'{path}.{field.name}'
         return {
-            field.name: self.serialize(field.type, value, field.metadata, path)
+            name: self.serialize(field.type, value, field.metadata, path)
             }
 
     def _serialize_attr(self, annotation, value, metadata, path):
@@ -180,7 +181,8 @@ class Serializer:
             1/0
 
     def _deserialize_field(self, field, value, path):
-        path = f'{path}.{field.name}'
+        name = field.metadata.get('name', field.name)
+        path = f'{path}.{name}'
         return {
             field.name: self.deserialize(
                 field.type, value, field.metadata, path)
@@ -196,10 +198,13 @@ class Serializer:
             return annotation(*args)
         else:
             args = {}
-            fields = {field.name: field for field in attr.fields(annotation)}
+            fields = {
+                field.metadata.get('name', field.name): field
+                for field in attr.fields(annotation)
+                }
             for key in value.keys():
                 if key not in fields and (
-                        key == '$type' or self.ignore_missing_fields):
+                        key == '$type' or self.ignore_unknown_fields):
                     # Union types can contain a '$type' field that is not
                     # actually one of the keys.  This happens if a object is
                     # serialized as part of a Union, sent to an API caller,
