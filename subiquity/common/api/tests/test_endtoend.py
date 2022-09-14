@@ -85,6 +85,25 @@ class TestEndToEnd(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(
                 await client.GET(arg1="A", arg2="B"), 'A+B')
 
+    async def test_path_args(self):
+        @api
+        class API:
+            class param1:
+                __parameter__ = True
+
+                class param2:
+                    __parameter__ = True
+                    def GET(arg1: str, arg2: str) -> str: ...
+
+        class Impl(ControllerBase):
+            async def param1_param2_GET(self, param1: str, param2: str,
+                                        arg1: str, arg2: str) -> str:
+                return '{}+{}+{}+{}'.format(param1, param2, arg1, arg2)
+
+        async with makeE2EClient(API, Impl()) as client:
+            self.assertEqual(
+                await client["1"]["2"].GET(arg1="A", arg2="B"), '1+2+A+B')
+
     async def test_defaults(self):
         @api
         class API:

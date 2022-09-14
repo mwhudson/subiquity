@@ -89,3 +89,23 @@ class TestClient(unittest.TestCase):
         r = extract(client.GET(arg='v'))
         self.assertEqual(r, '"v"')
         self.assertEqual(requests, [("GET", '/', {'arg': '"v"'}, None)])
+
+    def test_path_params(self):
+
+        @api
+        class API:
+            class param:
+                __parameter__ = True
+                def GET(arg: str) -> str: ...
+
+        @contextlib.asynccontextmanager
+        async def make_request(method, path, *, params, json):
+            requests.append((method, path, params, json))
+            yield FakeResponse(params['arg'])
+
+        client = make_client(API, make_request)
+
+        requests = []
+        r = extract(client['foo'].GET(arg='v'))
+        self.assertEqual(r, '"v"')
+        self.assertEqual(requests, [("GET", '/foo', {'arg': '"v"'}, None)])

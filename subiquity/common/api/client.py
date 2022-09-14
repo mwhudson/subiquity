@@ -22,7 +22,7 @@ from subiquity.common.serialize import Serializer
 from .defs import Payload
 
 
-def _wrap(make_request, path, meth, serializer):
+def _wrap(make_request, path, meth, serializer, path_args):
     sig = inspect.signature(meth)
     meth_params = sig.parameters
     payload_arg = None
@@ -43,26 +43,52 @@ def _wrap(make_request, path, meth, serializer):
                 query_args[arg_name] = serializer.to_json(
                         meth_params[arg_name].annotation, value)
         async with make_request(
-                meth.__name__, path, json=data, params=query_args) as resp:
+                meth.__name__, path.format(**path_args),
+                json=data, params=query_args) as resp:
             resp.raise_for_status()
             return serializer.deserialize(r_ann, await resp.json())
     return impl
 
 
-def make_client(endpoint_cls, make_request, serializer=None):
+def make_getitem(make_request, serializer, path_args, v):
+    def gi(self, item):
+        new_args = path_args.copy()
+        new_args[v.__shortname__] = item
+        return make_client(v, make_request, serializer, new_args)
+    return gi
+
+
+def make_client(endpoint_cls, make_request, serializer=None, path_args=None):
     if serializer is None:
         serializer = Serializer()
 
-    class C:
-        pass
+    if path_args is None:
+        path_args = {}
+
+    inst_vars = {}
+    ns = {}
 
     for k, v in endpoint_cls.__dict__.items():
         if isinstance(v, type):
-            setattr(C, k, make_client(v, make_request, serializer))
+            if getattr(v, '__parameter__', False):
+                ns['__getitem__'] = make_getitem(
+                    make_request, serializer, path_args, v)
+            else:
+                inst_vars[k] = make_client(
+                    v, make_request, serializer, path_args)
         elif callable(v):
-            setattr(C, k, _wrap(
-                make_request, endpoint_cls.fullpath, v, serializer))
-    return C
+            inst_vars[k] = staticmethod(
+                _wrap(
+                    make_request,
+                    endpoint_cls.fullpath,
+                    v,
+                    serializer,
+                    path_args))
+
+    cls = type('C', (object,), ns)
+    inst = cls()
+    inst.__dict__.update(inst_vars)
+    return inst
 
 
 def make_client_for_conn(

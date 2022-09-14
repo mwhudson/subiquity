@@ -100,7 +100,6 @@ def _make_handler(controller, definition, implementation, serializer):
 
     check_def_sig = def_sig.replace(parameters=check_def_params)
 
-    print(check_def_sig, check_impl_sig)
     if check_impl_sig != check_def_sig:
         raise SignatureMisatchError(
             definition.__qualname__, check_def_sig, check_impl_sig)

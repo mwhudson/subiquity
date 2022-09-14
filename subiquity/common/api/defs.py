@@ -21,6 +21,7 @@ def api(cls, prefix_names=(), prefix_path=(), path_params=()):
     cls.fullname = prefix_names
     for k, v in cls.__dict__.items():
         if isinstance(v, type):
+            v.__shortname__ = k
             v.__name__ = cls.__name__ + '.' + k
             path_part = k
             path_param = ()
