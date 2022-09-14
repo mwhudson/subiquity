@@ -16,7 +16,7 @@
 import asyncio
 import contextlib
 import enum
-from typing import Optional
+from typing import List, Optional
 
 from subiquitycore import snapd
 
@@ -88,6 +88,7 @@ async def make_request(method, path, *, params, json):
 
 class SnapStatus(enum.Enum):
     ACTIVE = 'active'
+    AVAILABLE = 'available'
 
 
 @attr.s(auto_attribs=True)
@@ -104,14 +105,18 @@ class Snap:
     publisher: Publisher
 
 
-
 @api
 class SnapdAPI:
+    serialize_query_args = False
+
     class v2:
         class snaps:
             class snap_name:
                 __parameter__ = True
                 def GET() -> Snap: ...
+
+        class find:
+            def GET(name: str) -> List[Snap]: ...
 
 
 class EnumByValueSerializer(Serializer):
@@ -130,6 +135,7 @@ client = make_client(SnapdAPI, make_request, serializer=serializer)
 
 async def run():
     print(await client.v2.snaps['go'].GET())
+    print(await client.v2.find.GET(name="heroku"))
 
 
 asyncio.get_event_loop().run_until_complete(run())

@@ -16,7 +16,12 @@
 import typing
 
 
-def api(cls, prefix_names=(), prefix_path=(), path_params=()):
+def api(cls, prefix_names=(), prefix_path=(), path_params=(),
+        serialize_query_args=True):
+    if hasattr(cls, 'serialize_query_args'):
+        serialize_query_args = cls.serialize_query_args
+    else:
+        cls.serialize_query_args = serialize_query_args
     cls.fullpath = '/' + '/'.join(prefix_path)
     cls.fullname = prefix_names
     for k, v in cls.__dict__.items():
@@ -32,7 +37,8 @@ def api(cls, prefix_names=(), prefix_path=(), path_params=()):
                 v,
                 prefix_names + (k,),
                 prefix_path + (path_part,),
-                path_params + path_param)
+                path_params + path_param,
+                serialize_query_args)
         if callable(v):
             v.__qualname__ = cls.__name__ + '.' + k
             v.__path_params__ = path_params

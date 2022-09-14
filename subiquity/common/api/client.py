@@ -22,7 +22,7 @@ from subiquity.common.serialize import Serializer
 from .defs import Payload
 
 
-def _wrap(make_request, path, meth, serializer):
+def _wrap(make_request, path, meth, serializer, serialize_query_args):
     sig = inspect.signature(meth)
     meth_params = sig.parameters
     payload_arg = None
@@ -30,6 +30,10 @@ def _wrap(make_request, path, meth, serializer):
         if getattr(param.annotation, '__origin__', None) is Payload:
             payload_arg = name
             payload_ann = param.annotation.__args__[0]
+        elif not serialize_query_args and param.annotation is not str:
+            raise Exception(
+                "parameters must be strings if not serializing query "
+                "arguments")
     r_ann = sig.return_annotation
 
     async def impl(self, *args, **kw):
@@ -40,8 +44,10 @@ def _wrap(make_request, path, meth, serializer):
             if arg_name == payload_arg:
                 data = serializer.serialize(payload_ann, value)
             else:
-                query_args[arg_name] = serializer.to_json(
+                if serialize_query_args:
+                    value = serializer.to_json(
                         meth_params[arg_name].annotation, value)
+                query_args[arg_name] = value
         async with make_request(
                 meth.__name__, path.format(**self.path_args),
                 json=data, params=query_args) as resp:
@@ -80,7 +86,8 @@ def make_client_cls(endpoint_cls, make_request, serializer=None):
             else:
                 ns[k] = make_client(v, make_request, serializer)
         elif callable(v):
-            ns[k] = _wrap(make_request, endpoint_cls.fullpath, v, serializer)
+            ns[k] = _wrap(make_request, endpoint_cls.fullpath, v, serializer,
+                          endpoint_cls.serialize_query_args)
 
     return type('ClientFor({})'.format(endpoint_cls.__name__), (object,), ns)
 
