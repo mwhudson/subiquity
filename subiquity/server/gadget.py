@@ -52,28 +52,49 @@ class RelativeOffset:
 
 
 @attr.s(auto_attribs=True)
+class VolumeContent:
+    source: str = ''
+    target: str = ''
+    image: str = ''
+    offset: Optional[int] = None
+    offset_write: Optional[RelativeOffset] = named_field('offset-write', None)
+    size: int = 0
+    unpack: bool = False
+
+
+@attr.s(auto_attribs=True)
+class VolumeUpdate:
+    edition: int = 0
+    preserve: Optional[List[str]] = None
+
+
+@attr.s(auto_attribs=True)
 class VolumeStructure:
     name: str = ''
     label: str = named_field('filesystem-label', '')
     offset: Optional[int] = None
-    offset_write: Optional[RelativeOffset] = None
+    offset_write: Optional[RelativeOffset] = named_field('offset-write', None)
+    size: int = 0
     type: str = ''
-    role: Optional[Role] = None
+    role: Role = Role.NONE
     id: Optional[str] = None
     filesystem: str = ''
-    # content: List[VolumeContent] = attr.Factory(list)
+    content: Optional[List[VolumeContent]] = None
+    update: VolumeUpdate = attr.Factory(VolumeUpdate)
 
 
 @attr.s(auto_attribs=True)
 class Volume:
-    schema: str
-    structure: List[VolumeStructure]
+    schema: str = ''
+    bootloader: str = ''
+    id: str = ''
+    structure: Optional[List[VolumeStructure]] = None
 
 
 @attr.s(auto_attribs=True)
 class SystemDetails:
-    current: bool
-    volumes: Dict[str, Volume]
+    current: bool = False
+    volumes: Dict[str, Volume] = attr.Factory(dict)
 
 
 connection = snapd.SnapdConnection('/', '/var/run/snapd.socket')
@@ -158,7 +179,12 @@ client = make_client(SnapdAPI, make_request, serializer=serializer)
 
 async def run():
     print(await client.v2.snaps['go'].GET())
-    print(await client.v2.systems['20220914'].GET())
+    system = await client.v2.systems['20220914'].GET()
+    with open('v2-systems-20220914.json') as fp:
+        content = json_mod.load(fp)['result']
+    print(serializer.serialize(SystemDetails, system)['volumes'])
+    print(content['volumes'])
+    print(serializer.serialize(SystemDetails, system)['volumes'] == content['volumes'])
 
 
 asyncio.get_event_loop().run_until_complete(run())
