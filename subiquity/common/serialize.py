@@ -146,6 +146,9 @@ class Serializer:
                     field, getattr(value, field.name), path))
             return r
 
+    def _serialize_enum(self, annotation, value):
+        return value.name
+
     def serialize(self, annotation, value, metadata=None, path=''):
         if annotation is None:
             assert value is None
@@ -160,7 +163,7 @@ class Serializer:
             return self.typing_walkers[origin](
                 self.serialize, args, value, metadata, path, True)
         if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
-            return value.name
+            return self._serialize_enum(annotation, value)
         try:
             serializer = self.type_serializers[annotation]
         except KeyError:
@@ -207,6 +210,9 @@ class Serializer:
                     fields[key], value[key], path))
             return annotation(**args)
 
+    def _deserialize_enum(self, annotation, value):
+        return getattr(annotation, value)
+
     def deserialize(self, annotation, value, metadata=None, path=''):
         if annotation is None:
             assert value is None
@@ -221,7 +227,7 @@ class Serializer:
             return self.typing_walkers[origin](
                 self.deserialize, args, value, metadata, path, False)
         if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
-            return getattr(annotation, value)
+            return self._deserialize_enum(annotation, value)
         return self.type_deserializers[annotation](
             annotation, value, metadata, path)
 

@@ -86,9 +86,14 @@ async def make_request(method, path, *, params, json):
     yield FakeResponse(content['result'])
 
 
+class SnapStatus(enum.Enum):
+    ACTIVE = 'active'
+
+
 @attr.s(auto_attribs=True)
 class Snap:
     id: str
+    status: SnapStatus
 
 
 @api
@@ -100,7 +105,15 @@ class SnapdAPI:
                 def GET() -> Snap: ...
 
 
-serializer = Serializer(ignore_missing_fields=True)
+class EnumByValueSerializer(Serializer):
+    def _serialize_enum(self, annotation, value):
+        return value.value
+
+    def _deserialize_enum(self, annotation, value):
+        return annotation(value)
+
+
+serializer = EnumByValueSerializer(ignore_missing_fields=True)
 
 
 client = make_client(SnapdAPI, make_request, serializer=serializer)
