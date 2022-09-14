@@ -233,3 +233,18 @@ class TestBind(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await resp.json(), '')
 
         self.assertIs(impl, seen_controller)
+
+    async def test_path_parameters(self):
+        @api
+        class API:
+            class param:
+                __parameter__ = True
+                def GET(arg: int): ...
+
+        class Impl(ControllerBase):
+            async def param_GET(self, param: str, arg: int):
+                return param + str(arg)
+
+        async with makeTestClient(API, Impl()) as client:
+            await self.assertResponse(
+                client.get('/value?arg=2'), 'value2')
