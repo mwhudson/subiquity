@@ -1498,10 +1498,12 @@ class FilesystemModel(object):
 
         return r
 
-    def render(self, mode: ActionRenderMode = ActionRenderMode.DEFAULT):
+    def render(self, mode: ActionRenderMode = ActionRenderMode.DEFAULT, version=None):
+        if version is None:
+            version = self.storage_version
         config = {
             'storage': {
-                'version': self.storage_version,
+                'version': version,
                 'config': self._render_actions(mode=mode),
                 },
             }

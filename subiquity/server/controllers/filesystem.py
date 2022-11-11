@@ -145,6 +145,9 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         self._role_to_device: Dict[snapdapi.Role: _Device] = {}
         self.use_tpm: bool = False
 
+    def is_core_boot_classic(self):
+        return self._system is not None
+
     def load_autoinstall_data(self, data):
         log.debug("load_autoinstall_data %s", data)
         if data is None:
@@ -189,6 +192,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         if len(system.volumes) == 0:
             # This means the system does not define a gadget or kernel
             # so isn't a core boot classic system.
+            self._system = None
             await self._unmount_system()
             return
         self._system = system

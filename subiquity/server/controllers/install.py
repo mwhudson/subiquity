@@ -191,10 +191,13 @@ class InstallController(SubiquityController):
 
     def acquire_filesystem_config(
             self, step: CurtinPartitioningStep,
-            mode: ActionRenderMode = ActionRenderMode.DEFAULT
+            mode: ActionRenderMode = ActionRenderMode.DEFAULT,
             ) -> Dict[str, Any]:
         cfg = self.acquire_initial_config(step)
-        cfg.update(self.model.filesystem.render(mode=mode))
+        version = None
+        if mode != ActionRenderMode.DEFAULT:
+            version = 2
+        cfg.update(self.model.filesystem.render(mode=mode, version=version))
         cfg['storage']['device_map_path'] = str(step.device_map_path)
         return cfg
 
@@ -257,8 +260,8 @@ class InstallController(SubiquityController):
                 acquire_config=self.acquire_initial_config
             ).run,
             ]
-        if self.model.source.current.snapd_system_label:
-            fs_controller = self.app.controllers.Filesystem
+        fs_controller = self.app.controllers.Filesystem
+        if fs_controller.is_core_boot_classic():
             steps.append(
                 make_curtin_step(
                     name="partitioning", stages=["partitioning"],
