@@ -446,6 +446,12 @@ class SubiquityClient(TuiApplication):
                     os.waitpid(pid, 0)
 
     async def confirm_install(self):
+        current = self.controllers.Source.current
+        if current is not None and current.variant == 'desktop':
+            # If using server to install desktop, mark the controllers
+            # the TUI client does not currently have interfaces for as
+            # configured.
+            await self.client.meta.mark_configured.POST(['timezone', 'codecs'])
         await self.client.meta.confirm.POST(self.our_tty)
 
     def add_global_overlay(self, overlay):

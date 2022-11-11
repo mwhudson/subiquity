@@ -39,6 +39,7 @@ class SourceView(BaseView):
 
     def __init__(self, controller, sources, current_id, search_drivers: bool):
         self.controller = controller
+        self.sources_by_id = {}
 
         group: List[RadioButtonField] = []
 
@@ -54,6 +55,7 @@ class SourceView(BaseView):
                 ns[source.id] = RadioButtonField(
                     group, source.name, '\n' + source.description)
                 initial[source.id] = source.id == current_id
+                self.sources_by_id[source.id] = source
 
         ns["search_drivers"] = BooleanField(
             _("Search for third-party drivers"), "\n" +
@@ -93,7 +95,8 @@ class SourceView(BaseView):
             if k == "search_drivers":
                 continue
             if v:
-                self.controller.done(k, search_drivers=search_drivers)
+                self.controller.done(
+                    self.sources_by_id[k], search_drivers=search_drivers)
 
     def cancel(self, result=None):
         self.controller.cancel()
