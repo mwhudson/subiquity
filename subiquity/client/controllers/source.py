@@ -14,8 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from typing import Optional
 
 from subiquity.client.controller import SubiquityTuiController
+from subiquity.common.types import SourceSelection
 from subiquity.ui.views.source import SourceView
 
 log = logging.getLogger('subiquity.client.controllers.source')
@@ -24,6 +26,7 @@ log = logging.getLogger('subiquity.client.controllers.source')
 class SourceController(SubiquityTuiController):
 
     endpoint_name = 'source'
+    current: Optional[SourceSelection] = None
 
     async def make_ui(self):
         sources = await self.endpoint.GET()
@@ -47,7 +50,8 @@ class SourceController(SubiquityTuiController):
     def cancel(self):
         self.app.prev_screen()
 
-    def done(self, source_id, search_drivers: bool):
+    def done(self, source: SourceSelection, search_drivers: bool):
         log.debug("SourceController.done source_id=%s, search_drivers=%s",
-                  source_id, search_drivers)
-        self.app.next_screen(self.endpoint.POST(source_id, search_drivers))
+                  source.id, search_drivers)
+        self.current = source
+        self.app.next_screen(self.endpoint.POST(source.id, search_drivers))
