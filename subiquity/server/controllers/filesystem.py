@@ -511,6 +511,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 elif structure.role == snapdapi.Role.SYSTEM_BOOT:
                     self.model.add_mount(fs, '/boot')
                 elif part.flag == 'boot':
+                    part.grub_device = True
                     self.model.add_mount(fs, '/boot/efi')
             if structure.role != snapdapi.Role.NONE:
                 self._role_to_device[structure.role] = part
