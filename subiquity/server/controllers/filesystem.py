@@ -467,8 +467,6 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         preserved_parts = set()
 
         if self._on_volume.schema != disk.ptable:
-            self.reformat(disk)
-            disk.ptable = self._on_volume.schema
             parts_by_offset_size = {}
         else:
             parts_by_offset_size = {
@@ -483,6 +481,9 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 if part not in preserved_parts:
                     self.delete_partition(part)
                     del parts_by_offset_size[(part.offset, part.size)]
+
+        if not preserved_parts:
+            self.reformat(disk, self._on_volume.schema)
 
         for structure, offset, size in self._offsets_and_sizes_for_system():
             if (offset, size) in parts_by_offset_size:
