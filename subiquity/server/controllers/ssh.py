@@ -18,6 +18,7 @@ import logging
 from subiquity.common.apidef import API
 from subiquity.common.types import SSHData
 from subiquity.server.controller import SubiquityController
+from subiquity.server.types import InstallerChannels
 
 log = logging.getLogger('subiquity.server.controllers.ssh')
 
@@ -38,6 +39,23 @@ class SSHController(SubiquityController):
             'allow-pw': {'type': 'boolean'},
         },
     }
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.app.hub.subscribe(
+            (InstallerChannels.CONFIGURED, 'filesystem'),
+            self._confirmed)
+        self._active = True
+
+    async def _confirmed(self):
+        if self.app.base_model.source.current.variant == 'desktop':
+            await self.configured()
+            self._active = False
+
+    def interactive(self):
+        if super().interactive():
+            return self._active
+        return False
 
     def load_autoinstall_data(self, data):
         if data is None:
