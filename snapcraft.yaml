@@ -1,5 +1,5 @@
 name: subiquity
-base: core20
+base: core22
 version: git
 summary: Ubuntu installer
 description: The Ubuntu server installer
@@ -21,7 +21,7 @@ apps:
       SUBIQUITY_ROOT_ORIG: $SUBIQUITY_ROOT
       SUBIQUITY_ROOT: $SNAP
       PYTHON_ORIG: $PYTHON
-      PYTHON: $SNAP/usr/bin/python3.8
+      PYTHON: $SNAP/usr/bin/python3.10
   probert:
     command: bin/probert
   subiquity-server:
@@ -31,8 +31,8 @@ apps:
     environment:
       PYTHONIOENCODING: utf-8
       SUBIQUITY_ROOT: $SNAP
-      PYTHON: $SNAP/usr/bin/python3.8
-      PY3OR2_PYTHON: $SNAP/usr/bin/python3.8
+      PYTHON: $SNAP/usr/bin/python3.10
+      PY3OR2_PYTHON: $SNAP/usr/bin/python3.10
       PATH: $PATH:$SNAP/bin:$SNAP/sbin
   subiquity-service:
     command: usr/bin/subiquity-service
@@ -48,7 +48,7 @@ apps:
       SUBIQUITY_ROOT_ORIG: $SUBIQUITY_ROOT
       SUBIQUITY_ROOT: $SNAP
       PYTHON_ORIG: $PYTHON
-      PYTHON: $SNAP/usr/bin/python3.8
+      PYTHON: $SNAP/usr/bin/python3.10
   os-prober:
     command: usr/bin/os-prober
     environment:
@@ -97,8 +97,8 @@ parts:
       - cloud-init
       - iso-codes
       - libpython3-stdlib
-      - libpython3.8-minimal
-      - libpython3.8-stdlib
+      - libpython3.10-minimal
+      - libpython3.10-stdlib
       - libsystemd0
       - lsb-release
       - ntfs-3g
@@ -118,7 +118,7 @@ parts:
       - python3-urwid
       - python3-yaml
       - python3-yarl
-      - python3.8-minimal
+      - python3.10-minimal
       - ssh-import-id
       - ubuntu-advantage-tools
 
