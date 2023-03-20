@@ -20,7 +20,16 @@ import yaml
 
 import attr
 
+from subiquity.common.serialize import Serializer
+
 log = logging.getLogger('subiquity.models.source')
+
+
+@attr.s(auto_attribs=True)
+class CatalogEntryVariation:
+    path: str
+    size: int
+    snapd_system_label: typing.Optional[str] = None
 
 
 @attr.s(auto_attribs=True)
@@ -34,8 +43,9 @@ class CatalogEntry:
     type: str
     default: bool = False
     locale_support: str = attr.ib(default="locale-only")
-    preinstalled_langs: typing.List[str] = attr.ib(default=attr.Factory(list))
+    preinstalled_langs: typing.List[str] = attr.Factory(list)
     snapd_system_label: typing.Optional[str] = None
+    variations: typing.Dict[str: CatalogEntryVariation] = attr.Factory(dict)
 
 
 legacy_server_entry = CatalogEntry(
@@ -63,16 +73,17 @@ class SourceModel:
         self._dir = os.path.dirname(fp.name)
         self.sources = []
         self.current = None
-        entries = yaml.safe_load(fp)
-        for entry in entries:
-            kw = {}
-            for field in attr.fields(CatalogEntry):
-                if field.name in entry:
-                    kw[field.name] = entry[field.name]
-            c = CatalogEntry(**kw)
-            self.sources.append(c)
-            if c.default:
-                self.current = c
+        self.sources = Serializer().deserialize(
+            typing.List[CatalogEntry],
+            yaml.safe_load(fp))
+        for entry in self.sources:
+            if not entry.variations:
+                entry.variations['default'] = CatalogEntryVariation(
+                    path=entry.path,
+                    size=entry.size,
+                    snapd_system_label=entry.snapd_system_label)
+            if entry.default:
+                self.current = entry
         log.debug("loaded %d sources from %r", len(self.sources), fp.name)
         if self.current is None:
             self.current = self.sources[0]

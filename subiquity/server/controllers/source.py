@@ -42,11 +42,12 @@ def _translate(d, lang):
 
 
 def convert_source(source, lang):
+    size = max([v.size for v in source.variations.items()])
     return SourceSelection(
         name=_translate(source.name, lang),
         description=_translate(source.description, lang),
         id=source.id,
-        size=source.size,
+        size=size,
         variant=source.variant,
         default=source.default)
 
