@@ -20,7 +20,7 @@ import attr
 
 from subiquitycore.tests.util import random_string
 
-from subiquity.models.source import CatalogEntry
+from subiquity.models.source import CatalogEntry, CatalogEntryVariation
 from subiquity.server.controllers.source import convert_source
 
 
@@ -29,7 +29,12 @@ def make_entry(**kw):
         'default': False,
         'name': {'en': random_string()},
         'description': {'en': random_string()},
-        'size': random.randint(1000000, 2000000),
+        'variations': {
+            'variation': CatalogEntryVariation(
+                size=random.randint(1000000, 2000000),
+                path=random_string(),
+                ),
+            },
         }
     for field in attr.fields(CatalogEntry):
         if field.name not in fields:

@@ -45,7 +45,7 @@ class CatalogEntry:
     locale_support: str = attr.ib(default="locale-only")
     preinstalled_langs: typing.List[str] = attr.Factory(list)
     snapd_system_label: typing.Optional[str] = None
-    variations: typing.Dict[str: CatalogEntryVariation] = attr.Factory(dict)
+    variations: typing.Dict[str, CatalogEntryVariation] = attr.Factory(dict)
 
 
 legacy_server_entry = CatalogEntry(
@@ -73,7 +73,7 @@ class SourceModel:
         self._dir = os.path.dirname(fp.name)
         self.sources = []
         self.current = None
-        self.sources = Serializer().deserialize(
+        self.sources = Serializer(ignore_unknown_fields=True).deserialize(
             typing.List[CatalogEntry],
             yaml.safe_load(fp))
         for entry in self.sources:

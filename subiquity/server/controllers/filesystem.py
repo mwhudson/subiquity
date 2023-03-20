@@ -146,7 +146,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             self._probe_once, propagate_errors=False)
         self._probe_task = SingleInstanceTask(
             self._probe, propagate_errors=False, cancel_restart=False)
-        self._get_system_task = SingleInstanceTask(self._get_system)
+        self._get_system_task = SingleInstanceTask(self._get_systems)
         self.supports_resilient_boot = False
         self.app.hub.subscribe(
             (InstallerChannels.CONFIGURED, 'source'),
