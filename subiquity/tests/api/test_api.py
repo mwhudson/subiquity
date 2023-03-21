@@ -322,7 +322,7 @@ class TestFlow(TestAPI):
             }
             await inst.post('/keyboard', keyboard)
             await inst.post('/source',
-                            source_id='ubuntu-server', search_drivers=True)
+                            source_id='synthesized', search_drivers=True)
             await inst.post('/network')
             await inst.post('/proxy', '')
             await inst.post('/mirror',

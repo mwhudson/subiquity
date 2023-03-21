@@ -200,16 +200,20 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             self._source_handler = None
 
     async def _get_systems(self):
+        no_source = False
         await self._unmount_systems_dir()
         try:
             await self._mount_systems_dir()
         except NoSnapdSystemsOnSource:
-            return
+            no_source = True
         self._systems = {}
-        for name, variation in self.app.base_model.source.current.variations.items():
+        source = self.app.base_model.source.current
+        for name, variation in source.variations.items():
             label = variation.snapd_system_label
             if label is None:
                 self._systems[name] = None
+                continue
+            if no_source:
                 continue
             system = await self.app.snapdapi.v2.systems[label].GET()
             log.debug("got system %s", system)
@@ -744,7 +748,8 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 elif safety == StorageSafety.PREFER_UNENCRYPTED:
                     core_boot_capabilities.add(
                         GuidedCapability.CORE_BOOT_PREFER_UNENCRYPTED)
-        return sorted(classic_capabilities, key=lambda x: x.name), sorted(core_boot_capabilities, key=lambda x: x.name)
+        return sorted(classic_capabilities, key=lambda x: x.name), \
+            sorted(core_boot_capabilities, key=lambda x: x.name)
 
     async def v2_guided_GET(self, wait: bool = False) \
             -> GuidedStorageResponseV2:

@@ -57,7 +57,12 @@ legacy_server_entry = CatalogEntry(
     type='cp',
     default=True,
     size=2 << 30,
-    locale_support="locale-only")
+    locale_support="locale-only",
+    variations={
+        'default': CatalogEntryVariation(
+            path='/media/filesystem',
+            size=2 << 30),
+    })
 
 
 class SourceModel:
