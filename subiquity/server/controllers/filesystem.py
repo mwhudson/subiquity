@@ -502,12 +502,15 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         disks = self.potential_boot_disks(with_reformatting=True)
         capabilities, core_boot_capabilities = self.get_capabilities()
         encryption_unavailable_reason = ''
-        if self.is_core_boot_classic():
-            offsets_and_sizes = list(self._offsets_and_sizes_for_system())
+        if core_boot_capabilities:
+            [system] = self._systems.values()
+            [volume] = system.volumes.values()
+            offsets_and_sizes = list(
+                self._offsets_and_sizes_for_system(volume))
             _structure, last_offset, last_size = offsets_and_sizes[-1]
             min_size = last_offset + last_size
             capabilities = core_boot_capabilities
-            se: StorageEncryption = self._system.storage_encryption
+            se: StorageEncryption = system.storage_encryption
             if se.support == StorageEncryptionSupport.DISABLED:
                 encryption_unavailable_reason = _(
                     "TPM backed full-disk encryption has been disabled")
@@ -521,9 +524,11 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             encryption_unavailable_reason=encryption_unavailable_reason,
             capabilities=capabilities)
 
-    def _offsets_and_sizes_for_system(self):
+    def _offsets_and_sizes_for_system(self, volume=None):
         offset = self.model._partition_alignment_data['gpt'].min_start_offset
-        for structure in self._on_volume.structure:
+        if volume is None:
+            volume = self._on_volume
+        for structure in volume.structure:
             if structure.role == snapdapi.Role.MBR:
                 continue
             if structure.offset is not None:
