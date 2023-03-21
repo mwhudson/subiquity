@@ -206,27 +206,27 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         except NoSnapdSystemsOnSource:
             return
         self._systems = {}
-        for name, variation in self.app.base_model.source.current.variations:
+        for name, variation in self.app.base_model.source.current.variations.items():
             label = variation.snapd_system_label
             if label is None:
                 self._systems[name] = None
                 continue
             system = await self.app.snapdapi.v2.systems[label].GET()
             log.debug("got system %s", system)
-            if len(self._system.volumes) == 0:
+            if len(system.volumes) == 0:
                 # This means the system does not define a gadget
                 # or kernel and so isn't a core boot classic
                 # system.
                 self._systems[name] = None
                 continue
-            if len(self._system.volumes) > 1:
+            if len(system.volumes) > 1:
                 # self._core_boot_classic_error = system_multiple_volumes_text
                 continue
-            [volume] = self._system.volumes.values()
+            [volume] = system.volumes.values()
             if volume.schema != 'gpt':
                 # self._core_boot_classic_error = system_non_gpt_text
                 continue
-            se = self._system.storage_encryption
+            se = system.storage_encryption
             if se.support == StorageEncryptionSupport.DEFECTIVE:
                 # self._core_boot_classic_error = \
                 #   system_defective_encryption_text.format(
@@ -383,7 +383,8 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             assert isinstance(choice.target, GuidedStorageTargetReformat)
             self.use_tpm = (
                 choice.capability == GuidedCapability.CORE_BOOT_ENCRYPTED)
-            for name, system in self._systems:
+            self.model.storage_version = 2
+            for name, system in self._systems.items():
                 # XXX this is not quite right!!
                 if system is not None:
                     self._variation = name
@@ -392,7 +393,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             self.guided_core_boot(disk)
             return
 
-        for name, system in self._systems:
+        for name, system in self._systems.items():
             if system is None:
                 self._variation = name
                 break
@@ -530,11 +531,9 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             yield (structure, offset, structure.size)
             offset = offset + structure.size
 
-    def guided_core_boot(self, disk_id):
+    def guided_core_boot(self, disk):
         [volume] = self._system.volumes.values()
         self._on_volume = snapdapi.OnVolume.from_volume(volume)
-
-        disk = self.model._one(id=disk_id)
 
         preserved_parts = set()
 
@@ -723,7 +722,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                     ])
                 continue
             safety = s.storage_encryption.storage_safety
-            support = s.support
+            support = s.storage_encryption.support
             if support == StorageEncryptionSupport.DISABLED:
                 core_boot_capabilities.add(
                     GuidedCapability.CORE_BOOT_UNENCRYPTED)
@@ -740,7 +739,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 elif safety == StorageSafety.PREFER_UNENCRYPTED:
                     core_boot_capabilities.add(
                         GuidedCapability.CORE_BOOT_PREFER_UNENCRYPTED)
-        return sorted(classic_capabilities), sorted(core_boot_capabilities)
+        return sorted(classic_capabilities, key=lambda x: x.name), sorted(core_boot_capabilities, key=lambda x: x.name)
 
     async def v2_guided_GET(self, wait: bool = False) \
             -> GuidedStorageResponseV2:

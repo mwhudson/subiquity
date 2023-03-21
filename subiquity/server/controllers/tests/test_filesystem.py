@@ -35,6 +35,7 @@ from subiquity.common.types import (
     GuidedStorageTargetUseGap,
     ProbeStatus,
     )
+from subiquity.models.source import CatalogEntryVariation
 from subiquity.models.tests.test_filesystem import (
     make_disk,
     make_model,
@@ -100,6 +101,7 @@ class TestGuided(IsolatedAsyncioTestCase):
         self.app.opts.bootloader = bootloader.value
         self.controller = FilesystemController(self.app)
         self.controller.supports_resilient_boot = True
+        self.controller._systems = {'variation': None}
         self.model = make_model(bootloader, storage_version)
         self.controller.model = self.model
         self.model._probe_data = {'blockdev': {}}
@@ -256,6 +258,7 @@ class TestGuidedV2(IsolatedAsyncioTestCase):
         self.app = make_app()
         self.app.opts.bootloader = bootloader.value
         self.fsc = FilesystemController(app=self.app)
+        self.fsc._systems = {'variation': None}
         self.fsc.calculate_suggested_install_min = mock.Mock()
         self.fsc.calculate_suggested_install_min.return_value = 10 << 30
         self.fsc.model = self.model = make_model(bootloader)
@@ -550,6 +553,7 @@ class TestCoreBootInstallMethods(IsolatedAsyncioTestCase):
         self.app.opts.bootloader = 'UEFI'
         self.app.report_start_event = mock.Mock()
         self.app.report_finish_event = mock.Mock()
+        self.app.base_model.source.current.variations = {}
         self.app.prober = mock.Mock()
         self.app.snapdapi = snapdapi.make_api_client(
             AsyncSnapd(get_fake_connection()))
@@ -563,6 +567,7 @@ class TestCoreBootInstallMethods(IsolatedAsyncioTestCase):
             volumes={'pc': snapdapi.Volume(schema='gpt', structure=structures)}
             )
         [volume] = system.volumes.values()
+        self.fsc._systems = {'hardened': system}
         self.fsc._on_volume = snapdapi.OnVolume.from_volume(volume)
 
     def test_guided_core_boot(self):
@@ -662,9 +667,9 @@ class TestCoreBootInstallMethods(IsolatedAsyncioTestCase):
         # runs much more quickly than the integration test!
         self.fsc.model = model = make_model(Bootloader.UEFI)
         disk = make_disk(model)
-        self.app.base_model.source.current.snapd_system_label = \
-            'prefer-encrypted'
-        self.app.base_model.source.current.size = 1
+        v = self.app.base_model.source.current.variations
+        v['hardened'] = CatalogEntryVariation(
+            path='', size=1, snapd_system_label='prefer-encrypted')
         self.app.controllers.Source.source_path = ''
         self.app.controllers.Source.get_handler.return_value = \
             TrivialSourceHandler('')
