@@ -667,10 +667,10 @@ class TestCoreBootInstallMethods(IsolatedAsyncioTestCase):
         # runs much more quickly than the integration test!
         self.fsc.model = model = make_model(Bootloader.UEFI)
         disk = make_disk(model)
+        self.app.base_model.source.current.size = 1
         v = self.app.base_model.source.current.variations
         v['hardened'] = CatalogEntryVariation(
             path='', size=1, snapd_system_label='prefer-encrypted')
-        self.app.controllers.Source.source_path = ''
         self.app.controllers.Source.get_handler.return_value = \
             TrivialSourceHandler('')
 
