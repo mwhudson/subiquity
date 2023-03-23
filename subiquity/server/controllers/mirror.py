@@ -19,7 +19,6 @@ import logging
 from typing import List, Optional
 
 import attr
-
 from subiquitycore.context import with_context
 
 from subiquity.common.apidef import API
@@ -32,6 +31,7 @@ from subiquity.common.types import (
     MirrorSelectionFallback,
     )
 from subiquity.models.mirror import filter_candidates
+from subiquity.models.source import CatalogEntryVariation
 from subiquity.server.apt import (
     AptConfigCheckError,
     AptConfigurer,
@@ -318,9 +318,10 @@ class MirrorController(SubiquityController):
             self.context, final=False)
         await self.test_apt_configurer.run_apt_config_check(output)
 
-    async def wait_config(self) -> AptConfigurer:
+    async def wait_config(self, variation: CatalogEntryVariation) \
+            -> AptConfigurer:
         self.final_apt_configurer = get_apt_configurer(
-            self.app, self.app.controllers.Source.get_handler())
+            self.app, self.app.controllers.Source.get_handler(variation))
         await self._promote_mirror()
         return self.final_apt_configurer
 

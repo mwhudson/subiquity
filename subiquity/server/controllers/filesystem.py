@@ -84,6 +84,7 @@ from subiquity.models.filesystem import (
     LVM_CHUNK_SIZE,
     Raid,
     )
+from subiquity.models.source import CatalogEntryVariation
 from subiquity.server.controller import (
     SubiquityController,
     )
@@ -176,8 +177,9 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         await super().configured()
         self.stop_listening_udev()
 
-    async def _mount_systems_dir(self):
-        self._source_handler = self.app.controllers.Source.get_handler()
+    async def _mount_systems_dir(self, variation: CatalogEntryVariation):
+        self._source_handler = self.app.controllers.Source.get_handler(
+            variation)
         source_path = self._source_handler.setup()
         cur_systems_dir = '/var/lib/snapd/seed/systems'
         source_systems_dir = os.path.join(source_path, cur_systems_dir[1:])
@@ -200,12 +202,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             self._source_handler = None
 
     async def _get_systems(self):
-        no_source = False
         await self._unmount_systems_dir()
-        try:
-            await self._mount_systems_dir()
-        except NoSnapdSystemsOnSource:
-            no_source = True
         self._systems = {}
         source = self.app.base_model.source.current
         for name, variation in source.variations.items():
@@ -213,7 +210,9 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             if label is None:
                 self._systems[name] = None
                 continue
-            if no_source:
+            try:
+                await self._mount_systems_dir(variation)
+            except NoSnapdSystemsOnSource:
                 continue
             system = await self.app.snapdapi.v2.systems[label].GET()
             log.debug("got system %s", system)
@@ -241,6 +240,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 log.debug(
                     "storage encryption unavailable: %r",
                     se.unavailable_reason)
+            await self._unmount_systems_dir()
 
     @with_context()
     async def apply_autoinstall_config(self, context=None):
@@ -266,7 +266,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                         'name': 'lvm',
                         },
                     }
-        self.convert_autoinstall_config(context=context)
+        await self.convert_autoinstall_config(context=context)
         if not self.model.is_root_mounted():
             raise Exception("autoinstall config did not mount root")
         if self.model.needs_bootloader_partition():
@@ -379,7 +379,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 },
             }
 
-    def guided(self, choice: GuidedChoiceV2):
+    async def guided(self, choice: GuidedChoiceV2):
         self.model.guided_configuration = choice
         disk = self.model._one(id=choice.target.disk_id)
 
@@ -391,7 +391,9 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             for name, system in self._systems.items():
                 # XXX this is not quite right!!
                 if system is not None:
-                    self._variation = name
+                    source = self.app.base_model.source.current
+                    self._variation = source.variations[name]
+                    await self._mount_systems_dir(self._variation)
                     self._system = system
                     break
             self.guided_core_boot(disk)
@@ -943,7 +945,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 log.debug(f'{short_label} probing took {elapsed:.1f} seconds')
             break
 
-    def run_autoinstall_guided(self, layout):
+    async def run_autoinstall_guided(self, layout):
         name = layout['name']
 
         if name == 'hybrid':
@@ -1014,22 +1016,25 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         else:
             capability = GuidedCapability.DIRECT
         password = layout.get('password', None)
-        self.guided(GuidedChoiceV2(target=target, capability=capability,
-                                   password=password))
+        await self.guided(
+            GuidedChoiceV2(
+                target=target,
+                capability=capability,
+                password=password))
 
     def validate_layout_mode(self, mode):
         if mode not in ('reformat_disk', 'use_gap'):
             raise ValueError(f'Unknown layout mode {mode}')
 
     @with_context()
-    def convert_autoinstall_config(self, context=None):
+    async def convert_autoinstall_config(self, context=None):
         # Log disabled to prevent LUKS password leak
         # log.debug("self.ai_data = %s", self.ai_data)
         if 'layout' in self.ai_data:
             if 'config' in self.ai_data:
                 log.warning("The 'storage' section should not contain both "
                             "'layout' and 'config', using 'layout'")
-            self.run_autoinstall_guided(self.ai_data['layout'])
+            await self.run_autoinstall_guided(self.ai_data['layout'])
         elif 'config' in self.ai_data:
             if self.is_core_boot_classic():
                 raise Exception(

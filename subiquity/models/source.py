@@ -100,8 +100,11 @@ class SourceModel:
                 return source
         raise KeyError
 
-    def get_source(self):
-        path = os.path.join(self._dir, self.current.path)
+    def get_source(self, variation: typing.Optional[CatalogEntryVariation]):
+        path = self.current.path
+        if variation is not None and variation.path is not None:
+            path = variation.path
+        path = os.path.join(self._dir, path)
         if self.current.preinstalled_langs:
             base, ext = os.path.splitext(path)
             if self.lang in self.current.preinstalled_langs:
