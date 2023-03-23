@@ -401,7 +401,8 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
 
         for name, system in self._systems.items():
             if system is None:
-                self._variation = name
+                source = self.app.base_model.source.current
+                self._variation = source.variations[name]
                 break
 
         gap = self.start_guided(choice.target, disk)
@@ -645,7 +646,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
 
     async def guided_POST(self, data: GuidedChoice) -> StorageResponse:
         log.debug(data)
-        self.guided(GuidedChoiceV2.from_guided_choice(data))
+        await self.guided(GuidedChoiceV2.from_guided_choice(data))
         if data.capability.is_core_boot():
             await self.configured()
         return self._done_response()
@@ -812,7 +813,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
     async def v2_guided_POST(self, data: GuidedChoiceV2) \
             -> GuidedStorageResponseV2:
         log.debug(data)
-        self.guided(data)
+        await self.guided(data)
         return await self.v2_guided_GET()
 
     async def v2_reformat_disk_POST(self, data: ReformatDisk) \

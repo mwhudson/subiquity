@@ -112,7 +112,7 @@ class TestGuided(IsolatedAsyncioTestCase):
         self._guided_setup(bootloader, ptable)
         target = GuidedStorageTargetReformat(
             disk_id=self.d1.id, capabilities=default_capabilities)
-        self.controller.guided(
+        await self.controller.guided(
             GuidedChoiceV2(target=target, capability=GuidedCapability.DIRECT))
         [d1p1, d1p2] = self.d1.partitions()
         self.assertEqual(p1mnt, d1p1.mount)
@@ -125,7 +125,7 @@ class TestGuided(IsolatedAsyncioTestCase):
         self._guided_setup(Bootloader.BIOS, 'msdos')
         target = GuidedStorageTargetReformat(
             disk_id=self.d1.id, capabilities=default_capabilities)
-        self.controller.guided(
+        await self.controller.guided(
             GuidedChoiceV2(target=target, capability=GuidedCapability.DIRECT))
         [d1p1] = self.d1.partitions()
         self.assertEqual('/', d1p1.mount)
@@ -137,7 +137,7 @@ class TestGuided(IsolatedAsyncioTestCase):
         self._guided_setup(bootloader, ptable)
         target = GuidedStorageTargetReformat(
             disk_id=self.d1.id, capabilities=default_capabilities)
-        self.controller.guided(GuidedChoiceV2(
+        await self.controller.guided(GuidedChoiceV2(
             target=target, capability=GuidedCapability.LVM))
         [d1p1, d1p2, d1p3] = self.d1.partitions()
         self.assertEqual(p1mnt, d1p1.mount)
@@ -155,7 +155,7 @@ class TestGuided(IsolatedAsyncioTestCase):
         self._guided_setup(Bootloader.BIOS, 'msdos')
         target = GuidedStorageTargetReformat(
             disk_id=self.d1.id, capabilities=default_capabilities)
-        self.controller.guided(
+        await self.controller.guided(
             GuidedChoiceV2(target=target, capability=GuidedCapability.LVM))
         [d1p1, d1p2] = self.d1.partitions()
         self.assertEqual('/boot', d1p1.mount)
@@ -204,7 +204,7 @@ class TestGuided(IsolatedAsyncioTestCase):
         gap = gaps.largest_gap(self.d1)
         target = GuidedStorageTargetUseGap(
             disk_id=self.d1.id, gap=gap, capabilities=default_capabilities)
-        self.controller.guided(
+        await self.controller.guided(
             GuidedChoiceV2(target=target, capability=GuidedCapability.DIRECT))
         parts_after = gaps.parts_and_gaps(self.d1)[:-1]
         self.assertEqual(parts_before, parts_after)
@@ -226,7 +226,7 @@ class TestGuided(IsolatedAsyncioTestCase):
         gap = gaps.largest_gap(self.d1)
         target = GuidedStorageTargetUseGap(
             disk_id=self.d1.id, gap=gap, capabilities=default_capabilities)
-        self.controller.guided(
+        await self.controller.guided(
             GuidedChoiceV2(target=target, capability=GuidedCapability.LVM))
         parts_after = gaps.parts_and_gaps(self.d1)[:-2]
         self.assertEqual(parts_before, parts_after)

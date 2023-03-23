@@ -210,7 +210,7 @@ class InstallController(SubiquityController):
 
     @with_context(
         description="configuring apt", level="INFO", childlevel="DEBUG")
-    async def configure_apt(self, *, context, variation):
+    async def configure_apt(self, *, context):
         mirror = self.app.controllers.Mirror
         fs = self.app.controllers.Filesystem
         configurer = await mirror.wait_config(fs._variation)

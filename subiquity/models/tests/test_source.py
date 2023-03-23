@@ -96,7 +96,8 @@ class TestSourceModel(unittest.TestCase):
         model = SourceModel()
         self.write_and_load_entries(model, [entry])
         self.assertEqual(
-            model.get_source(), 'scheme:///foo/bar/baz')
+            model.get_source(next(iter(model.current.variations.values()))),
+            'scheme:///foo/bar/baz')
 
     def test_get_source_relative(self):
         dir = self.tdir()
@@ -107,13 +108,13 @@ class TestSourceModel(unittest.TestCase):
         model = SourceModel()
         self.write_and_load_entries(model, [entry], dir)
         self.assertEqual(
-            model.get_source(),
+            model.get_source(next(iter(model.current.variations.values()))),
             f'scheme://{dir}/foo/bar/baz')
 
     def test_get_source_initial(self):
         model = SourceModel()
         self.assertEqual(
-            model.get_source(),
+            model.get_source(next(iter(model.current.variations.values()))),
             'cp:///media/filesystem')
 
     def test_render(self):
