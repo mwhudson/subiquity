@@ -35,6 +35,7 @@ from subiquity.common.types import (
     GuidedStorageTargetUseGap,
     ProbeStatus,
     )
+from subiquity.models.source import CatalogEntryVariation
 from subiquity.models.tests.test_filesystem import (
     make_disk,
     make_model,
@@ -105,7 +106,10 @@ class TestGuided(IsolatedAsyncioTestCase):
         self.controller.supports_resilient_boot = True
         self.controller._examine_systems_task.start_sync()
         self.app.dr_cfg = DRConfig()
-        self.app.base_model.source.current.size = 1
+        self.app.base_model.source.current.variations = {
+            'default': CatalogEntryVariation(
+                path='', size=1),
+            }
         self.app.controllers.Source.get_handler.return_value = \
             TrivialSourceHandler('')
         await self.controller._examine_systems_task.wait()
@@ -270,7 +274,10 @@ class TestGuidedV2(IsolatedAsyncioTestCase):
         self.fsc.model = self.model = make_model(bootloader)
         self.fsc._examine_systems_task.start_sync()
         self.app.dr_cfg = DRConfig()
-        self.app.base_model.source.current.size = 1
+        self.app.base_model.source.current.variations = {
+            'default': CatalogEntryVariation(
+                path='', size=1),
+            }
         self.app.controllers.Source.get_handler.return_value = \
             TrivialSourceHandler('')
         await self.fsc._examine_systems_task.wait()
@@ -684,10 +691,10 @@ class TestCoreBootInstallMethods(IsolatedAsyncioTestCase):
         # runs much more quickly than the integration test!
         self.fsc.model = model = make_model(Bootloader.UEFI)
         disk = make_disk(model)
-        self.app.base_model.source.current.snapd_system_label = \
-            'prefer-encrypted'
-        self.app.base_model.source.current.size = 1
-        self.app.controllers.Source.source_path = ''
+        self.app.base_model.source.current.variations = {
+            'default': CatalogEntryVariation(
+                path='', size=1, snapd_system_label='prefer-encrypted'),
+            }
 
         self.app.dr_cfg.systems_dir_exists = True
 
