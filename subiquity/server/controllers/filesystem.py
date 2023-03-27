@@ -126,6 +126,7 @@ class NoSnapdSystemsOnSource(Exception):
 
 @attr.s(auto_attribs=True)
 class VariationInfo:
+    name: str
     label: Optional[str]
     capabilities: Set[GuidedCapability]
     error: str = ''
@@ -140,8 +141,9 @@ class VariationInfo:
         return self.error == ''
 
     @classmethod
-    def classic(cls, min_size: int):
+    def classic(cls, name: str, min_size: int):
         return cls(
+            name=name,
             label=None,
             min_size=min_size,
             capabilities={
@@ -240,8 +242,9 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
         log.debug("got system %s", system)
         return system
 
-    def info_for_system(self, label: str, system: SystemDetails):
+    def info_for_system(self, name: str, label: str, system: SystemDetails):
         info = VariationInfo(
+            name=name,
             label=label,
             capabilities=[],
             system=system,
@@ -301,14 +304,15 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             log.debug("got system %s for variation %s", system, name)
             if system is not None and len(system.volumes) > 0:
                 self._variation_info[name] = self.info_for_system(
-                    label, system)
+                    name, label, system)
             else:
                 # This calculation is pretty much a hack and we should
                 # actually think about it at some point (like: maybe the
                 # source catalog should directly specify the minimum suitable
                 # size?)
                 min_size = 2*variation.size + (1 << 30)
-                self._variation_info[name] = VariationInfo.classic(min_size)
+                self._variation_info[name] = VariationInfo.classic(
+                    name=name, min_size=min_size)
 
     @with_context()
     async def apply_autoinstall_config(self, context=None):
