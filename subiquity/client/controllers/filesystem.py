@@ -29,6 +29,7 @@ from subiquity.common.types import (
     GuidedCapability,
     GuidedChoiceV2,
     GuidedStorageResponseV2,
+    GuidedStorageTargetManual,
     GuidedStorageTargetReformat,
     StorageResponseV2,
     )
@@ -63,6 +64,7 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
         self.answers.setdefault('guided-index', 0)
         self.answers.setdefault('manual', [])
         self.current_view: Optional[BaseView] = None
+        self.disk_selection_only: bool = False
         self.core_boot_capability: Optional[GuidedCapability] = None
 
     async def make_ui(self) -> Callable[[], BaseView]:
@@ -109,8 +111,14 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
             if isinstance(target, GuidedStorageTargetReformat)
             ]
 
+        self.disk_selection_only = not bool([
+            target
+            for target in status.targets
+            if isinstance(target, GuidedStorageTargetManual)
+            ])
+
         self.core_boot_capability = None
-        self.encryption_unavailable_reason = ''
+        encryption_unavailable_reason = ''
 
         response: StorageResponseV2 = await self.endpoint.v2.GET(
             include_raid=True)
@@ -119,27 +127,22 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
             disk.id: disk for disk in response.disks
             }
 
-        disks = []
+        has_disk = False
 
         for target in reformat_targets:
             if target.allowed:
-                disks.append(disk_by_id[target.disk_id])
-                for capability in target.allowed:
-                    if capability.is_core_boot():
-                        assert len(target.allowed) == 1
-                        self.core_boot_capability = capability
+                has_disk = True
             for disallowed in target.disallowed:
                 if disallowed.capability.is_core_boot():
-                    self.encryption_unavailable_reason = disallowed.message
+                    encryption_unavailable_reason = disallowed.message
 
-        if not disks and self.encryption_unavailable_reason:
-            return CoreBootClassicError(
-                self, self.encryption_unavailable_reason)
+        if not has_disk and encryption_unavailable_reason:
+            return CoreBootClassicError(self, encryption_unavailable_reason)
 
         if status.error_report:
             self.app.show_error_report(status.error_report)
 
-        return GuidedDiskSelectionView(self, disks)
+        return GuidedDiskSelectionView(self, status.targets, disk_by_id)
 
     async def run_answers(self):
         # Wait for probing to finish.
@@ -288,20 +291,10 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
             raise Exception("could not process action {}".format(action))
 
     async def _guided_choice(self, choice: Optional[GuidedChoiceV2]):
-        if self.core_boot_capability is not None:
-            self.app.next_screen(self.endpoint.guided.POST(choice))
+        coro = self.endpoint.guided.POST(choice)
+        if not choice.capability.supports_manual_customization():
+            self.app.next_screen(coro)
             return
-        # FIXME It would seem natural here to pass the wait=true flag to the
-        # below HTTP calls, especially because we wrap the coroutine in
-        # wait_with_progress.
-        # Having said that, making the server return a cached result seems like
-        # the least risky option to address https://launchpad.net/bugs/1993257
-        # before the kinetic release. This is also similar to what we did for
-        # https://launchpad.net/bugs/1962205
-        if choice is not None:
-            coro = self.endpoint.guided.POST(choice)
-        else:
-            coro = self.endpoint.GET(use_cached_result=True)
         status = await self.app.wait_with_progress(coro)
         self.model = FilesystemModel(status.bootloader)
         self.model.load_server_data(status)

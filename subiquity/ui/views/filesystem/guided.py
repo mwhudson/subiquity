@@ -50,6 +50,7 @@ from subiquity.common.types import (
     Gap,
     GuidedCapability,
     GuidedChoiceV2,
+    GuidedStorageTargetManual,
     GuidedStorageTargetReformat,
     Partition,
 )
@@ -165,9 +166,13 @@ class GuidedChoiceForm(SubForm):
 
     def __init__(self, parent):
         super().__init__(parent, initial={'use_lvm': True})
+        self.tpm_choice = None
         options = []
         tables = []
         initial = -1
+        self.targets_by_id = {
+            target.disk_id: target for target in parent.reformats
+            }
         for disk in parent.disks:
             for obj, cells in summarize_device(disk):
                 table = TablePile([TableRow(cells)])
@@ -183,21 +188,41 @@ class GuidedChoiceForm(SubForm):
             t0.bind(t)
         self.disk.widget.options = options
         self.disk.widget.index = initial
-        connect_signal(self.use_lvm.widget, 'change', self._toggle)
+        self._select_disk(None, options[initial].value)
+        connect_signal(self.disk.widget, 'select', self._select_disk)
+        connect_signal(self.use_lvm.widget, 'change', self._toggle_lvm)
         self.lvm_options.enabled = self.use_lvm.value
-        if parent.core_boot_capability is not None:
-            self.remove_field('use_lvm')
+        if GuidedCapability.LVM_LUKS not in parent.all_caps:
             self.remove_field('lvm_options')
-            self.tpm_choice = choices[parent.core_boot_capability]
+        if GuidedCapability.LVM not in parent.all_caps:
+            self.remove_field('use_lvm')
+        core_boot_caps = [
+            c for c in parent.all_caps if c.is_core_boot()]
+        if not core_boot_caps:
+            self.remove_field('use_tpm')
+
+    def _select_disk(self, sender, val):
+        target = self.targets_by_id[val.id]
+        self.use_lvm.enabled = GuidedCapability.LVM in target.allowed
+        core_boot_caps = [
+            c for c in target.allowed if c.is_core_boot()]
+        if core_boot_caps:
+            assert len(target.allowed) == 1
+            cap = core_boot_caps[0]
+            reason = ''
+            for disallowed in target.disallowed:
+                if disallowed.capability == \
+                   GuidedCapability.CORE_BOOT_ENCRYPTED:
+                    reason = disallowed.message
+            self.tpm_choice = choices[cap]
             self.use_tpm.enabled = self.tpm_choice.enabled
             self.use_tpm.value = self.tpm_choice.default
             self.use_tpm.help = self.tpm_choice.help
-            self.use_tpm.help = self.tpm_choice.help.format(
-                reason=parent.encryption_unavailable_reason)
+            self.use_tpm.help = self.tpm_choice.help.format(reason=reason)
         else:
-            self.remove_field('use_tpm')
+            self.tpm_choice = None
 
-    def _toggle(self, sender, val):
+    def _toggle_lvm(self, sender, val):
         self.lvm_options.enabled = val
         self.validated()
 
@@ -212,11 +237,10 @@ class GuidedForm(Form):
 
     cancel_label = _("Back")
 
-    def __init__(self, disks, core_boot_capability,
-                 encryption_unavailable_reason):
+    def __init__(self, disks, reformats, all_caps):
         self.disks = disks
-        self.core_boot_capability = core_boot_capability
-        self.encryption_unavailable_reason = encryption_unavailable_reason
+        self.reformats = reformats
+        self.all_caps = all_caps
         super().__init__()
         connect_signal(self.guided.widget, 'change', self._toggle_guided)
 
@@ -271,22 +295,30 @@ class GuidedDiskSelectionView(BaseView):
 
     title = _("Guided storage configuration")
 
-    def __init__(self, controller, disks):
+    def __init__(self, controller, targets, disk_by_id):
         self.controller = controller
 
-        if disks:
-            if any(disk.ok_for_guided for disk in disks):
-                reason = controller.encryption_unavailable_reason
-                self.form = GuidedForm(
-                    disks=disks,
-                    core_boot_capability=self.controller.core_boot_capability,
-                    encryption_unavailable_reason=reason)
+        reformats = []
+        disks = []
+        all_caps = set()
 
-                if self.controller.core_boot_capability is not None:
+        for target in targets:
+            if isinstance(target, GuidedStorageTargetReformat):
+                reformats.append(target)
+                disks.append(disk_by_id[target.disk_id])
+                all_caps.update(target.allowed)
+                all_caps.update(d.capability for d in target.disallowed)
+            elif isinstance(target, GuidedStorageTargetManual):
+                all_caps.update(target.allowed)
+
+        if disk_by_id:
+            if reformats:
+                self.form = GuidedForm(
+                    disks=disks, reformats=reformats, all_caps=all_caps)
+
+                if GuidedCapability.MANUAL not in all_caps:
                     self.form = self.form.guided_choice.widget.form
-                    excerpt = _(
-                        "Choose a disk to install this core boot classic "
-                        "system to:")
+                    excerpt = _("Choose a disk to install to:")
                 else:
                     excerpt = _(subtitle)
 
@@ -313,35 +345,38 @@ class GuidedDiskSelectionView(BaseView):
     def done(self, sender):
         results = sender.as_data()
         password = None
-        disk_id = None
-        if self.controller.core_boot_capability is not None:
-            if results.get('use_tpm', sender.tpm_choice.default):
-                capability = GuidedCapability.CORE_BOOT_ENCRYPTED
+        capability = None
+        if isinstance(self.form, GuidedForm):
+            if results['custom']:
+                capability = GuidedCapability.MANUAL
+                disk_id = None
             else:
-                capability = GuidedCapability.CORE_BOOT_UNENCRYPTED
-            disk_id = results['disk'].id
-        elif results['guided']:
-            if results['guided_choice']['use_lvm']:
-                opts = results['guided_choice'].get('lvm_options', {})
+                results = results['guided_choice']
+                sender = sender.guided_choice.widget.form
+        if capability is None:
+            if sender.tpm_choice is not None:
+                if results.get('use_tpm', sender.tpm_choice.default):
+                    capability = GuidedCapability.CORE_BOOT_ENCRYPTED
+                else:
+                    capability = GuidedCapability.CORE_BOOT_UNENCRYPTED
+            elif results['use_lvm']:
+                opts = results.get('lvm_options', {})
                 if opts.get('encrypt', False):
                     capability = GuidedCapability.LVM_LUKS
                     password = opts['luks_options']['passphrase']
                 else:
                     capability = GuidedCapability.LVM
-            else:
-                capability = GuidedCapability.DIRECT
-            disk_id = results['guided_choice']['disk'].id
-        else:
-            disk_id = None
+            disk_id = results['disk'].id
         if disk_id is not None:
-            choice = GuidedChoiceV2(
-                target=GuidedStorageTargetReformat(
-                    disk_id=disk_id, allowed=[capability]),
-                capability=capability,
-                password=password,
-                )
+            target = GuidedStorageTargetReformat(
+                disk_id=disk_id, allowed=[capability])
         else:
-            choice = None
+            target = GuidedStorageTargetManual()
+        choice = GuidedChoiceV2(
+            target=target,
+            capability=capability,
+            password=password,
+            )
         self.controller.guided_choice(choice)
 
     def manual(self, sender):
