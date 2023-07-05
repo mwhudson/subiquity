@@ -180,7 +180,10 @@ class FilesystemController(SubiquityTuiController, FilesystemManipulator):
                 await asyncio.sleep(0.1)
             self.finish()
         elif self.answers['manual']:
-            await self._guided_choice(None)
+            await self._guided_choice(
+                GuidedChoiceV2(
+                    target=GuidedStorageTargetManual(),
+                    capability=GuidedCapability.MANUAL))
             await self._run_actions(self.answers['manual'])
             self.answers['manual'] = []
 

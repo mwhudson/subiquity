@@ -366,6 +366,8 @@ class GuidedDiskSelectionView(BaseView):
                     password = opts['luks_options']['passphrase']
                 else:
                     capability = GuidedCapability.LVM
+            else:
+                capability = GuidedCapability.DIRECT
             disk_id = results['disk'].id
         if disk_id is not None:
             target = GuidedStorageTargetReformat(
