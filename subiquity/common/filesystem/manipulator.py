@@ -13,6 +13,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import contextlib
+import copy
 import logging
 
 from curtin.block import get_resize_fstypes
@@ -407,3 +409,12 @@ class FilesystemManipulator:
         if not new_boot_disk._has_preexisting_partition():
             if new_boot_disk.type == "disk":
                 new_boot_disk.preserve = False
+
+    @contextlib.contextmanager()
+    def ephemeral_copy(self, device):
+        actions = self.model._actions[:]
+        self.model._actions = copy.deepcopy(actions)
+        try:
+            yield self.model._one(id=device.id)
+        finally:
+            self.model._actions = actions

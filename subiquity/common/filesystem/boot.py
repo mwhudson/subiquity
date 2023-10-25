@@ -157,6 +157,71 @@ class MultiStepPlan(MakeBootDevicePlan):
             plan.apply(manipulator)
 
 
+class ImpossibleAction(Exception):
+    pass
+
+
+def make_boot_device_bios(manipulator, device):
+    device.grub_device = True
+    if device.ptable == "msdos":
+        return
+    pgs = gaps.parts_and_gaps(device)
+    if len(pgs) > 0:
+        if isinstance(pgs[0], Partition) and pgs[0].flag == "bios_grub":
+            return
+    movable = []
+
+    gap = gaps.Gap(
+        device=device,
+        offset=device.alignment_data().min_start_offset,
+        size=sizes.BIOS_GRUB_SIZE_BYTES,
+    )
+
+    for pg in pgs:
+        if isinstance(pg, gaps.Gap):
+            if pg.size >= sizes.BIOS_GRUB_SIZE_BYTES:
+                for part in movable:
+                    part.offset += sizes.BIOS_GRUB_SIZE_BYTES
+                manipulator.create_partition(
+                    device,
+                    gap,
+                    spec=dict(size=sizes.BIOS_GRUB_SIZE_BYTES, fstype=None, mount=None),
+                    flag="bios_grub",
+                )
+            else:
+                raise ImpossibleAction
+        elif pg.preserve:
+            break
+        else:
+            movable.append(pg)
+
+    if not movable:
+        raise ImpossibleAction
+
+    largest_i, largest_part = max(enumerate(movable), key=lambda i_p: i_p[1].size)
+
+    largest_part.size -= sizes.BIOS_GRUB_SIZE_BYTES
+
+    for part in movable[: largest_i + 1]:
+        part.offset += sizes.BIOS_GRUB_SIZE_BYTES
+
+    manipulator.create_partition(
+        device,
+        gap,
+        spec=dict(size=sizes.BIOS_GRUB_SIZE_BYTES, fstype=None, mount=None),
+        flag="bios_grub",
+    )
+
+
+def can_be_boot_device(manipulator, device):
+    with manipulator.ephemeral_copy(device) as e:
+        try:
+            make_boot_device_bios(manipulator, e)
+            return True
+        except ImpossibleAction:
+            return False
+
+
 def get_boot_device_plan_bios(device) -> Optional[MakeBootDevicePlan]:
     attr_plan = SetAttrPlan(device, "grub_device", True)
     if device.ptable == "msdos":
@@ -266,6 +331,73 @@ def get_add_part_plan(device, *, spec, args, resize_partition=None):
                 create_part_plan,
             ]
         )
+
+
+def add_part(manipulator, device, *, spec, args, resize_partition=None):
+    size = spec["size"]
+    partitions = device.partitions()
+
+    create_part_plan = CreatePartPlan(gap=None, spec=spec, args=args)
+
+    # Per LP: #1796260, it is known that putting an ESP on a logical partition
+    # is a bad idea.  So avoid putting any sort of boot stuff on a logical -
+    # it's probably a bad idea for all cases.
+
+    gap = gaps.first_gap_with_size(device, size, in_extended=False)
+    if gap is not None:
+        manipulator.create_partition(device, gap, spec, **args)
+    elif resize_partition is not None and not resize_partition.is_logical:
+        if size > resize_partition.size - resize_partition.estimated_min_size:
+            raise ImpossibleAction
+        resize_partition.size -= size
+        offset = resize_partition.offset + resize_partition.size - size
+        gap = gaps.Gap(device=device, offset=offset, size=size)
+        manipulator.create_partition(device, gap, spec, **args)
+    else:
+        new_primaries = [
+            p
+            for p in partitions
+            if not p.preserve
+            if p.flag not in ("extended", "logical")
+        ]
+        if not new_primaries:
+            raise ImpossibleAction
+        largest_part = max(new_primaries, key=lambda p: p.size)
+        if size > largest_part.size // 2:
+            raise ImpossibleAction
+        create_part_plan.gap = gaps.Gap(
+            device=device, offset=largest_part.offset, size=size
+        )
+        return MultiStepPlan(
+            plans=[
+                ResizePlan(part=largest_part, size_delta=-size),
+                SlidePlan(parts=[largest_part], offset_delta=size),
+                create_part_plan,
+            ]
+        )
+
+
+def make_boot_device_uefi(manipulator, device, resize_partition):
+    for part in device.partitions():
+        if is_esp(part):
+            part.grub_device = True
+            if device._m._mount_for_path("/boot/efi") is None:
+                manipulator.add_mount("/boot/efi")
+            return
+
+    part_align = device.alignment_data().part_align
+    size = align_up(sizes.get_efi_size(device.size), part_align)
+    spec = dict(size=size, fstype="fat32", mount=None)
+    if device._m._mount_for_path("/boot/efi") is None:
+        spec["mount"] = "/boot/efi"
+
+    return add_part(
+        manipulator,
+        device,
+        spec=spec,
+        args=dict(flag="boot", grub_device=True),
+        resize_partition=resize_partition,
+    )
 
 
 def get_boot_device_plan_uefi(device, resize_partition):
