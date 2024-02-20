@@ -210,6 +210,10 @@ class SystemDetails:
     )
 
 
+class SystemsResponse:
+    systems: List[SystemDetails] = attr.Factory(list)
+
+
 class SystemAction(enum.Enum):
     INSTALL = "install"
 
@@ -258,6 +262,9 @@ class SnapdAPI:
                 ...
 
         class systems:
+            def GET() -> SystemsResponse:
+                ...
+
             @path_parameter
             class label:
                 def GET() -> SystemDetails:
