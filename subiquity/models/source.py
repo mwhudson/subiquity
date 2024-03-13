@@ -27,7 +27,7 @@ log = logging.getLogger("subiquity.models.source")
 
 @attr.s(auto_attribs=True)
 class CatalogEntryVariation:
-    path: str
+    path: typing.Optional[str]
     size: int
     snapd_system_label: typing.Optional[str] = None
 
@@ -38,7 +38,7 @@ class CatalogEntry:
     id: str
     name: typing.Dict[str, str]
     description: typing.Dict[str, str]
-    path: str
+    path: typing.Optional[str]
     size: int
     type: str
     default: bool = False
@@ -101,11 +101,15 @@ class SourceModel:
                 return source
         raise KeyError
 
-    def get_source(self, variation_name: typing.Optional[str] = None):
+    def get_source(
+        self, variation_name: typing.Optional[str] = None
+    ) -> typing.Optional[str]:
         if variation_name is None:
             variation = next(iter(self.current.variations.values()))
         else:
             variation = self.current.variations[variation_name]
+        if variation.path is None:
+            return None
         path = os.path.join(self._dir, variation.path)
         if self.current.preinstalled_langs:
             base, ext = os.path.splitext(path)

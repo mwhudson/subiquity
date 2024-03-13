@@ -288,6 +288,9 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
     def is_core_boot_classic(self):
         return self._info.is_core_boot_classic()
 
+    def partition_via_gadget(self) -> bool:
+        return self._on_volume is not None
+
     def load_autoinstall_data(self, data):
         # Log disabled to prevent LUKS password leak
         # log.debug("load_autoinstall_data %s", data)
@@ -337,7 +340,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             self._source_handler = None
 
     async def _get_system(self, variation_name, label):
-        systems = self.app.snapdapi.v2.systems.GET()
+        systems = await self.app.snapdapi.v2.systems.GET()
         labels = {system.label for system in systems}
         if label in labels:
             try:
