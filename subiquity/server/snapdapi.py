@@ -210,6 +210,7 @@ class SystemDetails:
     )
 
 
+@attr.s(auto_attribs=True)
 class SystemsResponse:
     systems: List[SystemDetails] = attr.Factory(list)
 

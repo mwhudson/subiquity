@@ -341,7 +341,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
 
     async def _get_system(self, variation_name, label):
         systems = await self.app.snapdapi.v2.systems.GET()
-        labels = {system.label for system in systems}
+        labels = {system.label for system in systems.systems}
         if label in labels:
             try:
                 system = await self.app.snapdapi.v2.systems[label].GET()
@@ -870,8 +870,8 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
     async def guided_core_boot(self, disk: Disk):
         # Formatting for a core boot classic system relies on some curtin
         # features that are only available with v2 partitioning.
-        systems = self.app.snapdapi.v2.systems.GET()
-        labels = {system.label for system in systems}
+        systems = await self.app.snapdapi.v2.systems.GET()
+        labels = {system.label for system in systems.systems}
         if self._info.label not in labels:
             await self._mount_systems_dir(self._info.name)
         self.model.storage_version = 2
