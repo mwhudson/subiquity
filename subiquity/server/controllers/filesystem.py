@@ -311,6 +311,8 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
 
     async def _mount_systems_dir(self, variation_name):
         self._source_handler = self.app.controllers.Source.get_handler(variation_name)
+        if self._source_handler is None:
+            raise NoSnapdSystemsOnSource
         source_path = self._source_handler.setup()
         cur_systems_dir = "/var/lib/snapd/seed/systems"
         source_systems_dir = os.path.join(source_path, cur_systems_dir[1:])
@@ -469,6 +471,8 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                         ),
                     )
                 self._variation_info[name] = info
+            elif catalog_entry.type is None:
+                raise Exception("wtf")
             elif catalog_entry.type.startswith("dd-"):
                 min_size = variation.size
                 self._variation_info[name] = VariationInfo.dd(

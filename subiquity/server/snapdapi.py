@@ -203,6 +203,7 @@ class StorageEncryption:
 
 @attr.s(auto_attribs=True)
 class SystemDetails:
+    label: str
     current: bool = False
     volumes: Dict[str, Volume] = attr.Factory(dict)
     storage_encryption: Optional[StorageEncryption] = named_field(
