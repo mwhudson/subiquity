@@ -32,15 +32,15 @@ class CatalogEntryVariation:
     snapd_system_label: typing.Optional[str] = None
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, kw_only=True)
 class CatalogEntry:
     variant: str
     id: str
     name: typing.Dict[str, str]
     description: typing.Dict[str, str]
-    path: typing.Optional[str]
+    path: str = ""
     size: int
-    type: str
+    type: typing.Optional[str]
     default: bool = False
     locale_support: str = attr.ib(default="locale-only")
     preinstalled_langs: typing.List[str] = attr.Factory(list)
@@ -104,12 +104,13 @@ class SourceModel:
     def get_source(
         self, variation_name: typing.Optional[str] = None
     ) -> typing.Optional[str]:
+        scheme = self.current.type
+        if scheme is None:
+            return None
         if variation_name is None:
             variation = next(iter(self.current.variations.values()))
         else:
             variation = self.current.variations[variation_name]
-        if variation.path is None:
-            return None
         path = os.path.join(self._dir, variation.path)
         if self.current.preinstalled_langs:
             base, ext = os.path.splitext(path)
@@ -118,7 +119,6 @@ class SourceModel:
             else:
                 suffix = "no-languages"
             path = base + "." + suffix + ext
-        scheme = self.current.type
         return f"{scheme}://{path}"
 
     def render(self):
