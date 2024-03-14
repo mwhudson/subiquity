@@ -39,7 +39,7 @@ validate () {
             autoinstall-reset-only)
                 python3 scripts/validate-yaml.py --no-root-mount "${cfgs[@]}"
                 ;;
-            answers-core)
+            answers-core-desktop)
                 ;;
             *)
                 python3 scripts/validate-yaml.py "${cfgs[@]}"
@@ -223,7 +223,7 @@ for answers in examples/answers/*.yaml; do
             --snaps-from-examples \
             --source-catalog $catalog
         validate install
-        if [ $answers != examples/answers/core.yaml ]; then
+        if [ $answers != examples/answers/core-desktop.yaml ]; then
             grep -q 'finish: subiquity/Install/install/postinstall/run_unattended_upgrades: SUCCESS: downloading and installing security updates' $tmpdir/subiquity-server-debug.log
         fi
     else
