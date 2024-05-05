@@ -1,72 +1,43 @@
 {
-    "type": "sync",
-    "status-code": 200,
-    "status": "OK",
-    "result": {
-	"systems": [
-	    {
-		"label": "mandatory",
-		"model": {
-		    "architecture": "amd64",
-		    "authority-id": "9XoOBkC2zdzx5CVZdl0ZVYuLpCo15ww0",
-		    "base": "core22",
-		    "brand-id": "9XoOBkC2zdzx5CVZdl0ZVYuLpCo15ww0",
-		    "classic": "true",
-		    "distribution": "ubuntu",
-		    "grade": "dangerous",
-		    "model": "mwhudson-22-classic-dangerous",
-		    "serial-authority": [
-			"generic"
-		    ],
-		    "series": "16",
-		    "sign-key-sha3-384": "AWEzKBCuROAYkR0dQfdgI95Ih9sWqwxpU1yezWkKT3EUX6LgNNgXFWSNUxC1S2_v",
-		    "snaps": [
-			{
-			    "default-channel": "22/edge",
-			    "id": "UqFziVZDHLSyO3TqSWgNBoAdHbLI4dAH",
-			    "name": "pc",
-			    "type": "gadget"
-			},
-			{
-			    "default-channel": "22/edge",
-			    "id": "pYVQrBcKmBa0mZ4CCN7ExT6jH8rY1hza",
-			    "name": "pc-kernel",
-			    "type": "kernel"
-			},
-			{
-			    "default-channel": "latest/edge",
-			    "id": "amcUKQILKXHHTlmSa7NMdnXSx02dNeeT",
-			    "name": "core22",
-			    "type": "base"
-			},
-			{
-			    "default-channel": "latest/edge",
-			    "id": "PMrrV4ml8uWuEUDBT8dSGnKUYbevVhc4",
-			    "name": "snapd",
-			    "type": "snapd"
-			}
-		    ],
-		    "timestamp": "2022-10-07T02:25:51+00:00",
-		    "type": "model"
-		},
-		"brand": {
-		    "id": "9XoOBkC2zdzx5CVZdl0ZVYuLpCo15ww0",
-		    "username": "mwhudson",
-		    "display-name": "Michael Hudson-Doyle",
-		    "validation": "unproven"
-		},
-		"actions": [
-		    {
-			"title": "Install",
-			"mode": "install"
-		    }
-		],
-		"storage-encryption": {
-		    "support": "available",
-		    "storage-safety": "encrypted",
-		    "encryption-type": "cryptsetup"
-		}
-	    }
-	]
-    }
+  "type": "sync",
+  "status-code": 200,
+  "status": "OK",
+  "result": {
+    "systems": [
+      {
+        "current": true,
+        "label": "20240314",
+        "model": {
+          "model": "ubuntu-core-24-amd64-dangerous",
+          "brand-id": "canonical",
+          "display-name": "ubuntu-core-24-amd64-dangerous"
+        },
+        "brand": {
+          "id": "canonical",
+          "username": "canonical",
+          "display-name": "Canonical",
+          "validation": "verified"
+        },
+        "actions": [
+          {
+            "title": "Reinstall",
+            "mode": "install"
+          },
+          {
+            "title": "Recover",
+            "mode": "recover"
+          },
+          {
+            "title": "Factory reset",
+            "mode": "factory-reset"
+          },
+          {
+            "title": "Run normally",
+            "mode": "run"
+          }
+        ],
+        "default-recovery-system": true
+      }
+    ]
+  }
 }
