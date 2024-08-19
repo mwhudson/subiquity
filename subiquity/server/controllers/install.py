@@ -409,7 +409,6 @@ class InstallController(SubiquityController):
                         }
                     ),
                 )
-            await fs_controller.finish_install(context=context)
             await self.setup_target(context=context)
         else:
             await run_curtin_step(
@@ -674,6 +673,13 @@ class InstallController(SubiquityController):
                     await self.install_package(context=context, package=package.name)
         finally:
             await self.configure_cloud_init(context=context)
+
+        fs_controller = self.app.controllers.Filesystem
+        if fs_controller.use_snapd_install_api():
+            if self.supports_apt():
+                if self.model.drivers.do_install:
+                    pass
+            await fs_controller.finish_install(context=context)
 
         if self.supports_apt():
             if self.model.drivers.do_install:

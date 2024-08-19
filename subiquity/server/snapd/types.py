@@ -208,16 +208,50 @@ class StorageEncryption:
 
 
 @snapdtype
-class SystemDetails:
+class AvailableOptional:
+    snaps: List[str]
+    components: Dict[str, List[str]]
+
+
+class ModelSnapType(enum.Enum):
+    KERNEL = "kernel"
+    GADGET = "gadget"
+    BASE = "base"
+    SNAPD = "snapd"
+    APP = "app"
+
+
+@snapdtype
+class ModelSnap:
+    default_channel: str
+    id: str
+    name: str
+    type: NonExhaustive[ModelSnapType]
+
+
+@snapdtype
+class Model:
+    architecture: str
+    snaps: List[ModelSnap]
+
+
+@snapdtype
+class ShortSystemDetails:
     label: str
     current: bool = False
     volumes: Dict[str, Volume] = attr.Factory(dict)
     storage_encryption: Optional[StorageEncryption] = None
 
 
+@attr.s(auto_attribs=True, kw_only=True)
+class SystemDetails(ShortSystemDetails):
+    model: Model
+    available_optional: Optional[AvailableOptional] = None
+
+
 @snapdtype
 class SystemsResponse:
-    systems: List[SystemDetails] = attr.Factory(list)
+    systems: List[ShortSystemDetails] = attr.Factory(list)
 
 
 class SystemAction(enum.Enum):
