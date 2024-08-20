@@ -234,6 +234,12 @@ class Model:
     architecture: str
     snaps: List[ModelSnap]
 
+    def snap_of_type(self, typ: ModelSnapType) -> Optional[ModelSnap]:
+        for snap in self.snaps:
+            if snap.type == typ:
+                return snap
+        return None
+
 
 @snapdtype
 class ShortSystemDetails:
@@ -243,7 +249,7 @@ class ShortSystemDetails:
     storage_encryption: Optional[StorageEncryption] = None
 
 
-@attr.s(auto_attribs=True, kw_only=True)
+@snapdtype
 class SystemDetails(ShortSystemDetails):
     model: Model
     available_optional: Optional[AvailableOptional] = None
@@ -261,6 +267,11 @@ class SystemAction(enum.Enum):
 class SystemActionStep(enum.Enum):
     SETUP_STORAGE_ENCRYPTION = "setup-storage-encryption"
     FINISH = "finish"
+
+
+@snapdtype
+class OptionalInstall(AvailableOptional):
+    all: bool = False
 
 
 @snapdtype

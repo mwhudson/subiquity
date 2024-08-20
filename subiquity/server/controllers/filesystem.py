@@ -207,6 +207,16 @@ class VariationInfo:
     min_size: Optional[int] = None
     system: Optional[SystemDetails] = None
     needs_systems_mount: bool = False
+    kernel_components: List[str] = attr.Factory(list)
+
+    @property
+    def available_kernel_components(self) -> List[str]:
+        if not self.system.available_optional:
+            return []
+        kernel = self.system.model.snap_of_type(snapdtypes.ModelSnapType.KERNEL)
+        if kernel is None:
+            return []
+        return self.system.available_optional.get(kernel.name, [])
 
     def is_core_boot_classic(self) -> bool:
         return self.label is not None
@@ -413,18 +423,23 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
             )
         search_drivers = self.app.base_model.source.search_drivers
         if search_drivers is not SEARCH_DRIVERS_AUTOINSTALL_DEFAULT and search_drivers:
-            log.debug(
-                "Disabling core boot based install options as third-party "
-                "drivers selected"
-            )
-            info.capability_info.disallow_if(
-                lambda cap: cap.is_core_boot(),
-                GuidedDisallowedCapabilityReason.THIRD_PARTY_DRIVERS,
-                _(
-                    "Enhanced secure boot options cannot currently install "
-                    "third party drivers."
-                ),
-            )
+            has_nvidia_component = False
+            for component_name in info.available_kernel_components:
+                if "nvidia" in component_name:
+                    has_nvidia_component = True
+            if not has_nvidia_component:
+                log.debug(
+                    "Disabling core boot based install options as third-party "
+                    "drivers selected"
+                )
+                info.capability_info.disallow_if(
+                    lambda cap: cap.is_core_boot(),
+                    GuidedDisallowedCapabilityReason.THIRD_PARTY_DRIVERS,
+                    _(
+                        "Enhanced secure boot options cannot currently install "
+                        "third party drivers."
+                    ),
+                )
 
     async def _examine_systems(self):
         self._variation_info.clear()
