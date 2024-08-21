@@ -298,7 +298,6 @@ class Serializer:
                 args[field.name] = self._deserialize(
                     field.type, context.child(f"[{key!r}]", value, field.metadata)
                 )
-            print(context.cur)
             return annotation(**args)
 
     def _deserialize_enum(self, annotation, context):
