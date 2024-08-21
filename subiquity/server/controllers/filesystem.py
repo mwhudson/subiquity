@@ -965,8 +965,14 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                     fs.volume = arb_device
 
     @with_context(description="making system bootable")
-    async def finish_install(self, context):
+    async def finish_install(self, context, kernel_components):
         label = self._info.label
+        optional_install = None
+        kernel = self.system.model.snap_of_type(snapdtypes.ModelSnapType.KERNEL)
+        if kernel is not None:
+            optional_install = snapdtypes.OptionalInstall(
+                components={kernel: kernel_components}
+            )
         await snapdapi.post_and_wait(
             self.app.snapdapi,
             self.app.snapdapi.v2.systems[label].POST,
@@ -974,6 +980,7 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
                 action=snapdtypes.SystemAction.INSTALL,
                 step=snapdtypes.SystemActionStep.FINISH,
                 on_volumes=self._on_volumes(),
+                optional_install=optional_install,
             ),
         )
 

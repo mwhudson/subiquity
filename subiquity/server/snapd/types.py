@@ -209,8 +209,8 @@ class StorageEncryption:
 
 @snapdtype
 class AvailableOptional:
-    snaps: List[str]
-    components: Dict[str, List[str]]
+    snaps: List[str] = attr.Factory(list)
+    components: Dict[str, List[str]] = attr.Factory(dict)
 
 
 class ModelSnapType(enum.Enum):
@@ -279,6 +279,7 @@ class SystemActionRequest:
     action: SystemAction
     step: SystemActionStep
     on_volumes: Dict[str, OnVolume]
+    optional_install: Optional[OptionalInstall] = None
 
 
 @snapdtype

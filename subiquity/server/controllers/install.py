@@ -38,7 +38,7 @@ from subiquity.common.pkg import TargetPkg
 from subiquity.common.types import ApplicationState, PackageInstallState
 from subiquity.journald import journald_listen
 from subiquity.models.filesystem import ActionRenderMode, Partition
-from subiquity.server.controller import SubiquityController
+from subiquity.server.controller import SubiquityController, VariationInfo
 from subiquity.server.curtin import run_curtin_command
 from subiquity.server.mounter import Mounter, Mountpoint
 from subiquity.server.types import InstallerChannels
@@ -654,6 +654,24 @@ class InstallController(SubiquityController):
                     log.warning("chreipl stderr:\n%s", cpe.stderr)
                 raise
 
+    def kernel_components(self) -> List[str]:
+        if not self.supports_apt():
+            return []
+        if not self.model.drivers.do_install:
+            return []
+        info: VariationInfo = self.app.controllers.Filesystem._info
+        kernel_components = info.available_kernel_components
+        for driver in self.app.controllers.Drivers.drivers:
+            m = re.match("nvidia-driver-([0-9]+)")
+            if not m:
+                continue
+            v = m.match(1)
+            ko = f"nvidia-{v}-ko"
+            user = f"nvidia-{v}-user"
+            if ko in kernel_components and user in kernel_components:
+                return [ko, user]
+        return []
+
     @with_context(
         description="final system configuration", level="INFO", childlevel="DEBUG"
     )
@@ -676,10 +694,9 @@ class InstallController(SubiquityController):
 
         fs_controller = self.app.controllers.Filesystem
         if fs_controller.use_snapd_install_api():
-            if self.supports_apt():
-                if self.model.drivers.do_install:
-                    pass
-            await fs_controller.finish_install(context=context)
+            await fs_controller.finish_install(
+                context=context, kernel_components=self.kernel_components()
+            )
 
         if self.supports_apt():
             if self.model.drivers.do_install:
