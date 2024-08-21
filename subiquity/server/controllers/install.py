@@ -38,7 +38,8 @@ from subiquity.common.pkg import TargetPkg
 from subiquity.common.types import ApplicationState, PackageInstallState
 from subiquity.journald import journald_listen
 from subiquity.models.filesystem import ActionRenderMode, Partition
-from subiquity.server.controller import SubiquityController, VariationInfo
+from subiquity.server.controller import SubiquityController
+from subiquity.server.controllers.filesystem import VariationInfo
 from subiquity.server.curtin import run_curtin_command
 from subiquity.server.mounter import Mounter, Mountpoint
 from subiquity.server.types import InstallerChannels

@@ -968,10 +968,10 @@ class FilesystemController(SubiquityController, FilesystemManipulator):
     async def finish_install(self, context, kernel_components):
         label = self._info.label
         optional_install = None
-        kernel = self.system.model.snap_of_type(snapdtypes.ModelSnapType.KERNEL)
+        kernel = self._info.system.model.snap_of_type(snapdtypes.ModelSnapType.KERNEL)
         if kernel is not None:
             optional_install = snapdtypes.OptionalInstall(
-                components={kernel: kernel_components}
+                components={kernel.name: kernel_components}
             )
         await snapdapi.post_and_wait(
             self.app.snapdapi,

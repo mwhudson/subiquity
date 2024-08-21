@@ -1847,6 +1847,10 @@ class TestCoreBootInstallMethods(IsolatedAsyncioTestCase):
                 volumes={
                     "pc": snapdtypes.Volume(schema="gpt", structure=structures),
                 },
+                model=snapdtypes.Model(
+                    architecture="amd64",
+                    snaps=[],
+                ),
             ),
         )
 
@@ -2023,7 +2027,9 @@ class TestCoreBootInstallMethods(IsolatedAsyncioTestCase):
         with mock.patch.object(
             snapdapi, "post_and_wait", new_callable=mock.AsyncMock
         ) as mocked:
-            await self.fsc.finish_install(context=self.fsc.context)
+            await self.fsc.finish_install(
+                context=self.fsc.context, kernel_components=[]
+            )
         mocked.assert_called_once()
         [call] = mocked.mock_calls
         request = call.args[2]
