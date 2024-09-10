@@ -221,12 +221,23 @@ class ModelSnapType(enum.Enum):
     APP = "app"
 
 
+class PresenceValue(enum.Enum):
+    REQUIRED = "required"
+    OPTIONAL = "optional"
+
+
+@snapdtype
+class Presence:
+    presence: PresenceValue
+
+
 @snapdtype
 class ModelSnap:
     default_channel: str
     id: str
     name: str
     type: NonExhaustive[ModelSnapType]
+    components: Optional[Dict[str, Presence]] = None
 
 
 @snapdtype
