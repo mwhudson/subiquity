@@ -216,7 +216,7 @@ class VariationInfo:
         kernel = self.system.model.snap_of_type(snapdtypes.ModelSnapType.KERNEL)
         if kernel is None:
             return []
-        return self.system.available_optional.get(kernel.name, [])
+        return self.system.available_optional.components.get(kernel.name, [])
 
     def is_core_boot_classic(self) -> bool:
         return self.label is not None
