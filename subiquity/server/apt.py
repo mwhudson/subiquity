@@ -281,9 +281,15 @@ class AptConfigurer:
         if not new_style_iso:
             # If we _didn't_ find a cdrom.sources, we need to add the ISO pool
             # as a package source.
+            cdimage_key_path = "/usr/share/keyrings/ubuntu-cdimage-keyring.gpg"
+            options = ["check-date=no"]
+            if self.configured_tree.pp(cdimage_key_path[1:]):
+                options.append(f"signed-by={cdimage_key_path}")
+            options_str = "[" + " ".join(options) + "]"
+
             write_file(
                 self.install_tree.p("etc/apt/sources.list"),
-                f"deb [check-date=no] file:///cdrom {codename} main restricted\n",
+                f"deb {options_str} file:///cdrom {codename} main restricted\n",
                 mode=0o644,
             )
 
